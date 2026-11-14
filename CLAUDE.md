@@ -24,6 +24,8 @@ manager is pnpm.
 
 ## Rules
 
+- Plan and build each change in its own worktree, then collapse it into
+  `master`. See `.claude/rules/worktrees.md`.
 - Build features and fix bugs test-first with the `tdd` skill. See
   `.claude/rules/test-driven-development.md`.
 - shadcn on Base UI uses the `render` prop, not `asChild`.
