@@ -55,7 +55,7 @@ export function AppSidebar({
 
   const linkTo = (conversation: Conversation, children: ReactNode) => {
     const isUnread =
-      conversation.id !== currentId && unread.includes(conversation.id)
+      conversation.id !== currentId && (unread[conversation.id] ?? 0) > 0
     return (
       <Link
         href={`/conversations/${conversation.id}`}

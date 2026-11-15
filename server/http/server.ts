@@ -77,7 +77,7 @@ export function createServer({
   const channels = new Map<string, Channel>()
   const appChannel: Channel = { nextId: 1, log: [], clients: new Set() }
   const sentAgentStates = new Map<string, SessionState>()
-  const sentUnread = new Map<string, boolean>()
+  const sentUnread = new Map<string, number>()
   const promptCursors = new Map<string, number>()
   const openRequests = new Map<
     string,
@@ -111,10 +111,10 @@ export function createServer({
   }
 
   function publishUnread(conversationId: string) {
-    const unread = store.listUnread().includes(conversationId)
-    if (sentUnread.get(conversationId) === unread) return
-    sentUnread.set(conversationId, unread)
-    publishTo(appChannel, { type: "unread", conversationId, unread })
+    const count = store.unreadCounts()[conversationId] ?? 0
+    if ((sentUnread.get(conversationId) ?? 0) === count) return
+    sentUnread.set(conversationId, count)
+    publishTo(appChannel, { type: "unread", conversationId, count })
   }
 
   function findLive(agentId: string, conversationId: string) {
@@ -665,7 +665,7 @@ export function createServer({
     if (route("GET", "api/conversations")) {
       return send(response, 200, {
         conversations: store.listConversations(),
-        unread: store.listUnread(),
+        unread: store.unreadCounts(),
       })
     }
 

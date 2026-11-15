@@ -459,18 +459,27 @@ describe("Store", () => {
 })
 
 describe("Store: unread conversations", () => {
-  test("a conversation is unread when an agent wrote in it, and a message of the user alone does not make it unread", () => {
+  test("a conversation counts each message of an agent after the last read, and a message of the user alone counts nothing", () => {
     const store = memoryStore()
     const { conversation, session } = directMessage(store)
 
     store.addUserMessage(conversation.id, "Remember the word kiwi.")
-    expect(store.listUnread()).toEqual([])
+    expect(store.unreadCounts()).toEqual({})
 
     playLive(store, session.id, "resume-1")
-    expect(store.listUnread()).toEqual([conversation.id])
+    expect(store.unreadCounts()).toEqual({ [conversation.id]: 1 })
   })
 
-  test("a conversation that the user read is not unread, until an agent writes after that place", () => {
+  test("a request for approval counts as an unread item, and a tool call does not", () => {
+    const store = memoryStore()
+    const { conversation, session } = directMessage(store)
+
+    playLive(store, session.id, "tools")
+
+    expect(store.unreadCounts()).toEqual({ [conversation.id]: 4 })
+  })
+
+  test("a conversation that the user read counts nothing, until an agent writes after that place", () => {
     const { before, restart } = restartableStore()
     const { conversation, session } = directMessage(before)
     playLive(before, session.id, "resume-1")
@@ -478,7 +487,7 @@ describe("Store: unread conversations", () => {
 
     before.markRead(conversation.id, last)
     const after = restart()
-    expect(after.listUnread()).toEqual([])
+    expect(after.unreadCounts()).toEqual({})
 
     playLive(
       after,
@@ -488,7 +497,7 @@ describe("Store: unread conversations", () => {
       }).id,
       "resume-2"
     )
-    expect(after.listUnread()).toEqual([conversation.id])
+    expect(after.unreadCounts()).toEqual({ [conversation.id]: 1 })
   })
 
   test("a read of an older place does not make a read conversation unread again", () => {
@@ -500,6 +509,6 @@ describe("Store: unread conversations", () => {
     store.markRead(conversation.id, last)
     store.markRead(conversation.id, 0)
 
-    expect(store.listUnread()).toEqual([])
+    expect(store.unreadCounts()).toEqual({})
   })
 })

@@ -203,22 +203,22 @@ export function openStore(location: string) {
     ).run({ conversationId, seq, readAt: new Date().toISOString() })
   }
 
-  function listUnread(): string[] {
-    return db
+  function unreadCounts(): Record<string, number> {
+    const rows = db
       .prepare(
-        `SELECT conversations.id FROM conversations
+        `SELECT timeline_items.conversation_id AS id, count(*) AS unread
+         FROM timeline_items
          LEFT JOIN conversation_reads
-           ON conversation_reads.conversation_id = conversations.id
-         WHERE EXISTS (
-           SELECT 1 FROM timeline_items
-           WHERE timeline_items.conversation_id = conversations.id
-             AND timeline_items.author_key LIKE 'agent:%'
-             AND timeline_items.seq > coalesce(conversation_reads.last_read_seq, 0)
-         )
-         ORDER BY conversations.created_at, conversations.rowid`
+           ON conversation_reads.conversation_id = timeline_items.conversation_id
+         WHERE timeline_items.author_key LIKE 'agent:%'
+           AND timeline_items.kind IN ('message', 'notice', 'permission', 'question')
+           AND timeline_items.seq > coalesce(conversation_reads.last_read_seq, 0)
+         GROUP BY timeline_items.conversation_id`
       )
       .all()
-      .map((row) => String(row.id))
+    return Object.fromEntries(
+      rows.map((row) => [String(row.id), Number(row.unread)])
+    )
   }
 
   function findDirectMessage(agentId: string): Conversation | undefined {
@@ -580,7 +580,7 @@ export function openStore(location: string) {
     createConversation,
     getConversation,
     listConversations,
-    listUnread,
+    unreadCounts,
     markRead,
     addMember,
     renameConversation,

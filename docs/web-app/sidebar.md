@@ -28,8 +28,8 @@ The sidebar gets its lists from `useWorkspace()` (`src/hooks/use-workspace.ts`).
 The hook opens the app stream (`/api/events`), then loads
 `GET /api/conversations` and `GET /api/agents`. An `agent_state` event
 changes the state of that agent. A `conversation` event adds the
-conversation, or replaces it if the list holds it. An `unread` event adds the
-conversation to the unread IDs, or removes it. A `reset` event loads the
+conversation, or replaces it if the list holds it. An `unread` event sets the
+unread count of the conversation. The count 0 removes it. A `reset` event loads the
 lists again.
 
 A row is bold when an agent wrote in its conversation after the last visit

@@ -19,7 +19,7 @@ beforeEach(() => {
   network = fakeNetwork()
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, squadGroup, directMessage],
-    unread: [],
+    unread: {},
   })
   network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
 })

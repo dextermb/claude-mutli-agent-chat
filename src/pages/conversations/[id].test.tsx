@@ -37,7 +37,7 @@ let network: ReturnType<typeof fakeNetwork>
 function openConversation(
   entries: TimelineEntry[],
   state = testRunner.state,
-  unread: string[] = []
+  unread: Record<string, number> = {}
 ) {
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, squadGroup, directMessage],
@@ -1399,7 +1399,7 @@ describe("a narrow screen", () => {
 
 describe("unread rows", () => {
   test("the sidebar marks each conversation in which an agent wrote after the last visit", async () => {
-    openConversation([userMessage], "idle", ["ch1"])
+    openConversation([userMessage], "idle", { ch1: 2 })
     const sidebar = await screen.findByRole("navigation", {
       name: "Conversations",
     })
@@ -1422,7 +1422,7 @@ describe("unread rows", () => {
     act(() =>
       network
         .stream("/api/events")
-        .emit(1, { type: "unread", conversationId: "ch1", unread: true })
+        .emit(1, { type: "unread", conversationId: "ch1", count: 1 })
     )
     expect(
       sidebar.getByRole("link", { name: "release-train unread" })
@@ -1431,7 +1431,7 @@ describe("unread rows", () => {
     act(() =>
       network
         .stream("/api/events")
-        .emit(2, { type: "unread", conversationId: "ch1", unread: false })
+        .emit(2, { type: "unread", conversationId: "ch1", count: 0 })
     )
     expect(
       sidebar.getByRole("link", { name: "release-train" })
@@ -1497,7 +1497,7 @@ describe("unread rows", () => {
   })
 
   test("the row of the open conversation is never marked unread", async () => {
-    openConversation([userMessage], "idle", ["c1"])
+    openConversation([userMessage], "idle", { c1: 1 })
     const sidebar = within(
       await screen.findByRole("navigation", { name: "Conversations" })
     )
