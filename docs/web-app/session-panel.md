@@ -54,15 +54,17 @@ log. The tab is in the address (`?tab=files`, `?tab=log`), so a reload keeps
 it.
 
 - **Files** (`files-tab.tsx`) lists each file that the agent read or changed:
-  the path without the folder of the agent, the last action ("Read", "Edited"
-  or "Created"), the lines added and removed over all calls, and the time of
-  the last call. `filesOf()` in `src/lib/files.ts` makes the rows from the
+  the path without the folder of the agent, the last action as a Badge
+  ("Read", "Edited" or "Created"), the lines added and removed over all calls
+  ("none" for a file that the agent only read), and the time of the last
+  call. A heading counts the files, and the table sits in a bordered box that
+  scrolls sideways on a narrow screen. `filesOf()` in `src/lib/files.ts` makes the rows from the
   timeline entries, so the tab needs no route. A call that failed does not
   count. A click on a path goes to Messages, and focuses the card of the last
   call on that file.
 - **Session log** (`session-log-tab.tsx`) shows each stored line of the
-  agent: the time, `in` or `out`, and a summary such as `system/init` or
-  `control_request can_use_tool`. A click opens the full JSON. A row marks
+  agent in a bordered box: the time, `in` (yellow) or `out` (blue), and a
+  summary such as `system/init` or `control_request can_use_tool`. A click opens the full JSON. A row marks
   the start of each process. `useSessionLog()` opens its own stream for the
   live `line` events, then loads the last 200 lines. "Load earlier lines"
   loads the page before them.

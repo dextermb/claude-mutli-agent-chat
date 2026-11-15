@@ -372,7 +372,22 @@ describe("the DM page", () => {
             .map((cell) => cell.textContent)
         )
     ).toEqual([["src/notes.txt", "Edited", "+1 −1", "14:05"]])
+    expect(screen.getByRole("heading", { name: "1 file" })).toBeInTheDocument()
     expect(window.location.search).toBe("?tab=files")
+  })
+
+  test("a file that the agent only read has no line changes", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage, readCall])
+
+    await user.click(await screen.findByRole("tab", { name: "Files" }))
+
+    const table = await screen.findByRole("table", { name: "Files" })
+    expect(
+      within(within(table).getAllByRole("row")[1])
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent)
+    ).toEqual(["src/notes.txt", "Read", "none", "14:05"])
   })
 
   test("a click on a file goes to the messages and to the last tool call on that file", async () => {
