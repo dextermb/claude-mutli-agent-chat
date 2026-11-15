@@ -82,14 +82,18 @@ no `conversationId`, a tool uses the conversation of the session.
 
 | Tool                 | Input                                               | Result                                                                    | Card |
 | -------------------- | --------------------------------------------------- | ------------------------------------------------------------------------- | ---- |
-| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, members (`state` and `you` for an agent)   | No   |
+| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, folder, members (`state`, `you`)           | No   |
 | `list_conversations` |                                                     | ID, kind, name, topic and `thisConversation` of each of its conversations | No   |
-| `list_agents`        |                                                     | Name, state over all conversations, folder with `~`, and `you`            | No   |
+| `list_agents`        |                                                     | Name, state over all conversations, own folder or `null`, and `you`       | No   |
 | `read_messages`      | `conversationId?`, `before?`, `limit` (1 to 50, 20) | `messages` (`seq`, author, `at`, text), oldest first, and `more`          | No   |
 | `send_message`       | `conversationId?`, `text`                           | `{ seq }`                                                                 | Yes  |
 | `start_conversation` | `kind`, `agentNames`, `name?`, `topic?`, `text`     | `{ conversationId, kind, name, seq }`                                     | Yes  |
 | `add_members`        | `conversationId`, `agentNames`                      | `{ name, members }`, with names                                           | Yes  |
 
+- `get_conversation` gives the folder of a channel with `~`, or `null`. The
+  folder of a process can differ from it after a change (`docs/agents.md`).
+- `list_agents` gives the own folder of each agent. A generic agent has
+  `null`, because it works in the folder of each channel.
 - `read_messages` gives only complete messages, with no tool calls.
 - `start_conversation` makes the caller a member, after the user and before
   the other agents. It refuses an unknown agent name, and a channel that

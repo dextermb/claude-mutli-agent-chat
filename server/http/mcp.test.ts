@@ -116,11 +116,52 @@ describe("the chat MCP server", () => {
       name: "reviewer-bot",
       topic: null,
       replyMode: "every",
+      folder: null,
       thisConversation: true,
       members: [
         { name: "User", kind: "user" },
         { name: agent.name, kind: "agent", state: "idle", you: true },
       ],
+    })
+  })
+
+  test("an agent reads the folder of a channel, with the home folder as ~", async () => {
+    const { args, store, agent } = await startedAgent()
+    const channel = store.createConversation({
+      kind: "channel",
+      name: "billing-api",
+      topic: null,
+      private: false,
+      replyMode: "mention",
+      cwd: join(homedir(), "code", "billing-api"),
+      members: ["user:me", `agent:${agent.id}`],
+    })
+
+    const { body } = await callChat(args, "tools/call", {
+      name: "get_conversation",
+      arguments: { conversationId: channel.id },
+    })
+
+    expect(toolValue(body)).toMatchObject({
+      name: "billing-api",
+      folder: "~/code/billing-api",
+    })
+  })
+
+  test("a generic agent shows in the list of agents with no folder", async () => {
+    const { args, store } = await startedAgent()
+    store.createAgent({ ...testRunner, cwd: null })
+
+    const { body } = await callChat(args, "tools/call", {
+      name: "list_agents",
+      arguments: {},
+    })
+
+    expect(toolValue(body)).toContainEqual({
+      name: "test-runner",
+      state: "exited",
+      folder: null,
+      you: false,
     })
   })
 

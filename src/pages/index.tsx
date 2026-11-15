@@ -143,7 +143,7 @@ export default function AgentsPage() {
                           </Badge>
                         </div>
                         <ItemDescription className="truncate font-mono text-[13px]">
-                          {agent.model} · {agent.cwd}
+                          {agent.model} · {agent.cwd ?? "No folder"}
                         </ItemDescription>
                       </ItemContent>
                       <ItemActions>

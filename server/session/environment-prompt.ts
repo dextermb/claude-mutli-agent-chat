@@ -8,6 +8,7 @@ export type EnvironmentContext = {
     "id" | "kind" | "name" | "topic" | "replyMode"
   >
   memberNames: string[]
+  folder: { path: string; from: "channel" | "agent" | "scratch" }
 }
 
 const GUIDE = readFileSync(
@@ -19,6 +20,7 @@ export function environmentPrompt({
   agentName,
   conversation,
   memberNames,
+  folder,
 }: EnvironmentContext): string {
   const members = memberNames.map((name) =>
     name === agentName ? `${name} (you)` : name
@@ -30,8 +32,19 @@ export function environmentPrompt({
     `- This conversation is ${place(conversation)} (ID "${conversation.id}").${topic(conversation)}`,
     turns(conversation),
     `- The members at the start: ${members.join(", ")}.`,
+    workFolder(folder),
   ]
   return `${facts.join("\n")}\n\n${GUIDE}`
+}
+
+function workFolder({ path, from }: EnvironmentContext["folder"]): string {
+  if (from === "channel") {
+    return `- You work in ${path}, the folder of this channel. Each agent of this channel works in the same folder.`
+  }
+  if (from === "scratch") {
+    return `- You work in ${path}, a scratch folder of this conversation. It holds no project. Keep your notes there.`
+  }
+  return `- You work in ${path}.`
 }
 
 function place({ kind, name }: EnvironmentContext["conversation"]): string {

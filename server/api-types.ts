@@ -11,7 +11,7 @@ export type Agent = {
   colour: string
   model: string
   permissionMode: string
-  cwd: string
+  cwd: string | null
   autostart: boolean
   allowedTools: string[]
   disallowedTools: string[]
@@ -27,12 +27,11 @@ export type SessionConfig = Pick<
   Agent,
   | "model"
   | "permissionMode"
-  | "cwd"
   | "allowedTools"
   | "disallowedTools"
   | "systemPrompt"
   | "maxTurns"
->
+> & { cwd: string }
 
 export type SessionCard = {
   claudeSessionId: string | null
@@ -61,11 +60,14 @@ export type Conversation = {
   topic: string | null
   private: boolean
   replyMode: "mention" | "every"
+  cwd: string | null
   members: string[]
   createdAt: string
 }
 
-export type NewConversation = Omit<Conversation, "id" | "createdAt">
+export type NewConversation = Omit<Conversation, "id" | "createdAt" | "cwd"> & {
+  cwd?: string | null
+}
 
 export type TimelineEntry = {
   id: string

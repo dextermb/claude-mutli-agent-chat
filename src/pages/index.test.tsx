@@ -108,6 +108,27 @@ describe("the agents page", () => {
     ).toBeInTheDocument()
   })
 
+  test("an agent shows its model and its folder, and a generic agent says that it has no folder", async () => {
+    network.on("GET", "/api/agents", {
+      agents: [reviewerBot, { ...testRunner, cwd: null }],
+    })
+    window.history.pushState({}, "", "/")
+    render(<App />)
+    const list = within(await screen.findByRole("list", { name: "Agents" }))
+
+    await waitFor(() => expect(list.getAllByRole("listitem")).toHaveLength(2))
+    expect(
+      within(list.getByRole("listitem", { name: "reviewer-bot" })).getByText(
+        "claude-sonnet-5-5 · /home/user/code/web-app"
+      )
+    ).toBeInTheDocument()
+    expect(
+      within(list.getByRole("listitem", { name: "test-runner" })).getByText(
+        "claude-sonnet-5-5 · No folder"
+      )
+    ).toBeInTheDocument()
+  })
+
   test("the user can search the agents by name", async () => {
     const user = userEvent.setup()
     window.history.pushState({}, "", "/")

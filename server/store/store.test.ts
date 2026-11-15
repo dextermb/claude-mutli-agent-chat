@@ -165,8 +165,33 @@ describe("Store", () => {
       topic: null,
       private: true,
       replyMode: "every",
+      cwd: null,
       members: ["user:me", `agent:${agent.id}`],
     })
+  })
+
+  test("a channel keeps its folder, and the folder can change", () => {
+    const store = memoryStore()
+    const channel = store.createConversation({
+      kind: "channel",
+      name: "web-app",
+      topic: null,
+      private: false,
+      replyMode: "mention",
+      cwd: "/home/user/code/web-app",
+      members: ["user:me"],
+    })
+
+    expect(store.getConversation(channel.id)).toMatchObject({
+      cwd: "/home/user/code/web-app",
+    })
+    store.updateConversation(channel.id, { cwd: "/home/user/code/billing" })
+    expect(store.getConversation(channel.id)).toMatchObject({
+      name: "web-app",
+      cwd: "/home/user/code/billing",
+    })
+    store.updateConversation(channel.id, { cwd: null })
+    expect(store.getConversation(channel.id)).toMatchObject({ cwd: null })
   })
 
   test("a member that joins goes to the end of the list, and keeps the place of the timeline where it joined", () => {
@@ -387,6 +412,22 @@ describe("Store", () => {
     const { id, createdAt, ...fields } = older!
     store.updateAgent(id, { ...fields, maxTurns: 30 })
     expect(store.getAgent("a1")).toMatchObject({ maxTurns: 30, createdAt })
+  })
+
+  test("an agent of an older database can be saved with no folder, and keeps its sessions", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+    const { id, createdAt, ...fields } = store.getAgent("a1")!
+
+    store.updateAgent(id, { ...fields, cwd: null })
+
+    expect(store.getAgent("a1")).toMatchObject({
+      name: "reviewer-bot",
+      cwd: null,
+      createdAt,
+    })
+    expect(store.getSession("s1")).toMatchObject({ agentId: "a1" })
   })
 
   test("a database of version 1 gets the exit columns, and keeps its rows", () => {

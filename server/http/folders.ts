@@ -44,6 +44,11 @@ export async function listFolders(asked: string | null): Promise<FolderAnswer> {
   }
 }
 
+export async function folderError(path: string): Promise<string | null> {
+  const answer = await listFolders(path)
+  return answer.status === 200 ? null : answer.body.error
+}
+
 async function isFolder(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isDirectory()

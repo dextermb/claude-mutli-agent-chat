@@ -41,8 +41,9 @@ export function CommandPreview({
           Command
         </h2>
         <span className="text-xs text-foreground-faint">
-          The app starts this in {cwd || "the working directory"} for each
-          conversation.
+          The app starts this in{" "}
+          {cwd || "the folder of each channel, or in a scratch folder,"} for
+          each conversation.
         </span>
         <Button
           type="button"

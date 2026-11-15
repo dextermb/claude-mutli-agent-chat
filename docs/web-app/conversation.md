@@ -46,12 +46,14 @@ conversation in a background window stays unread.
 | `agent-look.ts`      | The avatar colours, the initials, and the status of each state                         |
 
 The main input of a tool is `file_path`, `command`, `pattern` or `url`. A path
-in the folder of the agent shows without that folder.
+in the folder of the session shows without that folder. The page reads that
+folder from `sessionCwd` of each agent, so a generic agent in a channel uses
+the folder of the channel (`docs/agents.md`).
 
 An approval card shows inside the card of its tool call, so a waiting call is
 one card, as in the design. Always allow tells what each suggestion grants. A
-rule for `localSettings` stays in the folder of the agent, so the text says
-so.
+rule for `localSettings` stays in the folder of the session, so the text says
+so. In a channel with a folder, each agent of that channel gets the rule.
 
 The card of an `Agent` call names the task of the subagent (its
 `description`). The tool calls of the subagent are inside that card, behind

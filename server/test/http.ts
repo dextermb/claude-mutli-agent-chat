@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { expect, vi } from "vitest"
 import { AgentSession } from "../session/session.ts"
 import {
@@ -28,12 +31,15 @@ export async function startServer(
   options: { eventLogSize?: number } = {}
 ) {
   const store = openStore(location)
+  const scratchRoot = mkdtempSync(join(tmpdir(), "scratch-test-"))
   const started: string[][] = []
+  const startedIn: string[] = []
   const startedAgents: string[] = []
   const sent: Record<string, unknown>[] = []
   const sentTo = new Map<string, Record<string, unknown>[]>()
-  const startSession: StartSession = ({ agent, args, onEvent }) => {
+  const startSession: StartSession = ({ agent, args, cwd, onEvent }) => {
     started.push(args)
+    startedIn.push(cwd)
     startedAgents.push(agent.name)
     const fake = perAgent(agent.name)
     const session = new AgentSession({
@@ -58,11 +64,12 @@ export async function startServer(
     session.start()
     return session
   }
-  const server = createServer({ store, startSession, ...options })
+  const server = createServer({ store, startSession, scratchRoot, ...options })
   const address = await server.listen(0)
   const stop = async () => {
     await server.close()
     store.close()
+    rmSync(scratchRoot, { recursive: true, force: true })
   }
   cleanups.push(stop)
   const { agent, conversation } = members ?? directMessage(store)
@@ -71,6 +78,8 @@ export async function startServer(
     base,
     store,
     started,
+    startedIn,
+    scratchRoot,
     startedAgents,
     sent,
     sentTo,

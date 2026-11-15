@@ -36,6 +36,7 @@ The rule starts with a block that the server makes for the conversation:
 - This conversation is the channel "#release-train" (ID "…"). Its topic: "Ship v2.4 on Friday.".
 - An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you.
 - The members at the start: User, reviewer-bot, test-runner (you).
+- You work in ~/code/release, the folder of this channel. Each agent of this channel works in the same folder.
 ```
 
 | Kind and reply mode | The line about turns                                                                                                                                                               |
@@ -47,6 +48,18 @@ The rule starts with a block that the server makes for the conversation:
 These lines follow the rules in `docs/conversations.md`. When those rules
 change, change `environmentPrompt()` and `agent/environment.md` too.
 
+The last line gives the folder of the process, with `~`. It comes from
+`folderFor()` (`docs/agents.md`):
+
+| Folder from | The line                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| The channel | You work in `<folder>`, the folder of this channel. Each agent of this channel works in the same folder.   |
+| The agent   | You work in `<folder>`.                                                                                    |
+| Scratch     | You work in `<folder>`, a scratch folder of this conversation. It holds no project. Keep your notes there. |
+
+The line about the channel matters most. Without it, an agent in a channel
+does not know that the other agents edit the same files.
+
 The block tells what was true when the process started. A change to the
 members or to the channel settings does not reach a process that runs. The
 next process of the agent gets the new values.
@@ -55,7 +68,7 @@ next process of the agent gets the new values.
 
 ```
 start(row)                                   server/http/server.ts
-  -> environmentPrompt({ agentName, conversation, memberNames })
+  -> environmentPrompt({ agentName, conversation, memberNames, folder })
   -> buildArgs(agent, row, rule)
        --plugin-dir <repository>/agent
        --append-system-prompt "<rule>\n\n<system prompt of the agent>"

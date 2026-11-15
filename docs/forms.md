@@ -24,8 +24,9 @@ schema").
 
 The Channel settings dialog
 (`src/components/channel-settings-dialog.tsx`) is not a TanStack Form. Its
-fields are a text, a switch and a radio, so no value that the user can give
-fails the schema. It keeps its values in state, and shows a refusal of the
+fields are a text, a folder, a switch and a radio, so no value that the user
+can give fails the schema. A folder that does not exist gets `400` from the
+route. It keeps its values in state, and shows a refusal of the
 server in an alert.
 
 A rule that needs the database stays in the route. A channel name that is
@@ -34,7 +35,6 @@ taken gives `409`, and the dialog shows it in its alert only.
 | Field                  | Rule                                 | Message                                                            |
 | ---------------------- | ------------------------------------ | ------------------------------------------------------------------ |
 | agent `name`           | not empty after a trim               | Give the agent a name.                                             |
-| agent `cwd`            | not empty after a trim               | Give the folder of the agent.                                      |
 | agent `model`          | not empty                            | Pick a model.                                                      |
 | agent `permissionMode` | not empty                            | Pick a permission mode.                                            |
 | agent `maxTurns`       | a whole number, 1 or more, or `null` | Give a whole number of 1 or more, or leave it empty.               |
@@ -45,7 +45,9 @@ taken gives `409`, and the dialog shows it in its alert only.
 The model and the permission mode are free strings, because new models come
 out. The schema gives a default to the fields that an older client can leave
 out (the colour, the lists, `autostart`, `private`, `replyMode`), and turns
-an empty system prompt, description or topic into `null`.
+an empty system prompt, description, topic or `cwd` into `null`. An agent and
+a channel can both have no folder (`docs/agents.md`). The route checks that
+the folder of a channel exists, because the browser cannot.
 
 ## A refused body
 
@@ -53,10 +55,10 @@ The server answers `400` with a summary and one message for each field:
 
 ```json
 {
-  "error": "Give the agent a name. Give the folder of the agent.",
+  "error": "Give the agent a name. Pick a model.",
   "fields": {
     "name": "Give the agent a name.",
-    "cwd": "Give the folder of the agent."
+    "model": "Pick a model."
   }
 }
 ```

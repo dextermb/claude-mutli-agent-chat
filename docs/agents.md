@@ -38,7 +38,41 @@ its tools. Each session also gets `--plugin-dir` with the `agent/` folder of
 the repository, and `--mcp-config` with the `chat` MCP server and the token of
 the session (`docs/mcp.md`).
 
-The folder of the agent is the `cwd` of the process, not an argument.
+The folder of the process is its `cwd`, not an argument.
+
+## The folder of a process
+
+An agent can have a folder of its own (`agents.cwd`), or none. An agent with
+no folder is generic: a role that works in the folder of each channel. A
+channel can have a folder too (`conversations.cwd`). A DM and a group chat
+have none.
+
+`folderFor()` in `server/http/server.ts` gives the folder of a new process,
+in this order:
+
+1. The folder of the channel. The channel is the project, so it wins over
+   the folder of the agent.
+2. The folder of the agent.
+3. A scratch folder for the conversation, `<scratch root>/<conversation id>`.
+   The server makes it when the process starts.
+
+The scratch root is `~/.local/share/agent-chat/scratch`, or the value of
+`AGENTS_SCRATCH`. It is outside the repository on purpose. Claude Code reads
+each `CLAUDE.md` in the parent folders of its folder, and a `git` command
+acts on the repository around it. In `.data/`, a generic agent would get the
+rules of this project and could change its files.
+
+The session row keeps the folder in `config.cwd`. A process that runs keeps
+its folder. When the folder of the channel or of the agent changes, the next
+process starts in the new folder, and the session card says that the
+configuration changed. The next process still resumes the same Claude
+session, because `--resume` works in another folder (F37 in
+`docs/protocol.md`). So the agent keeps its memory, but that memory can hold
+paths of the old folder. The rule tells the agent where it works now
+(`docs/agent-environment.md`).
+
+The scratch folder of a conversation stays on the disk, because no route
+deletes a conversation yet.
 
 ## The session
 

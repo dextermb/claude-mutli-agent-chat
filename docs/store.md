@@ -40,6 +40,13 @@ runs in one transaction with its SQL, its rebuild and the new
 | 5       | New table `conversation_reads`                                                           |
 | 6       | `agents` gets `description`, null for older rows                                         |
 | 7       | `agents` gets `max_turns`, null (no limit) for older rows                                |
+| 8       | `agents` is built again with a nullable `cwd`. `conversations` gets `cwd`, null          |
+
+A migration with `foreignKeysOff: true` runs with the foreign keys off, and
+checks them with `PRAGMA foreign_key_check` before it commits. SQLite cannot
+change a column, so a migration builds the table again, and a `DROP TABLE`
+with the foreign keys on would delete each row that points at it.
+`node:sqlite` turns the foreign keys on by default.
 
 A migration with `rebuild: true` builds the timeline of each session again
 from its stored lines. Use it when a change to the reducer must reach the
@@ -62,8 +69,8 @@ conversations ──1:N── conversation_members
 
 | Table                  | Holds                                                                                                                                                                                                                                                               |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agents`               | The configuration, the description and the turn limit (`max_turns`, null for none) of each agent. The tool lists are JSON arrays. The `config` of a session row from before version 7 reads with `maxTurns: null`, so the session card does not say that it changed |
-| `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                                     |
+| `agents`               | The configuration (`cwd` is null for a generic agent), the description and the turn limit (`max_turns`, null for none) of each agent. The tool lists are JSON arrays. The `config` of a session row from before version 7 reads with `maxTurns: null`, so the session card does not say that it changed |
+| `conversations`        | Each channel, group chat and DM, with the folder (`cwd`) of a channel, or null                                                                                                                                                                                      |
 | `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                                      |
 | `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`)         |
 | `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                           |
@@ -135,7 +142,7 @@ in each replay.
 | `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order                                                                                                                              |
 | `addMember(id, memberKey)`, `removeMember(id, memberKey)`                  | Adds a member at the end with the `joined_seq` of now, or removes it                                                                                                  |
 | `joinedSeq(id, memberKey)`                                                 | The place where a member joined                                                                                                                                       |
-| `updateConversation(id, { name, topic, private, replyMode })`              | Changes the given fields only, and gives back the conversation                                                                                                        |
+| `updateConversation(id, { name, topic, private, replyMode, cwd })`         | Changes the given fields only, and gives back the conversation                                                                                                        |
 | `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first                                                                                                                                        |
 | `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                                                                                                                                         |
 | `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                                                                                                                                      |
