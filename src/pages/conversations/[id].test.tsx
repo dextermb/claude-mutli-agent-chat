@@ -30,6 +30,7 @@ import {
   userMessage,
 } from "@/test/conversation-data"
 import { fakeNetwork } from "@/test/fake-network"
+import { screenWidth } from "@/test/fake-screen"
 
 let network: ReturnType<typeof fakeNetwork>
 
@@ -1206,5 +1207,61 @@ describe("a refused action", () => {
 
     await screen.findByRole("heading", { name: "release-train" })
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+})
+
+describe("a narrow screen", () => {
+  test("in a DM, the session button opens the session panel as a sheet", async () => {
+    const user = userEvent.setup()
+    screenWidth(375)
+    openConversation([userMessage])
+    const header = within(await screen.findByRole("banner"))
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+
+    await user.click(header.getByRole("button", { name: "Session" }))
+
+    const sheet = await screen.findByRole("dialog", { name: "Session" })
+    expect(
+      await within(sheet).findByText("claude-sonnet-5-5")
+    ).toBeInTheDocument()
+  })
+
+  test("in a channel, a click on an agent opens its session panel as a sheet, and Close closes it", async () => {
+    const user = userEvent.setup()
+    screenWidth(375)
+    openChannel([userMessage])
+    network.on("GET", "/api/conversations/ch1/agents/a2/session", {
+      session: testRunnerSession,
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(
+      header.getByRole("button", { name: "reviewer-bot Online" })
+    )
+    const sheet = await screen.findByRole("dialog", {
+      name: "Session of reviewer-bot",
+    })
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+    await user.click(within(sheet).getByRole("button", { name: "Close" }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    expect(
+      header.getByRole("button", { name: "reviewer-bot Online" })
+    ).toHaveAttribute("aria-pressed", "false")
+  })
+
+  test("a wide screen shows the session panel at the side, with no session button", async () => {
+    screenWidth(1280)
+    openConversation([userMessage])
+    const header = within(await screen.findByRole("banner"))
+
+    expect(
+      await screen.findByRole("complementary", { name: "Session" })
+    ).toBeInTheDocument()
+    expect(
+      header.queryByRole("button", { name: "Session" })
+    ).not.toBeInTheDocument()
   })
 })

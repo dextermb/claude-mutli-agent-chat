@@ -22,30 +22,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import type { SessionCard } from "@/lib/agent-api"
 
-export function SessionPanel({
-  label,
-  card,
-  agentName,
-  working,
-  onStopTurn,
-  onNewSession,
-  onClose,
-  onRemove,
-}: {
-  label: string
+type SessionDetailsProps = {
   card: SessionCard | null
   agentName: string
   working: boolean
   onStopTurn: () => Promise<string | null>
   onNewSession: () => Promise<string | null>
-  onClose?: () => void
   onRemove?: () => Promise<string | null>
-}) {
-  const [asking, setAsking] = useState(false)
-  const [refusal, setRefusal] = useState<string | null>(null)
+}
+
+export function SessionPanel({
+  label,
+  onClose,
+  ...details
+}: SessionDetailsProps & { label: string; onClose?: () => void }) {
   return (
     <aside
       aria-label={label}
@@ -62,6 +56,43 @@ export function SessionPanel({
           <XIcon />
         </Button>
       )}
+      <SessionDetails {...details} />
+    </aside>
+  )
+}
+
+export function SessionSheet({
+  label,
+  open,
+  onOpenChange,
+  ...details
+}: SessionDetailsProps & {
+  label: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="gap-3 overflow-y-auto p-4 pt-12">
+        <SheetTitle className="sr-only">{label}</SheetTitle>
+        <SessionDetails {...details} />
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function SessionDetails({
+  card,
+  agentName,
+  working,
+  onStopTurn,
+  onNewSession,
+  onRemove,
+}: SessionDetailsProps) {
+  const [asking, setAsking] = useState(false)
+  const [refusal, setRefusal] = useState<string | null>(null)
+  return (
+    <>
       <Card size="sm">
         <CardHeader>
           <CardTitle>Session</CardTitle>
@@ -171,7 +202,7 @@ export function SessionPanel({
           Remove from conversation
         </Button>
       )}
-    </aside>
+    </>
   )
 }
 

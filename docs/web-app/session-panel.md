@@ -25,6 +25,12 @@ In a DM, the panel is always there, with the name "Session". In a group chat
 or a channel, each agent in the header is a button that opens the panel of
 that agent, with the name "Session of <agent>" and a Close button.
 
+Below 768 px (`useIsMobile()` in `src/hooks/use-mobile.ts`), the panel is a
+`Sheet` from the right, not an `aside`. In a DM, a "Session" button in the
+header opens it. In a group chat or a channel, a click on an agent opens it.
+The Close button of the sheet closes it. `SessionPanel` and `SessionSheet`
+are the two wrappers, and both show the same content.
+
 In a group chat or a channel, the panel also has "Remove from conversation".
 After Remove, the panel closes.
 
@@ -59,4 +65,6 @@ it.
 
 ## Not built yet
 
-- On a narrow screen, the session panel does not become a `Sheet`.
+- Before the first process of an agent, the server has no session, and
+  `GET …/session` answers `{ "session": null }`. The Session card then shows
+  no rows: no model, no mode and no folder.

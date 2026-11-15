@@ -1,23 +1,24 @@
 # The remaining gaps
 
 **Status:** in progress. The user agreed the steps and the seams on
-2026-11-15, and answered G1 to G7 (see "Resolved"). Step 1 (housekeeping)
-and step 2 (the reason of a refused action) are built. Step 3 to step 6 are
-ahead, in that order.
+2026-11-15, and answered G1 to G7 (see "Resolved"). Step 1 to step 3 are
+built. Step 4 to step 6 are ahead, in that order. The browser check of step 3
+found two new gaps, G8 and G9, which wait for an answer.
 
 ## The gaps, and what to do with each
 
-| Gap                                                            | Where it is listed              | Action          | Step |
-| -------------------------------------------------------------- | ------------------------------- | --------------- | ---- |
-| The session panel does not become a `Sheet` on a narrow screen | `docs/web-app/session-panel.md` | Build           | 3    |
-| The status words differ from the design                        | `docs/web-app/conversation.md`  | Build           | 4    |
-| The text of a subagent shows at the top level                  | `docs/timeline.md`              | Measure, build  | 5    |
-| Unread rows of the sidebar                                     | `docs/web-app/sidebar.md`       | Build           | 6    |
-| A `rate_limit_event` that is not `allowed` is not measured     | `docs/protocol.md`              | Wait for a line | none |
-| `set_model` and `set_permission_mode` are not measured         | `docs/protocol.md`              | No action       | none |
-| `--max-turns` is not on the command line                       | `docs/agents.md`, `protocol`    | No action       | none |
-| Two sessions in the same folder are not measured               | `docs/protocol.md`              | No action (G7)  | none |
-| The cost and the turns of a session are not stored             | `docs/store.md`                 | No action       | none |
+| Gap                                                        | Where it is listed              | Action          | Step |
+| ---------------------------------------------------------- | ------------------------------- | --------------- | ---- |
+| The status words differ from the design                    | `docs/web-app/conversation.md`  | Build           | 4    |
+| The text of a subagent shows at the top level              | `docs/timeline.md`              | Measure, build  | 5    |
+| Unread rows of the sidebar                                 | `docs/web-app/sidebar.md`       | Build           | 6    |
+| A `rate_limit_event` that is not `allowed` is not measured | `docs/protocol.md`              | Wait for a line | none |
+| `set_model` and `set_permission_mode` are not measured     | `docs/protocol.md`              | No action       | none |
+| `--max-turns` is not on the command line                   | `docs/agents.md`, `protocol`    | No action       | none |
+| Two sessions in the same folder are not measured           | `docs/protocol.md`              | No action (G7)  | none |
+| The cost and the turns of a session are not stored         | `docs/store.md`                 | No action       | none |
+| The sidebar stays open at full width on a narrow screen    | `docs/web-app/sidebar.md`       | Ask (G8)        | none |
+| The Session card is empty before the first process         | `docs/web-app/session-panel.md` | Ask (G9)        | none |
 
 **No action, with the reason:**
 
@@ -34,24 +35,6 @@ ahead, in that order.
   check the names in `docs/protocol.md`.
 - **Two sessions in the same folder.** The user chooses the folder of each
   agent. `docs/architecture.md` lists it as a risk.
-
-## Step 3: The session panel on a narrow screen
-
-**Decisions:**
-
-- Below 768 px, the breakpoint of `src/hooks/use-mobile.ts`, the panel is
-  a `Sheet` (`src/components/ui/sheet.tsx`, which the project has) from the
-  right, not an `aside`.
-- In a DM, a "Session" button in the header opens the sheet. In a group chat
-  or a channel, a click on an agent opens it, as the panel does now.
-- One part holds the content of the panel, and two wrappers show it: the
-  `aside` and the `Sheet`.
-
-**Seams:** the DM page at a narrow width. jsdom has no layout, so the test
-sets the media query through `window.matchMedia`, which is a browser
-boundary. `useIsMobile()` reads it.
-
-**Check:** `agent-browser` at a phone width, with `pnpm server` and Vite.
 
 ## Step 4: The status words of the design
 
@@ -135,6 +118,14 @@ GET /api/conversations ─▶ each conversation with { unread }
   2026-11-15, and then passed in more than ten full runs. Its error was not
   kept. If it fails again, keep the output of the run, and use the
   `diagnosing-bugs` skill.
+
+## Open questions
+
+- **G8.** On a phone, the sidebar takes about 255 px of 375 px. Should it
+  become a `Sheet` too, behind a menu button in the header?
+- **G9.** Before the first process, the Session card has no rows. Should the
+  server answer with the configuration of the agent (model, mode, folder)
+  until a session exists?
 
 ## Resolved
 
