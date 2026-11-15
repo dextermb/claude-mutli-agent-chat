@@ -32,6 +32,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `Store`, an in-memory database    | `server/store/store.test.ts`                    |
 | `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
 | `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`            |
+| `useWorkspace()`, fake network    | `src/hooks/use-workspace.test.ts`               |
 | The DM page, fake network         | `src/pages/conversations/[id].test.tsx`         |
 | `Composer`, the mention list      | `src/components/conversation/composer.test.tsx` |
 | The Start a chat dialog           | `src/components/start-chat-dialog.test.tsx`     |
@@ -53,7 +54,9 @@ each agent its own fixture, and its own reply text with `FAKE_CLAUDE_REPLY`.
 
 The browser tests use `src/test/fake-network.ts`. It replaces `fetch` and
 `EventSource`, keeps each request that the page sends, and lets a test send
-stream events. `src/test/conversation-data.ts` holds the conversation, the
+stream events. A page opens two streams, so `network.stream(address)` finds
+the last stream whose address starts with `address`.
+`src/test/conversation-data.ts` holds the conversation, the
 agent and the timeline entries that the tests show.
 
 `server/http/live.test.ts` runs the real `claude` with Haiku. It runs only

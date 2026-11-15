@@ -48,12 +48,20 @@ export function useConversation(conversationId: string) {
       )
       source.onmessage = (event: MessageEvent<string>) => {
         const message = JSON.parse(event.data) as StreamMessage
+        if (message.type === "reset") {
+          source?.close()
+          start()
+          return
+        }
         setView((view) => applyMessage(view, message))
       }
     }
-    load().catch(() => {
-      if (current) setView({ ...LOADING, status: "error" })
-    })
+    function start() {
+      load().catch(() => {
+        if (current) setView({ ...LOADING, status: "error" })
+      })
+    }
+    start()
     return () => {
       current = false
       source?.close()
@@ -86,6 +94,7 @@ function applyMessage(
   view: ConversationView,
   message: StreamMessage
 ): ConversationView {
+  if (message.type === "conversation" || message.type === "reset") return view
   if (message.type === "agent_state") {
     return {
       ...view,

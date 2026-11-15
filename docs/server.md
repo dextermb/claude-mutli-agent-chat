@@ -34,6 +34,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `POST /api/conversations/:id/messages` | `{ text }`                      | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation |
 | `GET /api/conversations/:id/timeline`  |                                 | `{ items, lastEventId }`                                                       |
 | `GET /api/conversations/:id/events`    |                                 | The event stream (SSE)                                                         |
+| `GET /api/events`                      |                                 | The app stream (SSE)                                                           |
 | `POST /api/conversations/:id/stop`     |                                 | `202`. Interrupts each busy agent                                              |
 | `POST /api/requests/:requestId`        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                        |
 
@@ -99,8 +100,26 @@ only new events. The server then
 sends each event after that ID, so no event goes missing between the two
 requests. A stream that connects again does the same.
 
-The counter starts at 1 again when the server starts. So after a server
-start, the browser must load the timeline again.
+Each stream keeps the last 500 events (`eventLogSize` of `createServer()`).
+A browser can ask for an event that the stream no longer holds, or for an ID
+that is higher than the last ID, which happens after a server start, because
+the counter starts at 1 again. In both cases, the server sends one event
+with no ID, `{ "type": "reset" }`, in place of the old events. The browser
+then loads its data again and opens a new stream.
+
+### The app stream
+
+`GET /api/events` is one more stream, for the whole app. It works in the
+same way, with its own counter and log. It sends:
+
+| Event                                     | When                                                |
+| ----------------------------------------- | --------------------------------------------------- |
+| `{ type: "agent_state", agentId, state }` | The state of an agent over all its sessions changes |
+| `{ type: "conversation", conversation }`  | The server makes a conversation                     |
+
+The state of an agent follows the rule of `GET /api/agents`
+(`docs/conversations.md`). The server sends it before it gives the next
+prompt to the agent, so each step shows, also `idle` between two turns.
 
 ## Answers
 
@@ -124,6 +143,3 @@ the conversation, and interrupts each session that is `busy` or `waiting`.
 Each interrupted turn ends as `stopped`.
 
 ## Not handled yet
-
-- The event log of a conversation is never cut, so it grows while the server
-  runs.

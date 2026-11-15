@@ -1,8 +1,8 @@
 # The outstanding work of the agent chat app
 
 **Status:** in progress. The user agreed the plan, the order and the seams
-on 2026-11-15. Steps 1 to 3 are built, and their result is in `docs/*.md`.
-Step 4 is next. Nothing below is built. The decisions stand as written. Each
+on 2026-11-15. Steps 1 to 4 are built, and their result is in `docs/*.md`.
+Step 5 is next. Nothing below is built. The decisions stand as written. Each
 open question at the end keeps the decision of its step as the default,
 until the user answers it.
 
@@ -16,7 +16,7 @@ merges into `master` before the next step starts.
 | 1    | Small fixes and message times  | Built                                                                                                  | none         |
 | 2    | The stream                     | Built                                                                                                  | none         |
 | 3    | The process                    | Built                                                                                                  | migration v2 |
-| 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                                          | none         |
+| 4    | Live status and the event log  | Built                                                                                                  | none         |
 | 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart                     | migration v3 |
 | 6    | Members                        | Add and remove the members of a conversation                                                           | migration v4 |
 | 7    | The Files and Session log tabs | The two tabs of the DM header                                                                          | none         |
@@ -103,7 +103,6 @@ session_events     timeline_items
 
 | Route                                                  | Step | Body            | Result                                       |
 | ------------------------------------------------------ | ---- | --------------- | -------------------------------------------- |
-| `GET /api/events`                                      | 4    |                 | The app-wide event stream (SSE)              |
 | `GET /api/conversations/:id/agents/:agentId/session`   | 5    |                 | `{ session }`, the data of the session card  |
 | `POST /api/conversations/:id/agents/:agentId/stop`     | 5    |                 | `202`. Interrupts that one agent             |
 | `POST /api/conversations/:id/agents/:agentId/sessions` | 5    |                 | `201 { session }`. New session               |
@@ -111,72 +110,9 @@ session_events     timeline_items
 | `DELETE /api/conversations/:id/members/:agentId`       | 6    |                 | `{ conversation }`. `400` for the last agent |
 | `GET /api/conversations/:id/agents/:agentId/log`       | 7    | `?before=<seq>` | `{ lines }`, the last 200 lines before `seq` |
 
-| Stream event                              | Stream | Step | When                                         |
-| ----------------------------------------- | ------ | ---- | -------------------------------------------- |
-| `{ type: "reset" }`                       | both   | 4    | The browser asks for an event that is gone   |
-| `{ type: "agent_state", agentId, state }` | app    | 4    | The state of an agent (all its sessions)     |
-| `{ type: "conversation", conversation }`  | both   | 4, 6 | A conversation is made or its members change |
-
----
-
-## Step 4: Live status and the event log
-
-### 4.1 Live status in the sidebar
-
-**Decisions:**
-
-- A new app-wide stream, `GET /api/events`. It sends `agent_state` with the
-  state of the agent for all its conversations (the same rule as
-  `GET /api/agents`), and `conversation` when a conversation is made or its
-  members change. Rejected: a poll, because the app already has an event
-  stream with replay.
-- The server sends `agent_state` on the app stream only when the combined
-  state of the agent changes.
-- A new hook, `useWorkspace()`, loads `GET /api/conversations` and
-  `GET /api/agents`, then follows `/api/events`. The sidebar uses it, so it
-  no longer loads the lists again at each page change.
-- The sidebar footer shows the design text: "2 agents working · 1 needs
-  approval". It shows nothing when no agent works.
-- Unread rows and mention counts are in the design, but they are not in this
-  plan. See Q6.
-
-**Seams:**
-
-- `createServer()`: a test opens `/api/events`, sends a message to an agent,
-  and expects `agent_state` events `starting`, `idle`, `busy`, `idle` for
-  that agent.
-- `useWorkspace()`, with the fake network: an `agent_state` event changes
-  the state of that agent.
-- The sidebar, with the fake network: the dot and the screen-reader text of
-  an agent change after an event, and the footer counts the agents.
-
-### 4.2 Cut the event log
-
-**Decisions:**
-
-- Each stream keeps the last 500 events. `createServer()` takes
-  `eventLogSize`, so a test can give 3.
-- When a browser asks for events after an ID that the log no longer holds,
-  the server sends `{ type: "reset" }`. The same applies when the ID is
-  higher than the last ID, which happens after a server start.
-- On `reset`, `useConversation()` and `useWorkspace()` load their data again
-  and open the stream from the new `lastEventId`.
-
-This also fixes a gap in `docs/server.md`: after a server start, a browser
-that connects again now loads the timeline again.
-
-**Seams:**
-
-- `createServer()` with `eventLogSize: 3`: after 5 events, a stream from
-  `lastEventId=1` gets `reset`. A stream from `lastEventId=3` gets events 4
-  and 5.
-- `useConversation()`, with the fake network: a `reset` event loads the
-  timeline again.
-
-### Docs when step 4 lands
-
-`docs/server.md` (the app stream, `reset`, the cap), `docs/web-app.md` (the
-sidebar, `useWorkspace()`), `docs/conversations.md` (remove "loads once").
+| Stream event                             | Stream | Step | When                                                                                           |
+| ---------------------------------------- | ------ | ---- | ---------------------------------------------------------------------------------------------- |
+| `{ type: "conversation", conversation }` | both   | 6    | The members of a conversation change. Step 4 sends it on the app stream for a new conversation |
 
 ---
 

@@ -75,5 +75,3 @@ most urgent state of its live sessions, in this order: `waiting`, `busy`,
 ## Not built yet
 
 - Add or remove the members of a conversation.
-- The sidebar loads the agent states once. It does not follow the event
-  stream.

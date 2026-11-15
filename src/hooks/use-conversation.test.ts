@@ -38,6 +38,24 @@ describe("useConversation", () => {
     expect(result.current.entries).toEqual([userMessage, agentMessage])
   })
 
+  test("a reset event loads the timeline again and opens a new stream after its last event", async () => {
+    const { result } = renderHook(() => useConversation("c1"))
+    await waitFor(() => expect(result.current.status).toBe("ready"))
+    const first = network.stream()
+    network.on("GET", "/api/conversations/c1/timeline", {
+      items: [userMessage],
+      lastEventId: 2,
+    })
+
+    act(() => first.emit(0, { type: "reset" }))
+
+    await waitFor(() => expect(result.current.entries).toEqual([userMessage]))
+    expect(first.closed).toBe(true)
+    expect(network.stream().url).toBe(
+      "/api/conversations/c1/events?lastEventId=2"
+    )
+  })
+
   test("opens the stream after the last event, and each item event changes or adds an entry", async () => {
     const { result } = renderHook(() => useConversation("c1"))
     await waitFor(() => expect(result.current.status).toBe("ready"))
