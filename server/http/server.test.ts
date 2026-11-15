@@ -140,6 +140,36 @@ describe("createServer", () => {
     })
   })
 
+  test("before the first process, the session card shows the configuration of the agent", async () => {
+    const { base, agent, conversation } = await startServer()
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        cwd: join(homedir(), "code", "web-app"),
+        allowedTools: ["Read"],
+      }),
+    })
+
+    const response = await fetch(
+      `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+    )
+
+    expect(await response.json()).toEqual({
+      session: {
+        claudeSessionId: null,
+        state: "exited",
+        model: "claude-haiku-5-5",
+        permissionMode: "default",
+        directory: "~/code/web-app",
+        allowedTools: ["Read"],
+        turns: 0,
+        costUsd: 0,
+        configChanged: false,
+      },
+    })
+  })
+
   test("after a change to the agent, the session shows the configuration that runs, and that it changed", async () => {
     const { base, agent, conversation } = await startServer()
     await sendMessage(base, conversation.id, "Remember kiwi.")

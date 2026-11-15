@@ -178,8 +178,16 @@ and the names of the user's plugins before the commit.
 
 ## Not measured
 
-- `set_model` and `set_permission_mode` on this version.
-- `--max-turns`. The help of 2.1.311 does not list it.
+- `set_model` and `set_permission_mode` on this version. A change to an
+  agent reaches only its next process, and the session card says so. Measure
+  these lines only when a live change is necessary.
+- `--max-turns`. The help of 2.1.311 does not list it. Look again after an
+  upgrade of Claude Code.
 - A `rate_limit_event` with a status other than `allowed`. The names
-  `allowed_warning` and `rejected` come from the types of the Agent SDK.
-- Two sessions that write to the same folder at the same time.
+  `allowed_warning` and `rejected` come from the types of the Agent SDK. A
+  test cannot make one without a real limit. The reducer adds a notice for
+  each status other than `allowed`. When a real line comes, record it as a
+  fixture, and check the names.
+- Two sessions that write to the same folder at the same time. The user
+  chooses the folder of each agent, and `docs/architecture.md` lists it as a
+  risk.

@@ -179,6 +179,42 @@ describe("the DM page", () => {
     expect(within(panel).getByText("Bash(pnpm test:*)")).toBeInTheDocument()
   })
 
+  test("before the first process, the session card shows the configuration of the agent and no session id", async () => {
+    openConversation([])
+    network.on("GET", "/api/conversations/c1/agents/a1/session", {
+      session: {
+        ...testRunnerSession,
+        claudeSessionId: null,
+        state: "exited",
+        turns: 0,
+        costUsd: 0,
+      },
+    })
+
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await waitFor(() =>
+      expect(
+        within(panel)
+          .getAllByRole("term")
+          .map((term) => [
+            term.textContent,
+            term.nextElementSibling?.textContent,
+          ])
+      ).toEqual([
+        ["Model", "claude-sonnet-5-5"],
+        ["Permissions", "acceptEdits"],
+        ["Directory", "~/code/web-app"],
+        ["Session ID", "None yet"],
+        ["Turns", "0"],
+        ["Cost", "$0.000"],
+      ])
+    )
+    expect(
+      within(panel).queryByRole("button", { name: "Copy session ID" })
+    ).not.toBeInTheDocument()
+  })
+
   test("the user can copy the full session id from the session card", async () => {
     const user = userEvent.setup()
     openConversation([userMessage])

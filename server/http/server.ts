@@ -256,18 +256,14 @@ export function createServer({
     send(response, 201, { conversation })
   }
 
-  function sessionCard(
-    agent: Agent,
-    conversationId: string
-  ): SessionCard | null {
+  function sessionCard(agent: Agent, conversationId: string): SessionCard {
     const row = store.latestSession(agent.id, conversationId)
-    if (!row) return null
-    const config = row.config ?? configOf(agent)
-    const turns = row.claudeSessionId
+    const config = row?.config ?? configOf(agent)
+    const turns = row?.claudeSessionId
       ? store.listSessionTurns(agent.id, conversationId, row.claudeSessionId)
       : []
     return {
-      claudeSessionId: row.claudeSessionId,
+      claudeSessionId: row?.claudeSessionId ?? null,
       state: liveState(agent.id, conversationId),
       model: config.model,
       permissionMode: config.permissionMode,
