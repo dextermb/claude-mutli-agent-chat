@@ -1434,15 +1434,18 @@ describe("a narrow screen", () => {
 })
 
 describe("unread rows", () => {
-  test("the sidebar marks each conversation in which an agent wrote after the last visit", async () => {
+  test("the sidebar counts the unread items of each conversation in which an agent wrote after the last visit", async () => {
     openConversation([userMessage], "idle", { ch1: 2 })
     const sidebar = await screen.findByRole("navigation", {
       name: "Conversations",
     })
 
     expect(
-      await within(sidebar).findByRole("link", { name: "release-train unread" })
+      await within(sidebar).findByRole("link", {
+        name: "release-train 2 unread",
+      })
     ).toHaveAttribute("href", "/conversations/ch1")
+    expect(within(sidebar).getByText("2")).toBeInTheDocument()
     expect(
       within(sidebar).getByRole("link", { name: "reviewer-bot, test-runner" })
     ).toBeInTheDocument()
@@ -1461,7 +1464,7 @@ describe("unread rows", () => {
         .emit(1, { type: "unread", conversationId: "ch1", count: 1 })
     )
     expect(
-      sidebar.getByRole("link", { name: "release-train unread" })
+      sidebar.getByRole("link", { name: "release-train 1 unread" })
     ).toBeInTheDocument()
 
     act(() =>

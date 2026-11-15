@@ -1,25 +1,51 @@
 import {
+  BellIcon,
+  BotIcon,
+  ChevronDownIcon,
   HashIcon,
+  HouseIcon,
   LockIcon,
+  MessagesSquareIcon,
   PlusIcon,
   SquarePenIcon,
   UsersIcon,
 } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { Fragment, useState, type ReactNode } from "react"
 import { Link, useLocation } from "wouter"
 
-import { statusOf } from "@/components/conversation/agent-look"
+import { HUMAN_AVATAR, statusOf } from "@/components/conversation/agent-look"
 import { CreateChannelDialog } from "@/components/create-channel-dialog"
 import { StartChatDialog } from "@/components/start-chat-dialog"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
 
 const ROW =
-  "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-sidebar-foreground hover:bg-sidebar-accent"
+  "data-active:bg-sidebar-primary data-active:font-medium data-active:text-sidebar-primary-foreground"
 
 export function AppSidebar({
   currentId,
@@ -32,7 +58,7 @@ export function AppSidebar({
 }) {
   const { conversations, agents, unread } = useWorkspace()
   const [dialog, setDialog] = useState<"chat" | "channel" | null>(null)
-  const [, setLocation] = useLocation()
+  const [location, setLocation] = useLocation()
   const isMobile = useIsMobile()
 
   function navigate(to: string) {
@@ -53,29 +79,42 @@ export function AppSidebar({
     navigate(`/conversations/${conversation.id}`)
   }
 
-  const linkTo = (conversation: Conversation, children: ReactNode) => {
-    const isUnread =
-      conversation.id !== currentId && (unread[conversation.id] ?? 0) > 0
+  const row = (conversation: Conversation, children: ReactNode) => {
+    const isCurrent = conversation.id === currentId
+    const count = isCurrent ? 0 : (unread[conversation.id] ?? 0)
     return (
-      <Link
-        href={`/conversations/${conversation.id}`}
-        onClick={() => onOpenChange(false)}
-        aria-current={conversation.id === currentId ? "page" : undefined}
-        className={cn(
-          ROW,
-          isUnread && "font-semibold text-foreground-strong",
-          conversation.id === currentId &&
-            "bg-sidebar-accent font-medium text-foreground-strong"
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          isActive={isCurrent}
+          className={cn(
+            ROW,
+            count > 0 && "font-semibold text-foreground-strong"
+          )}
+          render={
+            <Link
+              href={`/conversations/${conversation.id}`}
+              onClick={() => onOpenChange(false)}
+              aria-current={isCurrent ? "page" : undefined}
+            />
+          }
+        >
+          {children}
+          {count > 0 && (
+            <>
+              {" "}
+              <span className="sr-only">{`${count} unread`}</span>
+            </>
+          )}
+        </SidebarMenuButton>
+        {count > 0 && (
+          <SidebarMenuBadge
+            aria-hidden="true"
+            className="bg-mention text-primary-foreground peer-hover/menu-button:text-primary-foreground"
+          >
+            {count}
+          </SidebarMenuBadge>
         )}
-      >
-        {children}
-        {isUnread && (
-          <>
-            {" "}
-            <span className="sr-only">unread</span>
-          </>
-        )}
-      </Link>
+      </SidebarMenuItem>
     )
   }
 
@@ -83,24 +122,130 @@ export function AppSidebar({
   const groups = conversations.filter((item) => item.kind === "group")
   const directMessages = conversations.filter((item) => item.kind === "dm")
 
-  const content = (
-    <>
-      <div className="flex items-center gap-1 pl-2">
-        <Link
-          href="/"
-          className="flex-1 text-base font-semibold text-foreground-strong"
-        >
-          Agent Lab
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Start a chat"
-          onClick={() => setDialog("chat")}
-        >
-          <SquarePenIcon />
-        </Button>
-      </div>
+  const sidebar = (
+    <div className="flex h-full">
+      <WorkspaceRail onAgents={location.startsWith("/agents")} />
+      <SidebarProvider className="min-h-0 w-auto">
+        <Sidebar collapsible="none" className="w-64">
+          <nav
+            aria-label="Conversations"
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <SidebarHeader>
+              <div className="flex items-center gap-1 py-1 pr-1 pl-2">
+                <Link
+                  href="/"
+                  onClick={() => onOpenChange(false)}
+                  className="text-base font-semibold text-foreground-strong"
+                >
+                  Agent Lab
+                </Link>
+                <ChevronDownIcon aria-hidden="true" className="size-3.5" />
+                <div className="flex-1" />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Start a chat"
+                  onClick={() => setDialog("chat")}
+                >
+                  <SquarePenIcon />
+                </Button>
+              </div>
+            </SidebarHeader>
+            <SidebarContent>
+              <Group
+                title="Channels"
+                action={{
+                  label: "Create a channel",
+                  onClick: () => setDialog("channel"),
+                }}
+              >
+                {channels.map((channel) => (
+                  <Fragment key={channel.id}>
+                    {row(
+                      channel,
+                      <>
+                        {channel.private ? (
+                          <LockIcon aria-hidden="true" />
+                        ) : (
+                          <HashIcon aria-hidden="true" />
+                        )}
+                        <span>{channel.name}</span>
+                      </>
+                    )}
+                  </Fragment>
+                ))}
+              </Group>
+              <Group
+                title="Group chats"
+                action={{
+                  label: "Start a group chat",
+                  onClick: () => setDialog("chat"),
+                }}
+              >
+                {groups.map((group) => (
+                  <Fragment key={group.id}>
+                    {row(
+                      group,
+                      <>
+                        <UsersIcon aria-hidden="true" />
+                        <span>{group.name}</span>
+                      </>
+                    )}
+                  </Fragment>
+                ))}
+              </Group>
+              <Group
+                title="Agents"
+                action={{
+                  label: "New agent",
+                  href: "/agents/new",
+                  onClick: () => onOpenChange(false),
+                }}
+              >
+                {agents.map((agent) => {
+                  const status = statusOf(agent.state)
+                  const label = (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "mx-1 size-2 flex-none rounded-full",
+                          status.dot
+                        )}
+                      />
+                      <span>{agent.name}</span>{" "}
+                      <span className="sr-only">{status.label}</span>
+                    </>
+                  )
+                  const dm = directMessages.find((item) =>
+                    item.members.includes(`agent:${agent.id}`)
+                  )
+                  return (
+                    <Fragment key={agent.id}>
+                      {dm ? (
+                        row(dm, label)
+                      ) : (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            className={ROW}
+                            onClick={() => void openDirectMessage(agent)}
+                          >
+                            {label}
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </Group>
+            </SidebarContent>
+            <SidebarFooter>
+              <WorkFooter agents={agents} />
+            </SidebarFooter>
+          </nav>
+        </Sidebar>
+      </SidebarProvider>
       <StartChatDialog
         open={dialog === "chat"}
         agents={agents}
@@ -119,105 +264,83 @@ export function AppSidebar({
           navigate(`/conversations/${conversation.id}`)
         }}
       />
-      <Section
-        title="Channels"
-        action={{
-          label: "Create a channel",
-          onClick: () => setDialog("channel"),
-        }}
-      >
-        {channels.map((channel) => (
-          <li key={channel.id}>
-            {linkTo(
-              channel,
-              <>
-                {channel.private ? (
-                  <LockIcon aria-hidden="true" className="size-4" />
-                ) : (
-                  <HashIcon aria-hidden="true" className="size-4" />
-                )}
-                <span className="truncate">{channel.name}</span>
-              </>
-            )}
-          </li>
-        ))}
-      </Section>
-      <Section title="Group chats">
-        {groups.map((group) => (
-          <li key={group.id}>
-            {linkTo(
-              group,
-              <>
-                <UsersIcon aria-hidden="true" className="size-4" />
-                <span className="truncate">{group.name}</span>
-              </>
-            )}
-          </li>
-        ))}
-      </Section>
-      <Section
-        title="Agents"
-        action={{ label: "New agent", href: "/agents/new" }}
-      >
-        {agents.map((agent) => {
-          const status = statusOf(agent.state)
-          const label = (
-            <>
-              <span
-                aria-hidden="true"
-                className={cn("mx-1 size-2 flex-none rounded-full", status.dot)}
-              />
-              <span className="truncate">{agent.name}</span>{" "}
-              <span className="sr-only">{status.label}</span>
-            </>
-          )
-          const dm = directMessages.find((item) =>
-            item.members.includes(`agent:${agent.id}`)
-          )
-          return (
-            <li key={agent.id}>
-              {dm ? (
-                linkTo(dm, label)
-              ) : (
-                <button
-                  type="button"
-                  className={ROW}
-                  onClick={() => void openDirectMessage(agent)}
-                >
-                  {label}
-                </button>
-              )}
-            </li>
-          )
-        })}
-      </Section>
-      <WorkFooter agents={agents} />
-    </>
+    </div>
   )
 
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="left" className="w-64 bg-sidebar p-0">
+        <SheetContent
+          side="left"
+          className="w-80 max-w-[85vw] gap-0 bg-sidebar p-0"
+        >
           <SheetTitle className="sr-only">Sidebar</SheetTitle>
-          <nav
-            aria-label="Conversations"
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pt-12 pb-3"
-          >
-            {content}
-          </nav>
+          {sidebar}
         </SheetContent>
       </Sheet>
     )
   }
 
+  return <div className="flex h-svh flex-none border-r">{sidebar}</div>
+}
+
+function WorkspaceRail({ onAgents }: { onAgents: boolean }) {
   return (
     <nav
-      aria-label="Conversations"
-      className="flex w-64 flex-none flex-col gap-4 overflow-y-auto border-r bg-sidebar px-2 py-3"
+      aria-label="Workspace"
+      className="flex w-16 flex-none flex-col items-center gap-2 bg-rail py-3"
     >
-      {content}
+      <div
+        aria-hidden="true"
+        className="mb-2 grid size-9 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
+      >
+        AL
+      </div>
+      <Link
+        href="/"
+        aria-label="Home"
+        className={buttonVariants({
+          variant: onAgents ? "ghost" : "secondary",
+          size: "icon",
+        })}
+      >
+        <HouseIcon />
+      </Link>
+      <NotBuilt label="Direct messages">
+        <MessagesSquareIcon />
+      </NotBuilt>
+      <NotBuilt label="Activity">
+        <BellIcon />
+      </NotBuilt>
+      <Link
+        href="/"
+        aria-label="Agents"
+        className={buttonVariants({
+          variant: onAgents ? "secondary" : "ghost",
+          size: "icon",
+        })}
+      >
+        <BotIcon />
+      </Link>
+      <div className="flex-1" />
+      <Avatar role="img" aria-label="You, online">
+        <AvatarFallback className={HUMAN_AVATAR}>Y</AvatarFallback>
+        <AvatarBadge className="bg-status-online" />
+      </Avatar>
     </nav>
+  )
+}
+
+function NotBuilt({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>
+        <Button variant="ghost" size="icon" aria-label={label} disabled>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">Not built yet</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -230,7 +353,7 @@ function WorkFooter({ agents }: { agents: AgentWithState[] }) {
   ].filter(Boolean)
   if (parts.length === 0) return null
   return (
-    <p className="m-0 mt-auto flex items-center gap-2 px-2 text-xs text-sidebar-foreground/70">
+    <p className="m-0 flex items-center gap-2 px-2 py-1 text-xs text-foreground-faint">
       <span
         aria-hidden="true"
         className={cn(
@@ -243,45 +366,32 @@ function WorkFooter({ agents }: { agents: AgentWithState[] }) {
   )
 }
 
-function Section({
+function Group({
   title,
   action,
   children,
 }: {
   title: string
-  action?:
-    { label: string; href: string } | { label: string; onClick: () => void }
+  action:
+    | { label: string; href: string; onClick: () => void }
+    | { label: string; onClick: () => void }
   children: ReactNode
 }) {
-  const actionClass =
-    "rounded p-0.5 text-sidebar-foreground/70 hover:bg-sidebar-accent"
   return (
-    <section aria-label={title} className="flex flex-col gap-1">
-      <div className="flex items-center justify-between px-2">
-        <h2 className="m-0 text-xs font-medium text-sidebar-foreground/70">
-          {title}
-        </h2>
-        {action && "href" in action && (
-          <Link
-            href={action.href}
-            aria-label={action.label}
-            className={actionClass}
-          >
-            <PlusIcon className="size-4" />
-          </Link>
-        )}
-        {action && "onClick" in action && (
-          <button
-            type="button"
-            aria-label={action.label}
-            className={actionClass}
-            onClick={action.onClick}
-          >
-            <PlusIcon className="size-4" />
-          </button>
-        )}
-      </div>
-      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">{children}</ul>
-    </section>
+    <SidebarGroup aria-label={title} role="group">
+      <SidebarGroupLabel render={<h2 />} className="m-0">
+        {title}
+      </SidebarGroupLabel>
+      <SidebarGroupAction
+        aria-label={action.label}
+        onClick={action.onClick}
+        render={"href" in action ? <Link href={action.href} /> : undefined}
+      >
+        <PlusIcon />
+      </SidebarGroupAction>
+      <SidebarGroupContent>
+        <SidebarMenu>{children}</SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   )
 }

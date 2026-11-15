@@ -5,37 +5,50 @@ start a conversation or add its members.
 
 ## The sidebar
 
-`src/components/app-sidebar.tsx` shows on the home page and on the
-conversation page. It lists:
+`src/components/app-sidebar.tsx` shows on the home page, the agent page and
+the conversation page. It has two columns:
 
-- the channels, with `#` or a lock,
-- the group chats,
-- each agent, with a status dot and its status as text for a screen reader.
-  An agent with a DM links to it. An agent with no DM is a button that opens
-  one.
+- **The workspace rail** (64 px, `rail` ground, `nav` "Workspace"). It holds
+  the "AL" tile, Home, Direct messages, Activity, Agents, and the avatar of
+  the user with an online dot. Home and Agents link to `/`, because the home
+  page is the agents page. Agents is the active button on an agent page, and
+  Home on each other page. Direct messages and Activity have no page yet, so
+  each is a disabled button with the tooltip "Not built yet".
+- **The sidebar** (256 px, `nav` "Conversations"). It uses the shadcn
+  `Sidebar` parts with `collapsible="none"`. It lists:
+  - the channels, with `#` or a lock,
+  - the group chats,
+  - each agent, with a status dot and its status as text for a screen
+    reader. An agent with a DM links to it. An agent with no DM is a button
+    that opens one.
 
-The current conversation has `aria-current="page"`.
+Each group has a `+`: Create a channel, Start a group chat (it opens Start a
+chat), and New agent.
 
-Below 768 px (`useIsMobile()`), the sidebar is a `Sheet` from the left, not
-a column. An "Open the sidebar" button in the header of the page opens it.
-The page holds the open state, and gives it to `AppSidebar` as `open` and
-`onOpenChange`. Each way to leave the sidebar closes the sheet: a row, an
-agent with no DM, Start a chat and Create a channel. The router keeps the
-conversation page when the address changes to another conversation, so the
-sheet must close itself.
+The current conversation has `aria-current="page"` and the `sidebar-primary`
+fill.
+
+Below 768 px (`useIsMobile()`), the rail and the sidebar are a `Sheet` from
+the left, not a column. An "Open the sidebar" button in the header of the
+page opens it. The page holds the open state, and gives it to `AppSidebar` as
+`open` and `onOpenChange`. Each way to leave the sidebar closes the sheet: a
+row, an agent with no DM, Start a chat and Create a channel. The router keeps
+the conversation page when the address changes to another conversation, so
+the sheet must close itself.
 
 The sidebar gets its lists from `useWorkspace()` (`src/hooks/use-workspace.ts`).
 The hook opens the app stream (`/api/events`), then loads
 `GET /api/conversations` and `GET /api/agents`. An `agent_state` event
 changes the state of that agent. A `conversation` event adds the
 conversation, or replaces it if the list holds it. An `unread` event sets the
-unread count of the conversation. The count 0 removes it. A `reset` event loads the
-lists again.
+unread count of the conversation. The count 0 removes it. A `reset` event
+loads the lists again.
 
-A row is bold when an agent wrote in its conversation after the last visit
-of the user (`docs/server.md`). A screen reader hears "unread" after its
-name: "release-train unread". The row of the open conversation is never
-bold, because the page reads each new item at once
+A row with an unread count is bold, and shows the count in a yellow badge
+(`mention`). The count is the number of agent items for the user to read
+after the last visit (`docs/server.md`). A screen reader hears the count after
+the name: "release-train 2 unread". The row of the open conversation never
+shows a count, because the page reads each new item at once
 (`docs/web-app/conversation.md`).
 
 When an agent works or waits, a footer counts them: "2 agents working · 1
