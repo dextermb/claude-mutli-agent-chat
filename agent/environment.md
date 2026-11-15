@@ -42,6 +42,9 @@ terminal. Nobody reads your output except through the chat.
   in your message what to do.
 - For a decision that the user must make, use `AskUserQuestion`. It shows as a
   question card with a button for each option.
+- In a group chat or a channel, a message of yours with a question mark gets
+  you the next message of the user, if that message mentions no agent. So the
+  user can answer you with no `@`. Use a question mark only for a question.
 
 ## Sessions and memory
 
