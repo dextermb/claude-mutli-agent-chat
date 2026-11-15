@@ -3,6 +3,7 @@ import { useState } from "react"
 
 import { Approval } from "@/components/conversation/approval"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type { Json, PermissionItem, ToolCallItem } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
@@ -66,18 +67,29 @@ export function ToolCallCard({
           subagentCalls.length > 0 && "pr-1.5"
         )}
       >
-        <span
-          aria-hidden="true"
-          className={cn(
-            "size-2 flex-none rounded-full",
-            waits ? "bg-status-waiting" : DOT[call.status]
-          )}
-        />
+        {call.status === "running" && !waits ? (
+          <Spinner
+            role="img"
+            aria-label="Running"
+            className="size-3 flex-none text-status-working"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "size-2 flex-none rounded-full",
+              waits ? "bg-status-waiting" : DOT[call.status]
+            )}
+          />
+        )}
         <span className="text-foreground-strong">{call.name}</span>
         <span
           className={cn(
             "min-w-0 flex-1 truncate",
-            call.name === "Agent" ? "font-sans text-foreground" : "text-link"
+            call.name === "Agent" ? "font-sans text-foreground" : "text-link",
+            call.name === "Agent" &&
+              call.status === "running" &&
+              "shimmer motion-reduce:shimmer-none"
           )}
         >
           {target}

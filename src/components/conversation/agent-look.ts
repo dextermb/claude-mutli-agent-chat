@@ -25,7 +25,7 @@ const STATUS: Record<
   idle: { label: "Idle", dot: "bg-status-online", text: "text-status-online" },
   busy: {
     label: "Working",
-    dot: "bg-status-working",
+    dot: "animate-pulse bg-status-working motion-reduce:animate-none",
     text: "text-status-working",
   },
   waiting: {

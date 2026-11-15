@@ -39,6 +39,7 @@ import {
   SessionSheet,
 } from "@/components/conversation/session-panel"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline"
+import { WorkingLines } from "@/components/conversation/working-line"
 import { useConversation } from "@/hooks/use-conversation"
 import { useMarkRead } from "@/hooks/use-mark-read"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -314,17 +315,10 @@ export default function ConversationPage() {
                 showRefusal(await conversation.answer(requestId, answer))
               }
             />
-            {!isDirect && working.length > 0 && (
-              <p className="m-0 flex items-center gap-2 py-1 pr-5 pl-[72px] text-xs text-foreground-faint">
-                <span
-                  aria-hidden="true"
-                  className={`size-2 flex-none rounded-full ${
-                    statusOf(working[0].state).dot
-                  }`}
-                />
-                {threadLine(conversation.agents, conversation.entries)}
-              </p>
-            )}
+            <WorkingLines
+              agents={conversation.agents}
+              entries={conversation.entries}
+            />
           </div>
           <div className="flex flex-col gap-1.5 px-5 pb-4">
             {!isDirect && (
@@ -441,44 +435,6 @@ function statusLine(
   return asksQuestion(member, entries)
     ? `${member.name} waits for your answer. ${next}`
     : `${member.name} needs your approval. ${next}`
-}
-
-function threadLine(
-  agents: AgentWithState[],
-  entries: TimelineEntry[]
-): string {
-  const states: [string, string, (agent: AgentWithState) => boolean][] = [
-    ["is working", "are working", (agent) => agent.state === "busy"],
-    [
-      "needs your approval",
-      "need your approval",
-      (agent) => agent.state === "waiting" && !asksQuestion(agent, entries),
-    ],
-    [
-      "waits for your answer",
-      "wait for your answer",
-      (agent) => agent.state === "waiting" && asksQuestion(agent, entries),
-    ],
-    ["stopped", "stopped", (agent) => agent.state === "failed"],
-    [
-      "is idle",
-      "are idle",
-      (agent) => agent.state === "idle" || agent.state === "starting",
-    ],
-    ["is stopped", "are stopped", (agent) => agent.state === "exited"],
-  ]
-  return states
-    .map(([one, many, matches]) => {
-      const names = agents.filter(matches).map((agent) => agent.name)
-      if (names.length === 0) return null
-      const list =
-        names.length === 1
-          ? names[0]
-          : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
-      return `${list} ${names.length === 1 ? one : many}.`
-    })
-    .filter(Boolean)
-    .join(" ")
 }
 
 function asksQuestion(agent: AgentWithState, entries: TimelineEntry[]) {

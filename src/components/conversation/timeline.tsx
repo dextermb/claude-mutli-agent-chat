@@ -243,7 +243,11 @@ function EntryBody({
     return (
       <p
         aria-busy={item.status === "streaming"}
-        className="m-0 leading-[22px] whitespace-pre-wrap"
+        className={cn(
+          "m-0 leading-[22px] whitespace-pre-wrap",
+          item.status === "streaming" &&
+            "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+        )}
       >
         {withInlineCode(item.text)}
       </p>

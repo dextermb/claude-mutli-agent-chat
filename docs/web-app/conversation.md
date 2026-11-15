@@ -42,6 +42,7 @@ conversation in a background window stays unread.
 | `approval.tsx`       | Deny, Allow once and Always allow, under the tool call that waits                      |
 | `question-card.tsx`  | Each question with its options as buttons, then the answer                             |
 | `composer.tsx`       | The message box. Enter sends, Shift+Enter adds a line                                  |
+| `working-line.tsx`   | One line at the end of the thread for each agent that works                            |
 | `agent-look.ts`      | The avatar colours, the initials, and the status of each state                         |
 
 The main input of a tool is `file_path`, `command`, `pattern` or `url`. A path
@@ -59,7 +60,9 @@ the subagent is a compact card. The list opens by itself while one of those
 calls waits for an approval, so the approval card is always visible, and the
 dot of the `Agent` card then shows the waiting colour.
 
-A tool call that a stop interrupted shows a grey dot and "Stopped"
+A tool call that runs shows a spinner in the place of its dot, with the name
+"Running". The task of an `Agent` call that runs shimmers. A tool call that a
+stop interrupted shows a grey dot and "Stopped"
 (`docs/timeline.md`). A new session shows as a dashed divider in the link
 colour, with a restart icon: "New session · 09:12".
 
@@ -77,7 +80,9 @@ before the first block of each day: "Today", "Yesterday", or "Friday 13
 November". A block ends at a change of day, so that the heading sits between
 two blocks. `src/lib/time.ts` holds the formats.
 
-A message that is still arriving has `aria-busy="true"`. Text between two
+A message that is still arriving has `aria-busy="true"`, and ends with a
+blinking caret (`▍`, a CSS `::after`, so the text of the message stays the
+same). Text between two
 backticks on one line shows as `code`, in mono on the `muted` ground. The
 timeline renders no other markdown. A turn summary shows
 `Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`, or, at the
@@ -95,7 +100,32 @@ The status of an agent:
 | `failed`   | Error          |
 | `exited`   | Stopped        |
 
-The labels are the words of the design.
+The labels are the words of the design. The `busy` dot pulses, everywhere
+it shows. Under `prefers-reduced-motion`, the pulse, the spinner shimmer and
+the caret blink stop.
+
+## The working line
+
+While an agent is `busy`, `WorkingLines` shows one line for it at the end of
+the thread. It is a `TraceLine` with `status="running"` and `role="status"`
+(the `trace` and `spinner` components of the shadcn AI Elements). The line has
+a spinner and the name of the agent, and its title shimmers. It says what the
+agent does, from the last entry of that agent (not a call of a subagent):
+
+| Last entry                         | Line                                                        |
+| ---------------------------------- | ----------------------------------------------------------- |
+| A `tool_call` that runs            | "test-runner is running Bash git push origin release-train" |
+| A `message` that is still arriving | "test-runner is writing"                                    |
+| Another entry, or none             | "test-runner is working"                                    |
+
+After 3 s, the line also shows the time of the turn: "· 12 s", or
+"· 2 min 32 s". `AgentWithState` has no turn start, so the start is the time
+of the last `message` by another author before the first entry of the agent
+after its last `turn` item. In a DM, this is the message of the user. The time
+is `aria-hidden`, so a screen reader does not hear it each second.
+
+A `waiting` agent gets no working line. Its approval card or question card
+shows that it waits.
 
 While an agent is `busy` or `waiting`, the header shows Stop, and a line over
 the message box gives its state:
@@ -146,9 +176,9 @@ sidebar follow the `conversation` event of the stream. A refusal shows "The
 server did not save the settings." and the reason, and the dialog stays open.
 A group chat and a DM have no settings.
 
-While an agent works or waits, one line at the end of the thread gives the
-state of each agent: "test-runner is working. reviewer-bot is idle." Over
-the message box, a note says that agents reply to each other in this thread
+Each agent that works has a working line at the end of the thread (see
+above). An idle or stopped member has no line: the members panel shows its
+state. Over the message box, a note says that agents reply to each other in this thread
 when they @mention each other, and that Stop all ends the chain.
 
 After `@`, the message box shows the agents of the conversation whose names
