@@ -72,6 +72,8 @@ const URGENCY: SessionState[] = [
   "exited",
 ]
 
+const QUESTION_MARK = /\?(?![\p{L}\p{N}])/u
+
 const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 1_000_000
 const EVENT_LOG_SIZE = 500
@@ -441,16 +443,17 @@ export function createServer({
         .map((entry) => entry.seq)
     )
     const members = agentIdsOf(conversationId)
-    const askers = messages
-      .filter(
-        (entry) =>
-          entry.seq > lastUserSeq &&
-          entry.item.kind === "message" &&
-          entry.item.status === "done" &&
-          entry.item.text.includes("?")
-      )
-      .map((entry) => entry.authorKey.slice("agent:".length))
-      .filter((agentId) => members.includes(agentId))
+    const askers = messages.flatMap((entry) => {
+      const agentId = entry.authorKey.slice("agent:".length)
+      const asks =
+        entry.seq > lastUserSeq &&
+        members.includes(agentId) &&
+        entry.item.kind === "message" &&
+        entry.item.status === "done" &&
+        QUESTION_MARK.test(entry.item.text) &&
+        mentionedAgents(conversationId, entry.item.text, agentId).length === 0
+      return asks ? [agentId] : []
+    })
     return [...new Set(askers)]
   }
 

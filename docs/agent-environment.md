@@ -31,15 +31,15 @@ The rule starts with a block that the server makes for the conversation:
 
 - You are the agent "test-runner".
 - This conversation is the channel "#release-train" (ID "…"). Its topic: "Ship v2.4 on Friday.".
-- An agent gets a turn when a message mentions it with @name. If your message holds a question mark, the next message of the user with no mention also comes to you.
+- An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you.
 - The members at the start: User, reviewer-bot, test-runner (you).
 ```
 
-| Kind and reply mode | The line about turns                                                                                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| DM                  | You get each message of the user. A mention does nothing here.                                                                                                     |
-| `mention`           | An agent gets a turn when a message mentions it with @name. If your message holds a question mark, the next message of the user with no mention also comes to you. |
-| `every`             | Each agent gets each message of the user. A message of an agent gives a turn only to the agents that it mentions with @name.                                       |
+| Kind and reply mode | The line about turns                                                                                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DM                  | You get each message of the user. A mention does nothing here.                                                                                                                     |
+| `mention`           | An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you. |
+| `every`             | Each agent gets each message of the user. A message of an agent gives a turn only to the agents that it mentions with @name.                                                       |
 
 These lines follow the rules in `docs/conversations.md`. When those rules
 change, change `environmentPrompt()` and `agent/environment.md` too.

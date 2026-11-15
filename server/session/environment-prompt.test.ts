@@ -50,7 +50,7 @@ describe("environmentPrompt", () => {
         "",
         '- You are the agent "test-runner".',
         '- This conversation is the channel "#frontend" (ID "c-frontend"). Its topic: "The web app".',
-        "- An agent gets a turn when a message mentions it with @name. If your message holds a question mark, the next message of the user with no mention also comes to you.",
+        "- An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you.",
         "- The members at the start: User, reviewer-bot, test-runner (you).",
       ].join("\n")
     )
