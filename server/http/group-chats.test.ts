@@ -694,4 +694,45 @@ describe("group chats and channels", () => {
 
     expect([...startedAgents].sort()).toEqual(["reviewer-bot", "test-runner"])
   })
+
+  test("stop agent stops the processes of that agent in each conversation, and leaves the other agent alone", async () => {
+    const { base } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    const dm = (
+      (await (
+        await postJson(base, "/api/conversations", {
+          kind: "dm",
+          agentId: runner.id,
+        })
+      ).json()) as { conversation: { id: string } }
+    ).conversation
+    await sendMessage(base, group.id, "@reviewer-bot @test-runner hello.")
+    await sendMessage(base, dm.id, "Run the tests.")
+    await untilTurns(base, group.id, 2)
+    await untilTurns(base, dm.id, 1)
+
+    const response = await postJson(base, `/api/agents/${runner.id}/stop`, {})
+
+    expect(response.status).toBe(202)
+    const stateOf = async (agentId: string) => {
+      const { agents } = (await (await fetch(`${base}/api/agents`)).json()) as {
+        agents: { id: string; state: string }[]
+      }
+      return agents.find((agent) => agent.id === agentId)?.state
+    }
+    await vi.waitFor(async () =>
+      expect(await stateOf(runner.id)).toBe("exited")
+    )
+    expect(await stateOf(reviewer.id)).toBe("idle")
+  })
+
+  test("stop agent for an agent that does not exist gives not found", async () => {
+    const { base } = await startServer()
+
+    const response = await postJson(base, "/api/agents/nobody/stop", {})
+
+    expect(response.status).toBe(404)
+  })
 })

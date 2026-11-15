@@ -350,4 +350,72 @@ describe("the agent configuration page", () => {
       command.getByRole("code").textContent
     )
   })
+
+  test("stop agent asks first, and then stops the agent in each conversation", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("POST", "/api/agents/a1/stop", {}, 202)
+    openPage("/agents/a1")
+
+    await user.click(await screen.findByRole("button", { name: "Stop agent" }))
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Stop test-runner?",
+    })
+    expect(dialog).toHaveTextContent(
+      "The next message to test-runner starts it again, and it remembers each conversation."
+    )
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      []
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Stop agent" }))
+
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      [{ method: "POST", url: "/api/agents/a1/stop", body: {} }]
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
+  })
+
+  test("an agent with no process has no stop agent, and a new agent has none", async () => {
+    network.on("GET", "/api/agents", {
+      agents: [reviewerBot, { ...testRunner, state: "exited" }],
+    })
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    const { unmount } = openPage("/agents/a1")
+
+    expect(
+      await screen.findByRole("heading", { name: "test-runner" })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Stop agent" })
+    ).not.toBeInTheDocument()
+    unmount()
+
+    openPage("/agents/new")
+    expect(
+      await screen.findByRole("heading", { name: "New agent" })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Stop agent" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("a refused stop agent shows the reason of the server, and saves nothing", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("POST", "/api/agents/a1/stop", { error: "no such agent" }, 404)
+    openPage("/agents/a1")
+
+    await user.click(await screen.findByRole("button", { name: "Stop agent" }))
+    const dialog = await screen.findByRole("alertdialog")
+    await user.click(within(dialog).getByRole("button", { name: "Stop agent" }))
+
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent("Stop agent did not work.")
+    expect(alert).toHaveTextContent("no such agent")
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([])
+  })
 })

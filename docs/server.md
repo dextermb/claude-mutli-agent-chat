@@ -28,6 +28,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `POST /api/agents`                                     | The agent                               | `201 { agent }`. `400` if a field is empty                                                                                                            |
 | `GET /api/agents/:id`                                  |                                         | `{ agent }`. `404` for an unknown agent                                                                                                               |
 | `PATCH /api/agents/:id`                                | Some fields of the agent                | `{ agent }`. The other fields stay                                                                                                                    |
+| `POST /api/agents/:id/stop`                            |                                         | `202`. Stops the agent in each conversation. `404` for an unknown agent                                                                               |
 | `GET /api/conversations`                               |                                         | `{ conversations, unread }`. `unread` gives the unread count of each conversation that has one                                                        |
 | `POST /api/conversations`                              | A DM, a group chat or a channel         | `201 { conversation }`, or `200` with the DM that exists                                                                                              |
 | `GET /api/conversations/:id`                           |                                         | `{ conversation, agents }`, each agent with its `state`                                                                                               |
@@ -177,6 +178,12 @@ Each interrupted turn ends as `stopped`.
 
 `POST /api/conversations/:id/agents/:agentId/stop` does the same for one
 agent. This is Stop turn on the session card.
+
+`POST /api/agents/:id/stop` is Stop agent on the agent page. For each live
+session of the agent, in each conversation, it empties the queue, interrupts
+the turn, and stops the process. The agent becomes `exited`. Its session rows
+keep their Claude session IDs, so the next message starts it again with
+`--resume`, and it remembers each conversation.
 
 ## Sessions
 

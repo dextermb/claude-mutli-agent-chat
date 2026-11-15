@@ -681,6 +681,19 @@ export function createServer({
       return send(response, 200, { agent })
     }
 
+    if ((params = route("POST", "api/agents/:id/stop"))) {
+      const agentId = params.id
+      if (!store.getAgent(agentId)) {
+        return send(response, 404, { error: "no such agent" })
+      }
+      const running = [...live.values()].filter(
+        (session) => session.agentId === agentId
+      )
+      for (const session of running) stopTurn(session)
+      await Promise.all(running.map((session) => session.handle?.stop()))
+      return send(response, 202, {})
+    }
+
     if ((params = route("PATCH", "api/agents/:id"))) {
       const current = store.getAgent(params.id)
       if (!current) return send(response, 404, { error: "no such agent" })

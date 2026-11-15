@@ -1,8 +1,8 @@
 # The agent page
 
-**Status:** in progress. Slices 1 (Description) and 2 (Command preview) are
-built on the branch `agent-page`. Slice 3 (Stop agent) has no open question
-and is next. Slices 4 and 5 wait for the answers to the open questions.
+**Status:** in progress. Slices 1 (Description), 2 (Command preview) and 3
+(Stop agent) are built on the branch `agent-page`. Slices 4 and 5 wait for
+the answers to the open questions.
 
 This is one Tier 3 item of `docs/plans/design-boards.md`: Description,
 Maximum turns, the Command preview, Browse for the working directory, and
@@ -118,9 +118,9 @@ Stop agent ─▶ POST /api/agents/:id/stop
   clipboard, and the button says "Copied" for 2 s.
 - **Stop agent:** shows on a saved agent while the agent has a live process
   (its state is not `exited`). It asks "Stop test-runner?" with the points:
-  each turn that runs stops, each waiting message is dropped, and the next
-  message starts the agent again with its memory. A refusal shows in the
-  alert of the page.
+  each turn that runs stops, and each waiting message is dropped. The
+  description says that the next message starts the agent again with its
+  memory. A refusal shows an alert, "Stop agent did not work.".
 - **Restart session:** after question 1.
 
 ## The build

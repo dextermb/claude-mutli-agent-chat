@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
+import { StopAgent } from "@/components/agent-form/stop-agent"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -88,6 +89,7 @@ export default function AgentPage() {
   const [, navigate] = useLocation()
   const isNew = id === "new"
   const [error, setError] = useState<string | null>(null)
+  const [stopRefusal, setStopRefusal] = useState<string | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
@@ -251,6 +253,13 @@ export default function AgentPage() {
                 Cancel
               </Link>
             )}
+            {agent && agent.state !== "exited" && (
+              <StopAgent
+                agentId={agent.id}
+                agentName={agent.name}
+                onRefusal={setStopRefusal}
+              />
+            )}
             <Button type="submit">
               <CheckIcon />
               {isNew ? "Create agent" : "Save agent"}
@@ -260,6 +269,13 @@ export default function AgentPage() {
             <RefusalAlert
               title="The server refused the agent."
               refusal={error}
+            />
+          )}
+          {stopRefusal && (
+            <RefusalAlert
+              title="Stop agent did not work."
+              refusal={stopRefusal}
+              onClose={() => setStopRefusal(null)}
             />
           )}
           <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-5">
