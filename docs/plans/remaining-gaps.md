@@ -2,14 +2,15 @@
 
 **Status:** in progress. The user agreed the steps and the seams of step 1
 to step 6 on 2026-11-15, and answered G1 to G9 (see "Resolved"). Step 1 to
-step 4 are built. Step 5 to step 8 are ahead, in that order. The seams of
+step 4 are built. Step 5 is closed: Claude Code sends no text of a subagent
+(F32 in `docs/protocol.md`), so the reducer needs no change. Step 6 to step 8
+are ahead, in that order. The seams of
 step 7 and step 8 are proposed, and need the agreement of the user.
 
 ## The gaps, and what to do with each
 
 | Gap                                                        | Where it is listed              | Action          | Step |
 | ---------------------------------------------------------- | ------------------------------- | --------------- | ---- |
-| The text of a subagent shows at the top level              | `docs/timeline.md`              | Measure, build  | 5    |
 | Unread rows of the sidebar                                 | `docs/web-app/sidebar.md`       | Build           | 6    |
 | A `rate_limit_event` that is not `allowed` is not measured | `docs/protocol.md`              | Wait for a line | none |
 | `set_model` and `set_permission_mode` are not measured     | `docs/protocol.md`              | No action       | none |
@@ -34,21 +35,6 @@ step 7 and step 8 are proposed, and need the agreement of the user.
   check the names in `docs/protocol.md`.
 - **Two sessions in the same folder.** The user chooses the folder of each
   agent. `docs/architecture.md` lists it as a risk.
-
-## Step 5: The text of a subagent
-
-**Measure first (G3).** Record a fixture, `subagent-text.jsonl`, in which the
-subagent writes text before its last answer. The prompt can ask the
-subagent to "say what you will read, then read notes.txt". This costs about
-0.01 USD. The fixture tells which lines carry the text of a subagent:
-`assistant` lines with `parent_tool_use_id`, `stream_event` lines, or both.
-
-**Decision (G2):** the reducer puts `parentToolUseId` on a message, as on a
-tool call. The browser shows the text of a subagent inside the card of its
-`Agent` call, with its tool calls, in the order that they came. It never
-shows at the top level.
-
-**Seams:** `reduceTimeline()` with the new fixture, and the DM page.
 
 ## Step 6: Unread rows
 
@@ -126,9 +112,11 @@ fake network.
 
 - **G1.** Change the status words to the words of the design? Yes (step 4).
 - **G2.** Show the text of a subagent inside its `Agent` card, or hide it?
-  Show it inside the card (step 5).
+  Show it inside the card. Not needed, because Claude Code sends no such
+  text (F32).
 - **G3.** May the next session spend about 0.01 USD to record
-  `subagent-text.jsonl`? Yes.
+  `subagent-text.jsonl`? Yes. Two recordings cost 0.0147 and 0.0133 USD. The user
+  agreed to the second one.
 - **G4.** Do you want unread rows and mention counts at all? Unread rows
   only (step 6).
 - **G5.** What is a mention of the user? Not needed, because step 6 has no

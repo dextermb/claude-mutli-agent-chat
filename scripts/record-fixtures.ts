@@ -137,6 +137,20 @@ const scenarios: Scenario[] = [
       },
     ],
   },
+  {
+    name: "subagent-text",
+    permissionMode: "default",
+    runs: [
+      {
+        prompts: [
+          "Use the Agent tool with the general-purpose subagent, and give it this exact task: " +
+            '"Your first message must hold two parts: the text I will read notes.txt now. ' +
+            'and, in the same message, a Read tool call on notes.txt. Then report the first line of the file." ' +
+            "When the subagent is done, reply with that line only.",
+        ],
+      },
+    ],
+  },
 ]
 
 function answerFor(request: Json, allowOnce = false): Json {

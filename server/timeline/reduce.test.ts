@@ -233,6 +233,18 @@ describe("reduceTimeline", () => {
     })
   })
 
+  test("the text of a subagent never shows at the top level, because Claude Code does not send it", () => {
+    const items = replay("subagent-text")
+
+    expect(ofKind(items, "message").map((message) => message.text)).toEqual([
+      "alpha",
+    ])
+    expect(toolCall(items, "toolu_01PiqqiZmJKQt7HHGAoUC7g2")).toMatchObject({
+      name: "Read",
+      parentToolUseId: "toolu_01CnuhAhoGPaxKgEYvwdPkU6",
+    })
+  })
+
   test("a rate limit that is reached adds one notice, and the same status again adds none", () => {
     const first = reduceTimeline(emptyTimeline(), rateLimitLine("rejected"))
     const second = reduceTimeline(first.state, rateLimitLine("rejected"))
