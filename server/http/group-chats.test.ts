@@ -170,6 +170,35 @@ describe("group chats and channels", () => {
     expect(missingName.status).toBe(400)
   })
 
+  test("an agent in a channel starts with the rule of that channel, its topic and its members", async () => {
+    const { base, started } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const created = await postJson(base, "/api/conversations", {
+      kind: "channel",
+      name: "release-train",
+      topic: "Ship v2.4 on Friday.",
+      agentIds: [reviewer.id, runner.id],
+    })
+    const { conversation } = (await created.json()) as {
+      conversation: { id: string }
+    }
+
+    await sendMessage(base, conversation.id, "@test-runner run the tests.")
+    await untilTurns(base, conversation.id, 1)
+
+    const rule = started[0][started[0].indexOf("--append-system-prompt") + 1]
+    expect(rule).toContain(
+      [
+        '- You are the agent "test-runner".',
+        `- This conversation is the channel "#release-train" (ID "${conversation.id}"). Its topic: "Ship v2.4 on Friday.".`,
+        "- An agent gets a turn only when a message mentions it with @name.",
+        "- The members at the start: User, reviewer-bot, test-runner (you).",
+      ].join("\n")
+    )
+    expect(rule).toMatch(/\n\nYou run and fix the Vitest tests\.$/)
+  })
+
   test("in a group chat, only the agent that the message mentions gets a turn", async () => {
     const { base, startedAgents } = await startServer()
     const reviewer = await createAgent(base, "reviewer-bot")

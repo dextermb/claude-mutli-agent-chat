@@ -37,6 +37,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `encode…()`, a stdin line         | `server/protocol/encode.test.ts`                |
 | `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`                |
 | `buildArgs()`, the command line   | `server/session/args.test.ts`                   |
+| `environmentPrompt()`, the rule   | `server/session/environment-prompt.test.ts`     |
 | `AgentSession`, a fake `claude`   | `server/session/session.test.ts`                |
 | `Store`, an in-memory database    | `server/store/store.test.ts`                    |
 | `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
@@ -73,8 +74,9 @@ agent and the timeline entries that the tests show.
 
 `server/http/live.test.ts` runs the real `claude` with Haiku. It runs only
 with `pnpm test:live` (`CLAUDE_LIVE=1`), because each run costs money: about
-0.005 USD for the DM test, and about 0.013 USD for the test of New session
-and `--resume` (three turns in all, about 0.02 USD).
+0.005 USD for the DM test, about 0.013 USD for the test of New session and
+`--resume`, and about 0.005 USD for the test of the rule of the environment
+(four turns in all, about 0.025 USD).
 
 The `Store` tests use `:memory:`. A test of a server start uses a database
 file in a temporary folder, and opens the store a second time.

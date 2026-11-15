@@ -10,6 +10,7 @@ import type { PermissionAnswer } from "../protocol/encode.ts"
 import { parseMentions } from "../conversation/mentions.ts"
 import { agentSchema, channelSchema, checkBody } from "../schemas.ts"
 import { buildArgs } from "../session/args.ts"
+import { environmentPrompt } from "../session/environment-prompt.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
@@ -148,7 +149,8 @@ export function createServer({
 
   function start(row: SessionRow): LiveSession | undefined {
     const agent = store.getAgent(row.agentId)
-    if (!agent) return undefined
+    const conversation = store.getConversation(row.conversationId)
+    if (!agent || !conversation) return undefined
     const session: LiveSession = {
       id: row.id,
       agentId: row.agentId,
@@ -162,7 +164,15 @@ export function createServer({
     live.set(session.id, session)
     session.handle = startSession({
       agent,
-      args: buildArgs(agent, row),
+      args: buildArgs(
+        agent,
+        row,
+        environmentPrompt({
+          agentName: agent.name,
+          conversation,
+          memberNames: conversation.members.map(authorName),
+        })
+      ),
       cwd: agent.cwd,
       onEvent: (event) => onSessionEvent(session, event),
     })

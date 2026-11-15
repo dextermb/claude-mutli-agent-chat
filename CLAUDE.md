@@ -6,16 +6,16 @@ manager is pnpm.
 
 ## Commands
 
-| Command           | Result                                               |
-| ----------------- | ---------------------------------------------------- |
-| `pnpm dev`        | Starts the agent server and Vite together.           |
-| `pnpm dev:web`    | Starts Vite only.                                    |
-| `pnpm dev:server` | Starts the agent server only.                        |
-| `pnpm test`       | Runs the Vitest tests.                               |
-| `pnpm typecheck`  | Checks the types.                                    |
-| `pnpm lint`       | Runs ESLint.                                         |
-| `pnpm build`      | Checks the types and builds `dist`.                  |
-| `pnpm test:live`  | Runs the live check (real `claude`, about 0.02 USD). |
+| Command           | Result                                                |
+| ----------------- | ----------------------------------------------------- |
+| `pnpm dev`        | Starts the agent server and Vite together.            |
+| `pnpm dev:web`    | Starts Vite only.                                     |
+| `pnpm dev:server` | Starts the agent server only.                         |
+| `pnpm test`       | Runs the Vitest tests.                                |
+| `pnpm typecheck`  | Checks the types.                                     |
+| `pnpm lint`       | Runs ESLint.                                          |
+| `pnpm build`      | Checks the types and builds `dist`.                   |
+| `pnpm test:live`  | Runs the live check (real `claude`, about 0.025 USD). |
 
 ## Where things are
 
@@ -30,6 +30,8 @@ manager is pnpm.
   `pnpm fixtures:record`.
 - `docs/timeline.md`: how the server turns the stream into timeline items.
 - `docs/agents.md`: the `claude` process of each agent session.
+- `docs/agent-environment.md`: the rule that tells each agent about the chat
+  app, and the `chat` plugin in `agent/`.
 - `docs/store.md`: the SQLite tables and the queries.
 - `docs/server.md`: the routes and the event stream of the agent server.
 - `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.

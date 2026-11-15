@@ -22,16 +22,17 @@ Browser (Vite + React)                  Agent server (Node 24, server/)
                                         +----------------------------------+
 ```
 
-| Part                        | Page                    |
-| --------------------------- | ----------------------- |
-| The Claude Code stream      | `docs/protocol.md`      |
-| Lines to timeline items     | `docs/timeline.md`      |
-| The `claude` process        | `docs/agents.md`        |
-| The tables and queries      | `docs/store.md`         |
-| Routes and the event stream | `docs/server.md`        |
-| Who gets a turn             | `docs/conversations.md` |
-| Pages and the browser hook  | `docs/web-app.md`       |
-| Forms and their schema      | `docs/forms.md`         |
+| Part                        | Page                        |
+| --------------------------- | --------------------------- |
+| The Claude Code stream      | `docs/protocol.md`          |
+| Lines to timeline items     | `docs/timeline.md`          |
+| The `claude` process        | `docs/agents.md`            |
+| What an agent knows         | `docs/agent-environment.md` |
+| The tables and queries      | `docs/store.md`             |
+| Routes and the event stream | `docs/server.md`            |
+| Who gets a turn             | `docs/conversations.md`     |
+| Pages and the browser hook  | `docs/web-app.md`           |
+| Forms and their schema      | `docs/forms.md`             |
 
 ## Decisions
 
@@ -74,6 +75,13 @@ package to build.
 **An agent loads the user and project settings.** So an agent gets the
 user's MCP servers, rules, memory files and hooks, the same as a terminal
 session (F23).
+
+**A rule tells each agent about the chat app.** Without it, an agent does
+not know that its text is a chat message, that a mention starts a turn that
+costs money, or that each conversation is a separate memory. The rule goes
+into `--append-system-prompt`, because it must be in each turn, and a skill
+loads only on demand. Rejected: a `CLAUDE.md` in the folder of the agent,
+because the folder belongs to the user (`docs/agent-environment.md`).
 
 **Mentions with no limit.** An agent can mention another agent, and the user
 stops a chain with Stop. The prompt of a mentioned agent holds the messages

@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url"
+
 export type AgentConfig = {
   model: string
   permissionMode: string
@@ -11,7 +13,13 @@ export type SessionRef = {
   claudeSessionNew?: boolean
 }
 
-export function buildArgs(agent: AgentConfig, session: SessionRef): string[] {
+const PLUGIN_FOLDER = fileURLToPath(new URL("../../agent", import.meta.url))
+
+export function buildArgs(
+  agent: AgentConfig,
+  session: SessionRef,
+  environment: string
+): string[] {
   const args = [
     "-p",
     "--input-format",
@@ -25,6 +33,8 @@ export function buildArgs(agent: AgentConfig, session: SessionRef): string[] {
     "stdio",
     "--setting-sources",
     "user,project",
+    "--plugin-dir",
+    PLUGIN_FOLDER,
     "--model",
     agent.model,
     "--permission-mode",
@@ -36,9 +46,10 @@ export function buildArgs(agent: AgentConfig, session: SessionRef): string[] {
   if (agent.disallowedTools.length > 0) {
     args.push("--disallowedTools", ...agent.disallowedTools)
   }
-  if (agent.systemPrompt) {
-    args.push("--append-system-prompt", agent.systemPrompt)
-  }
+  args.push(
+    "--append-system-prompt",
+    [environment, agent.systemPrompt].filter(Boolean).join("\n\n")
+  )
   if (session.claudeSessionId) {
     args.push(
       session.claudeSessionNew ? "--session-id" : "--resume",

@@ -18,8 +18,10 @@ claude -p
   --replay-user-messages
   --permission-prompt-tool stdio
   --setting-sources user,project
+  --plugin-dir <repository>/agent
   --model <model>
   --permission-mode <mode>
+  --append-system-prompt <rule of the environment + system prompt of the agent>
   [--resume <session_id> | --session-id <uuid>]
 ```
 
@@ -29,6 +31,8 @@ claude -p
   question to the host on stdout (F2, F6).
 - `--setting-sources user,project` gives the agent the user's settings, MCP
   servers, memory files and hooks, the same as a terminal session.
+- `--plugin-dir` loads the `chat` plugin of the repository (F33). See
+  `docs/agent-environment.md`.
 
 `buildArgs()` in `server/session/args.ts` makes this command line. See
 `docs/agents.md`.
@@ -108,6 +112,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F30 | **A session ID has no transcript until its first turn.** `--resume` of an ID that has had no turn writes `result/error_during_execution`, prints "No conversation found with session ID: …" to stderr, and exits with code 1, with no answer to `initialize`. `--session-id` of the same ID works again. | Probe |
 | F31 | **`--session-id` refuses an ID that has a transcript.** It prints "Error: Session ID … is already in use." and exits with code 1 before `initialize`. `--resume` of that ID works. | Probe |
 | F32 | **Claude Code sends only the tool calls of a subagent.** A subagent that writes text, and then a `Read` call, gives one `assistant` line with `parent_tool_use_id` that holds the `tool_use` block only. Its text and its last answer are in its transcript, but not on stdout, and it sends no `stream_event` line. Its last answer reaches the main agent in the `tool_result` of the `Agent` call. Measured with 2.1.311. | `subagent-text` |
+| F33 | **`--plugin-dir <dir>` loads a plugin in `-p` mode.** The `initialize` answer lists a skill of the plugin with the plugin name before it: the skill `chat-probe` of the plugin `chat-app` is `chat-app:chat-probe`. | Probe |
 
 ## The decoder and the encoders
 
