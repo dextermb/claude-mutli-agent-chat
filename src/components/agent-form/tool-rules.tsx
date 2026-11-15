@@ -3,7 +3,12 @@ import { useState, type KeyboardEvent } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 
 export function ToolRules({
   id,
@@ -11,6 +16,7 @@ export function ToolRules({
   inputLabel,
   placeholder,
   rules,
+  empty,
   blocked = false,
   onChange,
 }: {
@@ -19,22 +25,32 @@ export function ToolRules({
   inputLabel: string
   placeholder: string
   rules: string[]
+  empty?: string
   blocked?: boolean
   onChange: (rules: string[]) => void
 }) {
   const [draft, setDraft] = useState("")
 
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Enter") return
-    event.preventDefault()
+  function add() {
     const rule = draft.trim()
     if (rule !== "" && !rules.includes(rule)) onChange([...rules, rule])
     setDraft("")
   }
 
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return
+    event.preventDefault()
+    add()
+  }
+
   return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+    <Field aria-labelledby={`${id}-label`}>
+      <FieldLabel id={`${id}-label`} htmlFor={id}>
+        {label}
+      </FieldLabel>
+      {rules.length === 0 && empty && (
+        <p className="m-0 text-[13px] text-foreground-faint">{empty}</p>
+      )}
       {rules.length > 0 && (
         <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {rules.map((rule) => (
@@ -58,15 +74,22 @@ export function ToolRules({
           ))}
         </ul>
       )}
-      <Input
-        id={id}
-        aria-label={inputLabel}
-        className="font-mono"
-        placeholder={placeholder}
-        value={draft}
-        onChange={(event) => setDraft(event.currentTarget.value)}
-        onKeyDown={onKeyDown}
-      />
+      <InputGroup>
+        <InputGroupInput
+          id={id}
+          aria-label={inputLabel}
+          className="font-mono"
+          placeholder={placeholder}
+          value={draft}
+          onChange={(event) => setDraft(event.currentTarget.value)}
+          onKeyDown={onKeyDown}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton size="xs" onClick={add}>
+            Add
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
     </Field>
   )
 }
