@@ -54,6 +54,15 @@ export function useConversation(conversationId: string) {
           return
         }
         setView((view) => applyMessage(view, message))
+        if (message.type === "conversation") {
+          getJson<{ agents: AgentWithState[] }>(
+            `/api/conversations/${conversationId}`
+          )
+            .then(({ agents }) => {
+              if (current) setView((view) => ({ ...view, agents }))
+            })
+            .catch(() => undefined)
+        }
       }
     }
     function start() {
@@ -101,7 +110,24 @@ export function useConversation(conversationId: string) {
     [conversationId]
   )
 
-  return { ...view, send, answer, stop, stopAgent, newSession }
+  const removeMember = useCallback(
+    async (agentId: string) => {
+      const url = `/api/conversations/${conversationId}/members/${agentId}`
+      const response = await fetch(url, { method: "DELETE" })
+      if (!response.ok) throw new Error(`${url} answered ${response.status}`)
+    },
+    [conversationId]
+  )
+
+  return {
+    ...view,
+    send,
+    answer,
+    stop,
+    stopAgent,
+    newSession,
+    removeMember,
+  }
 }
 
 export type RequestAnswer =
@@ -112,7 +138,10 @@ function applyMessage(
   view: ConversationView,
   message: StreamMessage
 ): ConversationView {
-  if (message.type === "conversation" || message.type === "reset") return view
+  if (message.type === "conversation") {
+    return { ...view, conversation: message.conversation }
+  }
+  if (message.type === "reset") return view
   if (message.type === "agent_state") {
     return {
       ...view,

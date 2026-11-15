@@ -5,6 +5,7 @@ import { useConversation } from "@/hooks/use-conversation"
 import {
   agentMessage,
   directMessage,
+  reviewerBot,
   testRunner,
   userMessage,
 } from "@/test/conversation-data"
@@ -32,6 +33,30 @@ describe("useConversation", () => {
     expect(result.current.conversation).toEqual(directMessage)
     expect(result.current.agents).toEqual([testRunner])
     expect(result.current.entries).toEqual([userMessage, agentMessage])
+  })
+
+  test("a conversation event replaces the conversation and loads its agents again", async () => {
+    const { result } = renderHook(() => useConversation("c1"))
+    await waitFor(() => expect(result.current.status).toBe("ready"))
+    const changed = {
+      ...directMessage,
+      members: ["user:me", "agent:a1", "agent:a2"],
+    }
+    network.on("GET", "/api/conversations/c1", {
+      conversation: changed,
+      agents: [testRunner, reviewerBot],
+    })
+
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "conversation", conversation: changed })
+    )
+
+    expect(result.current.conversation).toEqual(changed)
+    await waitFor(() =>
+      expect(result.current.agents).toEqual([testRunner, reviewerBot])
+    )
   })
 
   test("a reset event loads the timeline again and opens a new stream after its last event", async () => {

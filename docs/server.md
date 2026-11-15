@@ -39,6 +39,8 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `GET /api/conversations/:id/agents/:agentId/session`   |                                 | `{ session }`, the session card, or `null` before the first process            |
 | `POST /api/conversations/:id/agents/:agentId/stop`     |                                 | `202`. Interrupts that agent and empties its queue                             |
 | `POST /api/conversations/:id/agents/:agentId/sessions` |                                 | `201 { session }`. New session. `404` if the agent is not a member             |
+| `POST /api/conversations/:id/members`                  | `{ agentIds }`                  | `{ conversation }`. `400` for a DM. See `docs/conversations.md`                |
+| `DELETE /api/conversations/:id/members/:agentId`       |                                 | `{ conversation }`. `400` for a DM or the last agent of a group chat           |
 | `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                        |
 
 An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
@@ -113,15 +115,18 @@ the counter starts at 1 again. In both cases, the server sends one event
 with no ID, `{ "type": "reset" }`, in place of the old events. The browser
 then loads its data again and opens a new stream.
 
+A change of members also sends `{ type: "conversation", conversation }` on
+the stream of that conversation.
+
 ### The app stream
 
 `GET /api/events` is one more stream, for the whole app. It works in the
 same way, with its own counter and log. It sends:
 
-| Event                                     | When                                                |
-| ----------------------------------------- | --------------------------------------------------- |
-| `{ type: "agent_state", agentId, state }` | The state of an agent over all its sessions changes |
-| `{ type: "conversation", conversation }`  | The server makes a conversation                     |
+| Event                                     | When                                                   |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `{ type: "agent_state", agentId, state }` | The state of an agent over all its sessions changes    |
+| `{ type: "conversation", conversation }`  | The server makes a conversation, or its members change |
 
 The state of an agent follows the rule of `GET /api/agents`
 (`docs/conversations.md`). The server sends it before it gives the next

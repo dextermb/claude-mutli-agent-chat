@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
+  openAppEvents,
   openEvents,
   postJson,
   promptsTo,
@@ -37,6 +38,47 @@ async function untilTurns(base: string, conversationId: string, count: number) {
 }
 
 describe("group chats and channels", () => {
+  test("an agent added to a group chat joins its members and its name, and both streams say so", async () => {
+    const { base } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const writer = await createAgent(base, "docs-writer")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    const stream = openEvents(base, group.id)
+    const app = openAppEvents(base)
+    await Promise.all([stream.ready, app.ready])
+
+    const response = await postJson(
+      base,
+      `/api/conversations/${group.id}/members`,
+      {
+        agentIds: [writer.id],
+      }
+    )
+
+    expect(response.status).toBe(200)
+    const { conversation } = (await response.json()) as {
+      conversation: { name: string; members: string[] }
+    }
+    expect(conversation).toMatchObject({
+      name: "reviewer-bot, test-runner, docs-writer",
+      members: [
+        "user:me",
+        `agent:${reviewer.id}`,
+        `agent:${runner.id}`,
+        `agent:${writer.id}`,
+      ],
+    })
+    await vi.waitFor(() => {
+      expect(stream.events.map(({ data }) => data)).toEqual([
+        { type: "conversation", conversation },
+      ])
+      expect(app.events.map(({ data }) => data)).toEqual([
+        { type: "conversation", conversation },
+      ])
+    })
+  })
+
   test("stop turn for one agent interrupts that agent and not the other", async () => {
     const { base, sentTo } = await startServer("interrupt")
     const reviewer = await createAgent(base, "reviewer-bot")
@@ -221,6 +263,92 @@ describe("group chats and channels", () => {
       expect(promptsTo(sentTo, "test-runner")).toEqual([
         "[User] @test-runner run the tests.",
         "[User] @test-runner add a test for it.",
+      ])
+    )
+  })
+
+  test("a removed agent stops its process, and leaves the members and the name of the group chat", async () => {
+    const { base } = await startServer("interrupt")
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    const stream = openEvents(base, group.id)
+    await stream.ready
+    await sendMessage(base, group.id, "@test-runner write a long story.")
+    const statesOf = (agentId: string) =>
+      stream.events.flatMap(({ data }) =>
+        data.type === "agent_state" && data.agentId === agentId
+          ? [data.state]
+          : []
+      )
+    await vi.waitFor(() => expect(statesOf(runner.id)).toContain("busy"))
+
+    const response = await fetch(
+      `${base}/api/conversations/${group.id}/members/${runner.id}`,
+      { method: "DELETE" }
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      conversation: {
+        name: "reviewer-bot",
+        members: ["user:me", `agent:${reviewer.id}`],
+      },
+    })
+    await vi.waitFor(() => expect(statesOf(runner.id).at(-1)).toBe("exited"))
+  })
+
+  test("a DM refuses a change of members, and a group chat keeps its last agent", async () => {
+    const { base, agent, conversation } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [runner.id])
+
+    const add = await postJson(
+      base,
+      `/api/conversations/${conversation.id}/members`,
+      {
+        agentIds: [runner.id],
+      }
+    )
+    const removeFromDm = await fetch(
+      `${base}/api/conversations/${conversation.id}/members/${agent.id}`,
+      { method: "DELETE" }
+    )
+    const removeLast = await fetch(
+      `${base}/api/conversations/${group.id}/members/${runner.id}`,
+      { method: "DELETE" }
+    )
+
+    expect([add.status, removeFromDm.status, removeLast.status]).toEqual([
+      400, 400, 400,
+    ])
+    expect(await removeLast.json()).toEqual({
+      error: "A group chat needs one agent or more.",
+    })
+  })
+
+  test("the first prompt of a new member holds only the messages after it joined", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ reply: "Done." })
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const writer = await createAgent(base, "docs-writer")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    await sendMessage(base, group.id, "@reviewer-bot look at PR 212.")
+    await untilTurns(base, group.id, 1)
+
+    await postJson(base, `/api/conversations/${group.id}/members`, {
+      agentIds: [writer.id],
+    })
+    await sendMessage(base, group.id, "@docs-writer write the release notes.")
+
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "docs-writer")).toEqual([
+        "[User] @docs-writer write the release notes.",
       ])
     )
   })

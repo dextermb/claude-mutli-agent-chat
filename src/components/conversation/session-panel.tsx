@@ -32,6 +32,7 @@ export function SessionPanel({
   onStopTurn,
   onNewSession,
   onClose,
+  onRemove,
 }: {
   label: string
   card: SessionCard | null
@@ -40,6 +41,7 @@ export function SessionPanel({
   onStopTurn: () => void
   onNewSession: () => void
   onClose?: () => void
+  onRemove?: () => void
 }) {
   const [asking, setAsking] = useState(false)
   return (
@@ -149,6 +151,16 @@ export function SessionPanel({
             ))}
           </CardContent>
         </Card>
+      )}
+      {onRemove && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start text-destructive"
+          onClick={onRemove}
+        >
+          Remove from conversation
+        </Button>
       )}
     </aside>
   )

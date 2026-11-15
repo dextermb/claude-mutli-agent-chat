@@ -144,6 +144,47 @@ export function openStore(location: string) {
     return created
   }
 
+  function addMember(conversationId: string, memberKey: string) {
+    const row = db
+      .prepare(
+        `SELECT COALESCE(MAX(position), -1) + 1 AS next
+         FROM conversation_members WHERE conversation_id = ?`
+      )
+      .get(conversationId)
+    db.prepare(
+      `INSERT INTO conversation_members (conversation_id, member_key, agent_id,
+         position, joined_seq)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(
+      conversationId,
+      memberKey,
+      agentIdOf(memberKey),
+      Number(row?.next),
+      nextSeq() - 1
+    )
+  }
+
+  function renameConversation(id: string, name: string) {
+    db.prepare("UPDATE conversations SET name = ? WHERE id = ?").run(name, id)
+  }
+
+  function removeMember(conversationId: string, memberKey: string) {
+    db.prepare(
+      `DELETE FROM conversation_members
+       WHERE conversation_id = ? AND member_key = ?`
+    ).run(conversationId, memberKey)
+  }
+
+  function joinedSeq(conversationId: string, memberKey: string): number {
+    const row = db
+      .prepare(
+        `SELECT joined_seq FROM conversation_members
+         WHERE conversation_id = ? AND member_key = ?`
+      )
+      .get(conversationId, memberKey)
+    return Number(row?.joined_seq ?? 0)
+  }
+
   function listConversations(): Conversation[] {
     return db
       .prepare("SELECT id FROM conversations ORDER BY created_at, rowid")
@@ -479,6 +520,10 @@ export function openStore(location: string) {
     createConversation,
     getConversation,
     listConversations,
+    addMember,
+    renameConversation,
+    removeMember,
+    joinedSeq,
     findDirectMessage,
     createSession,
     getSession,

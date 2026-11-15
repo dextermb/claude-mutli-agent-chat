@@ -1,4 +1,10 @@
-import { HashIcon, LockIcon, SquareIcon, UsersIcon } from "lucide-react"
+import {
+  HashIcon,
+  LockIcon,
+  SquareIcon,
+  UserPlusIcon,
+  UsersIcon,
+} from "lucide-react"
 import { useState } from "react"
 import { useParams } from "wouter"
 
@@ -10,6 +16,7 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
+import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Composer } from "@/components/conversation/composer"
 import { SessionPanel } from "@/components/conversation/session-panel"
@@ -23,6 +30,7 @@ export default function ConversationPage() {
   const conversation = useConversation(params.id)
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const panelAgent =
     conversation.conversation?.kind === "dm"
       ? agent
@@ -50,6 +58,10 @@ export default function ConversationPage() {
   }
 
   const isDirect = conversation.conversation.kind === "dm"
+  const addLabel =
+    conversation.conversation.kind === "channel"
+      ? "Invite agents"
+      : "Add people or agents"
   const status = agent ? statusOf(agent.state) : null
   const working = conversation.agents.filter(
     (member) => member.state === "busy" || member.state === "waiting"
@@ -107,6 +119,12 @@ export default function ConversationPage() {
               ))}
             </ul>
           )}
+          {!isDirect && (
+            <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+              <UserPlusIcon />
+              {addLabel}
+            </Button>
+          )}
           <div className="min-w-4 flex-1" />
           {working.length > 0 && (
             <Button
@@ -155,6 +173,17 @@ export default function ConversationPage() {
           />
         </div>
       </main>
+      {!isDirect && (
+        <AddMembersDialog
+          open={adding}
+          title={addLabel}
+          submitLabel={
+            conversation.conversation.kind === "channel" ? "Invite" : "Add"
+          }
+          conversation={conversation.conversation}
+          onOpenChange={setAdding}
+        />
+      )}
       {panelAgent && (
         <SessionPanel
           label={isDirect ? "Session" : `Session of ${panelAgent.name}`}
@@ -170,6 +199,14 @@ export default function ConversationPage() {
             void conversation.newSession(panelAgent.id)
           }}
           onClose={isDirect ? undefined : () => setPickedId(null)}
+          onRemove={
+            isDirect
+              ? undefined
+              : () => {
+                  setPickedId(null)
+                  void conversation.removeMember(panelAgent.id)
+                }
+          }
         />
       )}
     </div>

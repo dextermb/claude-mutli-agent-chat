@@ -42,8 +42,9 @@ type check of the app does not need the Node types.
    the two requests. After a lost connection, the browser sends
    `Last-Event-ID` itself.
 3. An `item` event replaces the entry with the same ID, or adds it at the end.
-   An `agent_state` event changes the state of that agent. A `reset` event
-   closes the stream and starts again from step 1.
+   An `agent_state` event changes the state of that agent. A `conversation`
+   event replaces the conversation and loads its agents again. A `reset`
+   event closes the stream and starts again from step 1.
 4. It closes the stream when the page goes away.
 
 It gives `status`, `conversation`, `agents`, `entries`, and three actions:
@@ -179,9 +180,19 @@ In a DM, the panel is always there, with the name "Session". In a group chat
 or a channel, each agent in the header is a button that opens the panel of
 that agent, with the name "Session of <agent>" and a Close button.
 
+In a group chat or a channel, the panel also has "Remove from conversation".
+
 A new session shows in the timeline as a divider: "New session · 14:03", or
 "New session for test-runner · 14:03" when the conversation has more than one
 agent.
+
+## Members
+
+The header of a group chat has "Add people or agents", and the header of a
+channel has "Invite agents", as in the design. Each opens
+`src/components/add-members-dialog.tsx`: the agents that are not members,
+each with its model and its mode, and a checkbox. Add or Invite sends the
+picked agents. If the server refuses, the dialog shows the reason.
 
 ## The agent page
 
@@ -198,4 +209,6 @@ uses the new configuration.
 ## Not built yet
 
 - The Files and Session log tabs.
+- When the server refuses Stop turn, New session or Remove, the page does
+  not show the reason.
 - On a narrow screen, the session panel does not become a `Sheet`.

@@ -1,8 +1,8 @@
 # The outstanding work of the agent chat app
 
 **Status:** in progress. The user agreed the plan, the order and the seams
-on 2026-11-15. Steps 1 to 5 are built, and their result is in `docs/*.md`.
-Step 6 is next. Nothing below is built. The decisions stand as written. Each
+on 2026-11-15. Steps 1 to 6 are built, and their result is in `docs/*.md`.
+Step 7 is next. Nothing below is built. The decisions stand as written. Each
 open question at the end keeps the decision of its step as the default,
 until the user answers it.
 
@@ -18,7 +18,7 @@ merges into `master` before the next step starts.
 | 3    | The process                    | Built                                                                                                  | migration v2 |
 | 4    | Live status and the event log  | Built                                                                                                  | none         |
 | 5    | The session panel              | Built                                                                                                  | migration v3 |
-| 6    | Members                        | Add and remove the members of a conversation                                                           | migration v4 |
+| 6    | Members                        | Built                                                                                                  | migration v4 |
 | 7    | The Files and Session log tabs | The two tabs of the DM header                                                                          | none         |
 | 8    | TanStack Form                  | The agent page and Create a channel on TanStack Form, with validation in the browser and on the server | none         |
 
@@ -37,125 +37,14 @@ These facts shape the plan. They are not in the docs yet.
   says "Idle" for `idle`, "Needs approval" for `waiting`, and "Stopped" for
   `exited`. The app says "Online", "Waiting" and "Idle". See Q13.
 
-## Schema changes
-
-Step 3 built the migration loop and version 2, and step 5 built version 3
-(`docs/store.md`). Step 6 adds version 4 to `MIGRATIONS`. Rejected for the loop: a check
-of `PRAGMA table_info` for each column, because it grows with each column
-and cannot run data changes.
-
-```
-agents                                conversations
-+--------------------+                +--------------------+
-| id            PK   |                | id            PK   |
-| name               |                | kind               |
-| colour             |                | name               |
-| model              |                | topic              |
-| permission_mode    |                | private            |
-| cwd                |                | reply_mode         |
-| autostart          |                | created_at         |
-| allowed_tools      |                +---------+----------+
-| disallowed_tools   |                          | 1:N  ON DELETE CASCADE
-| system_prompt      |                          v
-| created_at         |                conversation_members
-+---------+----------+                +----------------------------+
-          | 1:N                       | conversation_id  PK, FK    |
-          | ON DELETE CASCADE         | member_key       PK        |
-          |                           | agent_id         FK  CASCADE
-          |                           | position                   |
-          |                           | joined_seq   NEW (v4)      |
-          |                           +----------------------------+
-          v
-agent_sessions                                    1:N CASCADE from conversations
-+----------------------------+
-| id                 PK      |
-| agent_id           FK      |
-| conversation_id    FK      |
-| claude_session_id          |
-| state                      |
-| started_at                 |
-| ended_at          (v2)     |
-| exit_code         (v2)     |
-| stderr            (v2)     |
-| config            (v3)     |
-| claude_session_new (v3)    |
-+------+---------------+-----+
-       | 1:N CASCADE   | 1:N  ON DELETE SET NULL
-       v               v
-session_events     timeline_items
-(no change)        (no new column, a new kind:
-                    session_start)
-```
-
-- `conversation_members.joined_seq` (INTEGER NOT NULL DEFAULT 0): the `seq`
-  when the member joined. The prompt of a new member starts after it.
-- `timeline_items.kind` gets `session_start`, the divider of New session.
-
 ## The new routes and events
 
 | Route                                            | Step | Body            | Result                                       |
 | ------------------------------------------------ | ---- | --------------- | -------------------------------------------- |
-| `POST /api/conversations/:id/members`            | 6    | `{ agentIds }`  | `{ conversation }`. `400` for a DM           |
-| `DELETE /api/conversations/:id/members/:agentId` | 6    |                 | `{ conversation }`. `400` for the last agent |
 | `GET /api/conversations/:id/agents/:agentId/log` | 7    | `?before=<seq>` | `{ lines }`, the last 200 lines before `seq` |
 
-| Stream event                             | Stream | Step | When                                                                                           |
-| ---------------------------------------- | ------ | ---- | ---------------------------------------------------------------------------------------------- |
-| `{ type: "conversation", conversation }` | both   | 6    | The members of a conversation change. Step 4 sends it on the app stream for a new conversation |
-
----
-
-## Step 6: Members
-
-**Decisions:**
-
-- `POST /api/conversations/:id/members { agentIds }` adds agents to a group
-  chat or a channel. `DELETE /api/conversations/:id/members/:agentId`
-  removes one. A DM refuses both with `400`, because a DM has one agent.
-- The last agent of a group chat cannot go: `400` "A group chat needs one
-  agent or more." A channel can have no agents.
-- A group chat has the names of its agents as its name. A change of members
-  changes the name too. A channel keeps its name.
-- A remove stops the live process of that agent in that conversation and
-  empties its queue. The items of that agent stay in the timeline.
-- `conversation_members.joined_seq` (migration v4) holds the `seq` when the
-  agent joined. The first prompt of a new member holds only the messages
-  after that `seq`. See Q12.
-- A member that joins again gets a new `joined_seq`. Its old session rows
-  stay, so its next process resumes the old Claude session. See Q12.
-- Both routes send `{ type: "conversation", conversation }` on the stream of
-  the conversation and on the app stream.
-
-**The UI:**
-
-- The group chat header gets "Add people or agents", and the channel header
-  gets "Invite agents", as in the design. Each opens a dialog that lists the
-  agents that are not members, with checkboxes, the model and the mode, as
-  in Create a channel.
-- The design has no remove button (F-f). The avatar group in the header
-  opens a "Members" popover. Each agent row has a "Remove" button. The user
-  row has none.
-
-**Data flow:** the dialog → `POST …/members` → `addMember()` with
-`joined_seq = nextSeq() - 1` → `conversation` event → `useConversation()`
-replaces the conversation and loads the agents again.
-
-**Seams:**
-
-- `Store`: `addMember()` and `removeMember()` keep the order of `position`.
-- `createServer()`:
-  - add an agent to a group chat, mention it, and expect a prompt with only
-    the messages after the join,
-  - remove a busy agent, and expect its fake process to stop,
-  - a DM refuses both routes.
-- The group chat page, with the fake network: the dialog sends the picked
-  agents, and Remove sends the DELETE.
-
-### Docs when step 6 lands
-
-`docs/server.md`, `docs/conversations.md` (members, the prompt of a new
-member), `docs/store.md` (v4), `docs/web-app.md` (the dialog and the
-popover).
+Step 7 may add a `line` event to the stream of a conversation, if the
+Session log follows new lines live (Q14).
 
 ---
 
@@ -264,6 +153,12 @@ Schema), and whether the browser and the server share one schema.
   F31 in `docs/protocol.md`) added the `claude_session_new` column. Step 5
   spent about 0.018 USD on real `claude` runs.
 
+- **Q12 (2026-11-15).** Step 6 shipped the default: a new member sees only
+  the messages after it joins, and an agent that joins again resumes its old
+  Claude session. One change from the plan: "Remove from conversation" is in
+  the session panel of the agent, not in a "Members" popover, because each
+  agent in the header already opens its panel.
+
 ## Open questions
 
 - **Q3.** Hide the text messages of a subagent, and show only its tool
@@ -272,9 +167,6 @@ Schema), and whether the browser and the server share one schema.
   from a recorded line. Is that acceptable until a real line is seen?
 - **Q6.** Unread rows and mention counts in the sidebar are in the design.
   Add them as a later step, or leave them out?
-- **Q12.** A new member sees only the messages after it joins. Should it get
-  a short history instead, for example the last 20 messages? And should a
-  member that joins again resume its old Claude session, or start a new one?
 - **Q13.** The status words of the design differ from the app (F-g). Change
   the app to the design words ("Idle", "Needs approval", "Stopped")?
 - **Q14.** Should the Session log follow new lines live, or load them with

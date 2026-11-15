@@ -165,6 +165,35 @@ describe("Store", () => {
     })
   })
 
+  test("a member that joins goes to the end of the list, and keeps the place of the timeline where it joined", () => {
+    const store = memoryStore()
+    const first = store.createAgent(reviewer)
+    const second = store.createAgent({ ...reviewer, name: "test-runner" })
+    const third = store.createAgent({ ...reviewer, name: "docs-writer" })
+    const group = store.createConversation({
+      kind: "group",
+      name: "reviewer-bot, test-runner",
+      topic: null,
+      private: true,
+      replyMode: "mention",
+      members: ["user:me", `agent:${first.id}`, `agent:${second.id}`],
+    })
+    const message = store.addUserMessage(group.id, "Hello.")
+
+    store.removeMember(group.id, `agent:${first.id}`)
+    store.addMember(group.id, `agent:${third.id}`)
+    store.addMember(group.id, `agent:${first.id}`)
+
+    expect(store.getConversation(group.id)?.members).toEqual([
+      "user:me",
+      `agent:${second.id}`,
+      `agent:${third.id}`,
+      `agent:${first.id}`,
+    ])
+    expect(store.joinedSeq(group.id, `agent:${first.id}`)).toBe(message.seq)
+    expect(store.joinedSeq(group.id, `agent:${second.id}`)).toBe(0)
+  })
+
   test("the lines of a session are stored in the order that they came", () => {
     const store = memoryStore()
     const { session } = directMessage(store)
