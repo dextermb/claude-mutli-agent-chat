@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import {
+  FolderField,
   PrivateField,
   ReplyModeField,
   TopicField,
@@ -54,6 +55,7 @@ function SettingsForm({
   const [topic, setTopic] = useState(conversation.topic ?? "")
   const [isPrivate, setPrivate] = useState(conversation.private)
   const [replyMode, setReplyMode] = useState(conversation.replyMode)
+  const [cwd, setCwd] = useState(conversation.cwd ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,6 +64,7 @@ function SettingsForm({
     if (topic.trim() !== (conversation.topic ?? "")) changes.topic = topic
     if (isPrivate !== conversation.private) changes.private = isPrivate
     if (replyMode !== conversation.replyMode) changes.replyMode = replyMode
+    if (cwd.trim() !== (conversation.cwd ?? "")) changes.cwd = cwd
     if (Object.keys(changes).length === 0) {
       onSaved()
       return
@@ -98,6 +101,7 @@ function SettingsForm({
       <FieldGroup>
         <TopicField value={topic} onChange={setTopic} />
         <PrivateField checked={isPrivate} onChange={setPrivate} />
+        <FolderField value={cwd} onChange={setCwd} />
         <ReplyModeField value={replyMode} onChange={setReplyMode} />
       </FieldGroup>
       {error && (

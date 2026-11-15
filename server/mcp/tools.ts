@@ -54,7 +54,7 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
   return [
     tool(
       "get_conversation",
-      "Read a conversation: its kind, name, topic, reply mode, and each member with its state. With no conversationId, read this conversation.",
+      "Read a conversation: its kind, name, topic, reply mode, the folder of a channel, and each member with its state. With no conversationId, read this conversation.",
       z.object({
         conversationId: z
           .string()
@@ -69,6 +69,8 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
           name: conversation.name,
           topic: conversation.topic,
           replyMode: conversation.replyMode,
+          folder:
+            conversation.cwd === null ? null : homeShort(conversation.cwd),
           thisConversation: conversation.id === caller.conversationId,
           members: conversation.members.map((memberKey) => {
             if (!memberKey.startsWith("agent:")) {
@@ -105,13 +107,13 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
     ),
     tool(
       "list_agents",
-      "List each agent of the chat app: its name, its state over all its conversations, and its folder.",
+      "List each agent of the chat app: its name, its state over all its conversations, and its own folder. An agent with no folder works in the folder of each channel.",
       z.object({}),
       () =>
         store.listAgents().map((agent) => ({
           name: agent.name,
           state: chat.agentState(agent.id),
-          folder: homeShort(agent.cwd),
+          folder: agent.cwd === null ? null : homeShort(agent.cwd),
           you: agent.id === caller.agentId,
         }))
     ),

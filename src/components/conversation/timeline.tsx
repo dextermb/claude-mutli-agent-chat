@@ -12,7 +12,7 @@ import { QuestionCard } from "@/components/conversation/question-card"
 import { ToolCallCard } from "@/components/conversation/tool-call-card"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type {
-  AgentWithState,
+  ConversationAgent,
   PermissionItem,
   TimelineEntry,
   ToolCallItem,
@@ -25,7 +25,7 @@ type Answer = (requestId: string, answer: RequestAnswer) => void
 
 type TimelineProps = {
   entries: TimelineEntry[]
-  agents: AgentWithState[]
+  agents: ConversationAgent[]
   onAnswer: Answer
 }
 
@@ -118,7 +118,7 @@ function AuthorGroup({
   onAnswer,
 }: {
   group: Group
-  agent: AgentWithState | undefined
+  agent: ConversationAgent | undefined
   requests: Map<string, PermissionItem>
   subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
@@ -172,7 +172,7 @@ function EntryBody({
   onAnswer,
 }: {
   entry: TimelineEntry
-  agent: AgentWithState | undefined
+  agent: ConversationAgent | undefined
   requests: Map<string, PermissionItem>
   subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
@@ -182,7 +182,7 @@ function EntryBody({
     return (
       <ToolCallCard
         call={item}
-        cwd={agent?.cwd ?? ""}
+        cwd={agent?.sessionCwd ?? ""}
         request={requests.get(item.toolUseId)}
         agentName={agent?.name ?? "the agent"}
         onAnswer={onAnswer}

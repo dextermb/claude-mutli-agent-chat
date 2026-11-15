@@ -443,12 +443,12 @@ export default function AgentPage() {
                             id="agent-cwd"
                             className="font-mono"
                             placeholder="~/code/web-app"
-                            value={field.state.value}
+                            value={field.state.value ?? ""}
                             aria-invalid={invalid(field.state.meta)}
                             aria-describedby={
                               invalid(field.state.meta)
-                                ? "agent-cwd-error"
-                                : undefined
+                                ? "agent-cwd-description agent-cwd-error"
+                                : "agent-cwd-description"
                             }
                             onBlur={field.handleBlur}
                             onChange={(event) =>
@@ -464,13 +464,17 @@ export default function AgentPage() {
                             </InputGroupButton>
                           </InputGroupAddon>
                         </InputGroup>
+                        <FieldDescription id="agent-cwd-description">
+                          Empty: the agent works in the folder of each channel,
+                          or in a scratch folder.
+                        </FieldDescription>
                         <FieldError
                           id="agent-cwd-error"
                           errors={shown(field.state.meta)}
                         />
                         <FolderDialog
                           open={browsing}
-                          start={field.state.value}
+                          start={field.state.value ?? ""}
                           onOpenChange={setBrowsing}
                           onPick={(path) => {
                             field.handleChange(path)
@@ -630,7 +634,7 @@ export default function AgentPage() {
                   systemPrompt: values.systemPrompt || null,
                   maxTurns: values.maxTurns ?? null,
                 }}
-                cwd={values.cwd}
+                cwd={values.cwd ?? ""}
               />
             )}
           </form.Subscribe>
@@ -646,7 +650,7 @@ function draftOf(agent: Agent): Draft {
     colour: agent.colour,
     model: agent.model,
     permissionMode: agent.permissionMode,
-    cwd: agent.cwd,
+    cwd: agent.cwd ?? "",
     autostart: agent.autostart,
     allowedTools: agent.allowedTools,
     disallowedTools: agent.disallowedTools,

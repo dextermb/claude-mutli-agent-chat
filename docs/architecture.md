@@ -58,6 +58,13 @@ be built again from the lines.
 **One session for each agent in each conversation.** So the context of one
 conversation does not go into another. One session row holds one process.
 
+**A channel gives its folder to its agents.** A channel is a project, and an
+agent can be a generic role with no folder. So one agent can work in two
+repositories, in two channels. The folder of the channel wins over the folder
+of the agent, and an agent with no folder anywhere gets a scratch folder
+outside the repository (`docs/agents.md`). Rejected: a folder for each member
+of a channel, because the user must then set it for each agent again.
+
 **Permissions and questions go through `can_use_tool`.** The approval card
 and the question card answer the request on stdin. A request has no time
 limit (F20), so a card can wait.
@@ -122,8 +129,10 @@ the request cannot get an answer. The next prompt resumes the session.
   write tool shows an approval card, so the user sees each step.
 - **User hooks run in each agent.** A slow or failing user hook makes each
   agent slow or makes it fail.
-- **Two agents in one folder.** Two agents with the same `cwd` can edit the
-  same files at the same time. The app does not warn. The user chooses the
-  folder of each agent.
+- **Two agents in one folder.** In a channel with a folder, each agent works
+  in that folder, so two agents can edit the same files at the same time. The
+  rule tells each agent so, but the app does not stop it. An "Always allow"
+  rule of one agent also goes into the settings of that folder (F21), so each
+  agent there gets it.
 - **The prompt cache.** A request that waits for more than one hour loses the
   cache, so the next call costs more.

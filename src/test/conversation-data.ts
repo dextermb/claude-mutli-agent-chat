@@ -1,11 +1,11 @@
 import type {
-  AgentWithState,
   Conversation,
+  ConversationAgent,
   SessionCard,
   TimelineEntry,
 } from "@/lib/agent-api"
 
-export const testRunner: AgentWithState = {
+export const testRunner: ConversationAgent = {
   id: "a1",
   name: "test-runner",
   colour: "aqua",
@@ -20,6 +20,7 @@ export const testRunner: AgentWithState = {
   maxTurns: null,
   createdAt: "2026-11-15T10:00:00.000Z",
   state: "idle",
+  sessionCwd: "/home/user/code/web-app",
 }
 
 export const directMessage: Conversation = {
@@ -29,6 +30,7 @@ export const directMessage: Conversation = {
   topic: null,
   private: true,
   replyMode: "every",
+  cwd: null,
   members: ["user:me", "agent:a1"],
   createdAt: "2026-11-15T10:00:00.000Z",
 }
@@ -221,7 +223,7 @@ export const stoppedTurn = agentEntry(11, {
   numTurns: 2,
 })
 
-export const reviewerBot: AgentWithState = {
+export const reviewerBot: ConversationAgent = {
   ...testRunner,
   id: "a2",
   name: "reviewer-bot",
@@ -236,6 +238,7 @@ export const releaseChannel: Conversation = {
   topic: "Ship v2.4 on Friday.",
   private: false,
   replyMode: "mention",
+  cwd: null,
   members: ["user:me", "agent:a1", "agent:a2"],
   createdAt: "2026-11-15T09:00:00.000Z",
 }
@@ -247,6 +250,7 @@ export const squadGroup: Conversation = {
   topic: null,
   private: true,
   replyMode: "mention",
+  cwd: null,
   members: ["user:me", "agent:a2", "agent:a1"],
   createdAt: "2026-11-15T09:30:00.000Z",
 }

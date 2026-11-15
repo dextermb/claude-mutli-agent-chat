@@ -4,6 +4,8 @@ import {
   type ServerResponse,
 } from "node:http"
 import { randomUUID } from "node:crypto"
+import { mkdirSync } from "node:fs"
+import { join } from "node:path"
 import type { AddressInfo } from "node:net"
 import type { PermissionAnswer } from "../protocol/encode.ts"
 import { parseMentions } from "../conversation/mentions.ts"
@@ -13,12 +15,12 @@ import {
   channelSettingsSchema,
   checkBody,
 } from "../schemas.ts"
-import { homeShort } from "../paths.ts"
+import { defaultScratchRoot, homeShort } from "../paths.ts"
 import { buildArgs } from "../session/args.ts"
 import { environmentPrompt } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
-import { listFolders } from "./folders.ts"
+import { folderError, listFolders } from "./folders.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
@@ -42,6 +44,7 @@ export type ServerOptions = {
   store: Store
   startSession: StartSession
   eventLogSize?: number
+  scratchRoot?: string
 }
 
 type LiveSession = {
@@ -84,6 +87,7 @@ export function createServer({
   store,
   startSession,
   eventLogSize = EVENT_LOG_SIZE,
+  scratchRoot = defaultScratchRoot(),
 }: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
@@ -148,16 +152,41 @@ export function createServer({
     if (running) return running
     const earlier = store.latestSession(agentId, conversationId)
     const agent = store.getAgent(agentId)
-    if (!agent) return undefined
+    const conversation = store.getConversation(conversationId)
+    if (!agent || !conversation) return undefined
     return start(
       store.createSession({
         agentId,
         conversationId,
         claudeSessionId: earlier?.claudeSessionId,
         claudeSessionNew: earlier?.claudeSessionNew,
-        config: configOf(agent),
+        config: configOf(agent, folderFor(agent, conversation)),
       })
     )
+  }
+
+  function folderFor(agent: Agent, conversation: Conversation): string {
+    return conversation.cwd ?? agent.cwd ?? scratchFolder(conversation.id)
+  }
+
+  function sessionCwd(agent: Agent, conversation: Conversation): string {
+    return (
+      store.latestSession(agent.id, conversation.id)?.config?.cwd ??
+      folderFor(agent, conversation)
+    )
+  }
+
+  function folderSource(
+    cwd: string,
+    conversation: Conversation
+  ): "channel" | "agent" | "scratch" {
+    if (cwd === conversation.cwd) return "channel"
+    if (cwd === scratchFolder(conversation.id)) return "scratch"
+    return "agent"
+  }
+
+  function scratchFolder(conversationId: string): string {
+    return join(scratchRoot, conversationId)
   }
 
   function start(row: SessionRow): LiveSession | undefined {
@@ -177,6 +206,10 @@ export function createServer({
     }
     live.set(session.id, session)
     tokens.set(session.token, session)
+    const cwd = row.config?.cwd ?? folderFor(agent, conversation)
+    if (cwd === scratchFolder(conversation.id)) {
+      mkdirSync(cwd, { recursive: true })
+    }
     session.handle = startSession({
       agent,
       args: buildArgs(agent, row, {
@@ -184,10 +217,14 @@ export function createServer({
           agentName: agent.name,
           conversation,
           memberNames: conversation.members.map(authorName),
+          folder: {
+            path: homeShort(cwd),
+            from: folderSource(cwd, conversation),
+          },
         }),
         chat: { url: chatUrl, token: session.token },
       }),
-      cwd: agent.cwd,
+      cwd,
       onEvent: (event) => onSessionEvent(session, event),
     })
     return session
@@ -281,9 +318,11 @@ export function createServer({
     send(response, 201, { conversation })
   }
 
-  function sessionCard(agent: Agent, conversationId: string): SessionCard {
+  function sessionCard(agent: Agent, conversation: Conversation): SessionCard {
+    const conversationId = conversation.id
+    const now = configOf(agent, folderFor(agent, conversation))
     const row = store.latestSession(agent.id, conversationId)
-    const config = row?.config ?? configOf(agent)
+    const config = row?.config ?? now
     const turns = row?.claudeSessionId
       ? store.listSessionTurns(agent.id, conversationId, row.claudeSessionId)
       : []
@@ -296,7 +335,7 @@ export function createServer({
       allowedTools: config.allowedTools,
       turns: turns.reduce((sum, turn) => sum + turn.numTurns, 0),
       costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
-      configChanged: JSON.stringify(config) !== JSON.stringify(configOf(agent)),
+      configChanged: JSON.stringify(config) !== JSON.stringify(now),
     }
   }
 
@@ -559,15 +598,26 @@ export function createServer({
     ) {
       const agent = store.getAgent(params.agentId)
       if (!agent) return send(response, 404, { error: "no such agent" })
-      return send(response, 200, { session: sessionCard(agent, params.id) })
+      const conversation = store.getConversation(params.id)
+      if (!conversation) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      return send(response, 200, {
+        session: sessionCard(agent, conversation),
+      })
     }
 
     if (
       (params = route("POST", "api/conversations/:id/agents/:agentId/sessions"))
     ) {
       const agent = store.getAgent(params.agentId)
+      const conversation = store.getConversation(params.id)
       const conversationId = params.id
-      if (!agent || !agentIdsOf(conversationId).includes(agent.id)) {
+      if (
+        !agent ||
+        !conversation ||
+        !agentIdsOf(conversationId).includes(agent.id)
+      ) {
         return send(response, 404, {
           error: "no such agent in this conversation",
         })
@@ -582,7 +632,7 @@ export function createServer({
         conversationId,
         claudeSessionId: randomUUID(),
         claudeSessionNew: true,
-        config: configOf(agent),
+        config: configOf(agent, folderFor(agent, conversation)),
       })
       const [entry] = store.saveItems(row.id, [
         {
@@ -598,7 +648,7 @@ export function createServer({
       }
       start(row)
       return send(response, 201, {
-        session: sessionCard(agent, conversationId),
+        session: sessionCard(agent, conversation),
       })
     }
 
@@ -755,6 +805,11 @@ export function createServer({
           fields: checked.fields,
         })
       }
+      const { cwd } = checked.data
+      const refused = cwd && cwd !== current.cwd ? await folderError(cwd) : null
+      if (refused) {
+        return send(response, 400, { error: refused, fields: { cwd: refused } })
+      }
       const conversation = store.updateConversation(params.id, checked.data)
       if (conversation) announce(conversation)
       return send(response, 200, { conversation })
@@ -768,7 +823,13 @@ export function createServer({
       const agents = agentIdsOf(conversation.id).flatMap((agentId) => {
         const agent = store.getAgent(agentId)
         if (!agent) return []
-        return [{ ...agent, state: liveState(agentId, conversation.id) }]
+        return [
+          {
+            ...agent,
+            state: liveState(agentId, conversation.id),
+            sessionCwd: sessionCwd(agent, conversation),
+          },
+        ]
       })
       return send(response, 200, { conversation, agents })
     }
@@ -783,6 +844,14 @@ export function createServer({
     if (route("POST", "api/conversations")) {
       const body = await readJson(request)
       if (body.kind === "group" || body.kind === "channel") {
+        const cwd = body.kind === "channel" ? text(body.cwd).trim() : ""
+        const refused = cwd ? await folderError(cwd) : null
+        if (refused) {
+          return send(response, 400, {
+            error: refused,
+            fields: { cwd: refused },
+          })
+        }
         const made = createGroupOrChannel(body)
         if (!made.ok) return send(response, made.status, made.body)
         return send(response, 201, { conversation: made.conversation })
@@ -842,7 +911,7 @@ export function createServer({
           body: { error: checked.error, fields: checked.fields },
         }
       }
-      const { name, topic, replyMode } = checked.data
+      const { name, topic, replyMode, cwd } = checked.data
       const taken = store
         .listConversations()
         .some((item) => item.kind === "channel" && item.name === name)
@@ -859,6 +928,7 @@ export function createServer({
         topic,
         private: checked.data.private,
         replyMode,
+        cwd,
         members,
       })
     }
@@ -953,11 +1023,11 @@ export function createServer({
   }
 }
 
-function configOf(agent: Agent): SessionConfig {
+function configOf(agent: Agent, cwd: string): SessionConfig {
   return {
     model: agent.model,
     permissionMode: agent.permissionMode,
-    cwd: agent.cwd,
+    cwd,
     allowedTools: agent.allowedTools,
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt,

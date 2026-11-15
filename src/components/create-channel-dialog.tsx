@@ -7,6 +7,7 @@ import {
   initialsOf,
 } from "@/components/conversation/agent-look"
 import {
+  FolderField,
   PrivateField,
   ReplyModeField,
   TopicField,
@@ -57,6 +58,7 @@ const EMPTY: ChannelDraft = {
   topic: "",
   private: false,
   replyMode: "mention",
+  cwd: "",
   agentIds: [],
 }
 
@@ -158,6 +160,14 @@ export function CreateChannelDialog({
               {(field) => (
                 <PrivateField
                   checked={field.state.value ?? false}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
+            <form.Field name="cwd">
+              {(field) => (
+                <FolderField
+                  value={field.state.value ?? ""}
                   onChange={field.handleChange}
                 />
               )}

@@ -17,8 +17,8 @@ A group chat is private. A channel is public unless `private: true`.
 
 ## Channel settings
 
-`PATCH /api/conversations/:id` changes the topic, the privacy and the reply
-mode of a channel. The server merges the body onto the stored values and
+`PATCH /api/conversations/:id` changes the topic, the privacy, the reply mode
+and the folder (`cwd`) of a channel. The server merges the body onto the stored values and
 checks the result with `channelSettingsSchema` (`docs/forms.md`). A DM or a
 group chat answers `400` "Only a channel has settings.", because a group chat
 is always private and always `mention`. The name does not change.
@@ -27,7 +27,10 @@ is always private and always `mention`. The name does not change.
   next message of the user, with no restart.
 - The rule of a process that runs keeps the topic and the reply mode of its
   start (`docs/agent-environment.md`). The agent can read the new values with
-  `read_conversation` (`docs/mcp.md`).
+  `get_conversation` (`docs/mcp.md`).
+- A process that runs keeps its folder. The next process of each agent starts
+  in the new folder, and resumes its Claude session (`docs/agents.md`). A
+  folder that does not exist gets `400`.
 
 A channel name has lowercase letters, numbers and hyphens only, else the
 server answers `400`. Two channels cannot have the same name: the second one

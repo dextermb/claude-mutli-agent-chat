@@ -63,13 +63,13 @@ function openConversation(
   return render(<App />)
 }
 
-function openChannel(entries: TimelineEntry[]) {
+function openChannel(entries: TimelineEntry[], channel = releaseChannel) {
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, squadGroup, directMessage],
   })
   network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
   network.on("GET", "/api/conversations/ch1", {
-    conversation: releaseChannel,
+    conversation: channel,
     agents: [{ ...testRunner, state: "busy" }, reviewerBot],
   })
   network.on("GET", "/api/conversations/ch1/timeline", {
@@ -139,6 +139,38 @@ describe("the DM page", () => {
 
     expect(await screen.findByText(/This is your DM with/)).toHaveTextContent(
       "This is your DM with test-runner. In a DM, the agent replies to every message. It runs Claude Code in /home/user/code/web-app."
+    )
+  })
+
+  test("a generic agent names the folder of its session, and its tool calls show paths without that folder", async () => {
+    network.on("GET", "/api/conversations", {
+      conversations: [directMessage],
+      unread: {},
+    })
+    network.on("GET", "/api/agents", {
+      agents: [{ ...testRunner, cwd: null }],
+    })
+    network.on("GET", "/api/conversations/c1", {
+      conversation: directMessage,
+      agents: [
+        { ...testRunner, cwd: null, sessionCwd: "/home/user/code/web-app" },
+      ],
+    })
+    network.on("GET", "/api/conversations/c1/timeline", {
+      items: [userMessage, readCall],
+      lastEventId: 0,
+    })
+    network.on("GET", "/api/conversations/c1/agents/a1/session", {
+      session: testRunnerSession,
+    })
+    window.history.pushState({}, "", "/conversations/c1")
+    render(<App />)
+
+    expect(
+      await screen.findByRole("region", { name: "Read src/notes.txt" })
+    ).toBeInTheDocument()
+    expect(screen.getByText(/This is your DM with/)).toHaveTextContent(
+      "It runs Claude Code in /home/user/code/web-app."
     )
   })
 
@@ -1153,6 +1185,38 @@ describe("the DM page", () => {
         .emit(1, { type: "conversation", conversation: changed })
     )
     expect(header.getByText("Ship v2.5 on Monday.")).toBeInTheDocument()
+  })
+
+  test("in a channel, channel settings can change the working directory", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage], {
+      ...releaseChannel,
+      cwd: "/home/user/code/release",
+    })
+    network.on("PATCH", "/api/conversations/ch1", {
+      conversation: { ...releaseChannel, cwd: "/home/user/code/billing" },
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    const folder = dialog.getByLabelText("Working directory")
+    expect(folder).toHaveValue("/home/user/code/release")
+    await user.clear(folder)
+    await user.type(folder, "/home/user/code/billing")
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([
+      {
+        method: "PATCH",
+        url: "/api/conversations/ch1",
+        body: { cwd: "/home/user/code/billing" },
+      },
+    ])
   })
 
   test("the header of a channel says when the agents reply, and follows a change of the reply mode", async () => {

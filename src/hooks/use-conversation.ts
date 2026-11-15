@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 
 import type {
-  AgentWithState,
   Conversation,
+  ConversationAgent,
   StreamMessage,
   TimelineEntry,
 } from "@/lib/agent-api"
@@ -11,7 +11,7 @@ import { refusalOf } from "@/lib/refusal"
 type ConversationView = {
   status: "loading" | "ready" | "error"
   conversation: Conversation | null
-  agents: AgentWithState[]
+  agents: ConversationAgent[]
   entries: TimelineEntry[]
 }
 
@@ -30,7 +30,7 @@ export function useConversation(conversationId: string) {
     let source: EventSource | null = null
     async function load() {
       const [detail, timeline] = await Promise.all([
-        getJson<{ conversation: Conversation; agents: AgentWithState[] }>(
+        getJson<{ conversation: Conversation; agents: ConversationAgent[] }>(
           `/api/conversations/${conversationId}`
         ),
         getJson<{ items: TimelineEntry[]; lastEventId: number }>(
@@ -56,7 +56,7 @@ export function useConversation(conversationId: string) {
         }
         setView((view) => applyMessage(view, message))
         if (message.type === "conversation") {
-          getJson<{ agents: AgentWithState[] }>(
+          getJson<{ agents: ConversationAgent[] }>(
             `/api/conversations/${conversationId}`
           )
             .then(({ agents }) => {

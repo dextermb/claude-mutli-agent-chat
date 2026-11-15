@@ -57,11 +57,20 @@ describe("the Create a channel dialog", () => {
     await user.click(
       within(dialog).getByRole("switch", { name: "Private channel" })
     )
+    await user.type(
+      within(dialog).getByLabelText("Working directory"),
+      "/home/user/code/release"
+    )
     await user.click(
       within(dialog).getByRole("checkbox", { name: "Invite test-runner" })
     )
     await user.click(
       within(dialog).getByRole("radio", { name: /Every message/ })
+    )
+    expect(
+      within(dialog).getByLabelText("Working directory")
+    ).toHaveAccessibleDescription(
+      "Each agent in this channel works in this folder. Empty: each agent works in its own folder."
     )
     await user.click(
       within(dialog).getByRole("button", { name: "Create channel" })
@@ -78,6 +87,7 @@ describe("the Create a channel dialog", () => {
             topic: "Ship v2.4 on Friday.",
             private: true,
             replyMode: "every",
+            cwd: "/home/user/code/release",
             agentIds: ["a1"],
           },
         },

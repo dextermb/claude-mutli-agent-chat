@@ -9,13 +9,13 @@ import {
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace"
-import type { AgentWithState, TimelineEntry } from "@/lib/agent-api"
+import type { ConversationAgent, TimelineEntry } from "@/lib/agent-api"
 
 export function WorkingLines({
   agents,
   entries,
 }: {
-  agents: AgentWithState[]
+  agents: ConversationAgent[]
   entries: TimelineEntry[]
 }) {
   const working = agents.filter((agent) => agent.state === "busy")
@@ -61,14 +61,17 @@ function elapsed(seconds: number): string {
   return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
 }
 
-function activityOf(agent: AgentWithState, entries: TimelineEntry[]): string {
+function activityOf(
+  agent: ConversationAgent,
+  entries: TimelineEntry[]
+): string {
   const last = entries.findLast(
     ({ authorKey, item }) =>
       authorKey === `agent:${agent.id}` &&
       !(item.kind === "tool_call" && item.parentToolUseId)
   )?.item
   if (last?.kind === "tool_call" && last.status === "running") {
-    return `is running ${last.name} ${mainInput(last.name, last.input, agent.cwd)}`
+    return `is running ${last.name} ${mainInput(last.name, last.input, agent.sessionCwd)}`
   }
   if (last?.kind === "message" && last.status === "streaming") {
     return "is writing"
@@ -77,7 +80,7 @@ function activityOf(agent: AgentWithState, entries: TimelineEntry[]): string {
 }
 
 function turnStartOf(
-  agent: AgentWithState,
+  agent: ConversationAgent,
   entries: TimelineEntry[]
 ): string | undefined {
   const key = `agent:${agent.id}`

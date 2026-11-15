@@ -121,13 +121,15 @@ export function openStore(location: string) {
   function createConversation(conversation: NewConversation): Conversation {
     const created: Conversation = {
       ...conversation,
+      cwd: conversation.cwd ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
     }
     db.prepare(
       `INSERT INTO conversations (id, kind, name, topic, private, reply_mode,
-         created_at)
-       VALUES (:id, :kind, :name, :topic, :private, :replyMode, :createdAt)`
+         cwd, created_at)
+       VALUES (:id, :kind, :name, :topic, :private, :replyMode, :cwd,
+         :createdAt)`
     ).run({
       id: created.id,
       kind: created.kind,
@@ -135,6 +137,7 @@ export function openStore(location: string) {
       topic: created.topic,
       private: created.private ? 1 : 0,
       replyMode: created.replyMode,
+      cwd: created.cwd,
       createdAt: created.createdAt,
     })
     const addMember = db.prepare(
@@ -171,7 +174,7 @@ export function openStore(location: string) {
   function updateConversation(
     id: string,
     change: Partial<
-      Pick<Conversation, "name" | "topic" | "private" | "replyMode">
+      Pick<Conversation, "name" | "topic" | "private" | "replyMode" | "cwd">
     >
   ): Conversation | undefined {
     const current = getConversation(id)
@@ -179,7 +182,7 @@ export function openStore(location: string) {
     const next = { ...current, ...change }
     db.prepare(
       `UPDATE conversations SET name = :name, topic = :topic, private = :private,
-         reply_mode = :replyMode
+         reply_mode = :replyMode, cwd = :cwd
        WHERE id = :id`
     ).run({
       id,
@@ -187,6 +190,7 @@ export function openStore(location: string) {
       topic: next.topic,
       private: next.private ? 1 : 0,
       replyMode: next.replyMode,
+      cwd: next.cwd,
     })
     return getConversation(id)
   }
@@ -524,15 +528,27 @@ export function openStore(location: string) {
     )
     for (const migration of MIGRATIONS) {
       if (migration.version <= version) continue
-      inTransaction(db, () => {
-        db.exec(migration.sql)
-        if (migration.rebuild) {
-          for (const row of db.prepare("SELECT id FROM agent_sessions").all()) {
-            rebuildSession(String(row.id))
+      if (migration.foreignKeysOff) db.exec("PRAGMA foreign_keys = OFF")
+      try {
+        inTransaction(db, () => {
+          db.exec(migration.sql)
+          if (migration.rebuild) {
+            for (const row of db
+              .prepare("SELECT id FROM agent_sessions")
+              .all()) {
+              rebuildSession(String(row.id))
+            }
           }
-        }
-        db.exec(`PRAGMA user_version = ${migration.version}`)
-      })
+          if (db.prepare("PRAGMA foreign_key_check").all().length > 0) {
+            throw new Error(
+              `Migration ${migration.version} breaks a foreign key.`
+            )
+          }
+          db.exec(`PRAGMA user_version = ${migration.version}`)
+        })
+      } finally {
+        if (migration.foreignKeysOff) db.exec("PRAGMA foreign_keys = ON")
+      }
     }
   }
 
@@ -659,6 +675,7 @@ function toConversation(row: Row, members: string[]): Conversation {
     topic: row.topic === null ? null : String(row.topic),
     private: row.private === 1,
     replyMode: String(row.reply_mode) as Conversation["replyMode"],
+    cwd: row.cwd === null ? null : String(row.cwd),
     members,
     createdAt: String(row.created_at),
   }
@@ -671,7 +688,7 @@ function toAgent(row: Row): Agent {
     colour: String(row.colour),
     model: String(row.model),
     permissionMode: String(row.permission_mode),
-    cwd: String(row.cwd),
+    cwd: row.cwd === null ? null : String(row.cwd),
     autostart: row.autostart === 1,
     allowedTools: JSON.parse(String(row.allowed_tools)) as string[],
     disallowedTools: JSON.parse(String(row.disallowed_tools)) as string[],

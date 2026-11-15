@@ -29,6 +29,8 @@ export type {
 
 export type AgentWithState = Agent & { state: SessionState }
 
+export type ConversationAgent = AgentWithState & { sessionCwd: string }
+
 export type StreamMessage =
   | { type: "item"; entry: TimelineEntry }
   | { type: "agent_state"; agentId: string; state: SessionState }

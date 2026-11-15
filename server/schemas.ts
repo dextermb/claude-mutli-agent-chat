@@ -11,12 +11,20 @@ function emptyAsNull() {
     .transform((value) => (value ? value : null))
 }
 
+function optionalFolder() {
+  return z
+    .string()
+    .trim()
+    .nullish()
+    .transform((value) => (value ? value : null))
+}
+
 export const agentSchema = z.object({
   name: filled("Give the agent a name."),
   colour: z.string().default(""),
   model: filled("Pick a model."),
   permissionMode: filled("Pick a permission mode."),
-  cwd: filled("Give the folder of the agent."),
+  cwd: optionalFolder(),
   autostart: z.boolean().default(false),
   allowedTools: z.array(z.string()).default([]),
   disallowedTools: z.array(z.string()).default([]),
@@ -44,6 +52,7 @@ export const channelSchema = z.object({
   replyMode: z
     .enum(["mention", "every"], { error: "Pick a reply mode." })
     .default("mention"),
+  cwd: optionalFolder(),
   agentIds: z.array(z.string()).default([]),
 })
 
@@ -51,6 +60,7 @@ export const channelSettingsSchema = channelSchema.pick({
   topic: true,
   private: true,
   replyMode: true,
+  cwd: true,
 })
 
 export type AgentDraft = z.input<typeof agentSchema>

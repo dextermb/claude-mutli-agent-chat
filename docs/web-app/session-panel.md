@@ -76,7 +76,7 @@ and a Configure link. A view changes the address in the same way as a tab,
 and closes the sheet.
 
 - **Files** (`files-tab.tsx`) lists each file that the agent read or changed:
-  the path without the folder of the agent, the last action as a Badge
+  the path without the folder of the session, the last action as a Badge
   ("Read", "Edited" or "Created"), the lines added and removed over all calls
   ("none" for a file that the agent only read), and the time of the last
   call. A heading counts the files, and the table sits in a bordered box that

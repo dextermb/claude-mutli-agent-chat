@@ -1,3 +1,7 @@
+import { FolderIcon } from "lucide-react"
+import { useState } from "react"
+
+import { FolderDialog } from "@/components/agent-form/folder-dialog"
 import {
   Field,
   FieldContent,
@@ -7,6 +11,12 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import type { Conversation } from "@/lib/agent-api"
@@ -25,6 +35,52 @@ export function TopicField({
         id="channel-topic"
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    </Field>
+  )
+}
+
+export function FolderField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [browsing, setBrowsing] = useState(false)
+  return (
+    <Field>
+      <FieldLabel htmlFor="channel-cwd">Working directory</FieldLabel>
+      <InputGroup>
+        <InputGroupAddon>
+          <FolderIcon aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupInput
+          id="channel-cwd"
+          className="font-mono"
+          placeholder="~/code/web-app"
+          value={value}
+          aria-describedby="channel-cwd-description"
+          onChange={(event) => onChange(event.currentTarget.value)}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton size="xs" onClick={() => setBrowsing(true)}>
+            Browse
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+      <FieldDescription id="channel-cwd-description">
+        Each agent in this channel works in this folder. Empty: each agent works
+        in its own folder.
+      </FieldDescription>
+      <FolderDialog
+        open={browsing}
+        start={value}
+        onOpenChange={setBrowsing}
+        onPick={(path) => {
+          onChange(path)
+          setBrowsing(false)
+        }}
       />
     </Field>
   )

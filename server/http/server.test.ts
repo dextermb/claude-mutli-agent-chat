@@ -656,26 +656,35 @@ describe("createServer", () => {
     )
   })
 
-  test("an agent with no name, folder or model is refused", async () => {
+  test("an agent with no name or model is refused", async () => {
     const { base } = await startServer()
 
     const response = await postJson(base, "/api/agents", {
       ...testRunner,
       name: "  ",
-      cwd: "",
       model: "",
     })
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error:
-        "Give the agent a name. Pick a model. Give the folder of the agent.",
+      error: "Give the agent a name. Pick a model.",
       fields: {
         name: "Give the agent a name.",
         model: "Pick a model.",
-        cwd: "Give the folder of the agent.",
       },
     })
+  })
+
+  test("a generic agent with no folder can be created", async () => {
+    const { base } = await startServer()
+
+    const response = await postJson(base, "/api/agents", {
+      ...testRunner,
+      cwd: "  ",
+    })
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({ agent: { cwd: null } })
   })
 
   test("a change to an agent keeps the fields that it does not name", async () => {
@@ -772,7 +781,7 @@ describe("createServer", () => {
 
     expect(await response.json()).toEqual({
       conversation,
-      agents: [{ ...agent, state: "idle" }],
+      agents: [{ ...agent, state: "idle", sessionCwd: agent.cwd }],
     })
   })
 

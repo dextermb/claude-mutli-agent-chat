@@ -66,7 +66,12 @@ CREATE INDEX IF NOT EXISTS timeline_items_order
   ON timeline_items (conversation_id, seq);
 `
 
-export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
+export const MIGRATIONS: {
+  version: number
+  sql: string
+  rebuild?: true
+  foreignKeysOff?: true
+}[] = [
   {
     version: 2,
     rebuild: true,
@@ -112,6 +117,35 @@ export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
     version: 7,
     sql: `
       ALTER TABLE agents ADD COLUMN max_turns INTEGER;
+    `,
+  },
+  {
+    version: 8,
+    foreignKeysOff: true,
+    sql: `
+      CREATE TABLE agents_new (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        colour TEXT NOT NULL,
+        model TEXT NOT NULL,
+        permission_mode TEXT NOT NULL,
+        cwd TEXT,
+        autostart INTEGER NOT NULL,
+        allowed_tools TEXT NOT NULL,
+        disallowed_tools TEXT NOT NULL,
+        system_prompt TEXT,
+        created_at TEXT NOT NULL,
+        description TEXT,
+        max_turns INTEGER
+      );
+      INSERT INTO agents_new
+        SELECT id, name, colour, model, permission_mode, cwd, autostart,
+          allowed_tools, disallowed_tools, system_prompt, created_at,
+          description, max_turns
+        FROM agents;
+      DROP TABLE agents;
+      ALTER TABLE agents_new RENAME TO agents;
+      ALTER TABLE conversations ADD COLUMN cwd TEXT;
     `,
   },
 ]

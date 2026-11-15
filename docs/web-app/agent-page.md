@@ -55,7 +55,10 @@ folder (`GET /api/folders`, `docs/server.md`). The dialog shows the path in
 mono, Up (disabled at `/`), one button for each subfolder, or "No folders in
 this folder.", and Cancel and "Use this folder". Browse always puts an
 absolute path in the field, because the server does not expand `~` in the
-working directory.
+working directory. The field can stay empty. Its description says "Empty: the
+agent works in the folder of each channel, or in a scratch folder."
+(`docs/agents.md`). Create a channel and Channel settings use the same field
+and dialog, in `FolderField` of `src/components/channel-fields.tsx`.
 
 The model and the permission mode use the Base UI `Select`, with a mono
 trigger, as the design shows. The description under the permission mode
@@ -68,7 +71,8 @@ Save. It uses `claudeArgs()`, the function that starts the real process
 (`docs/agents.md`), with `'<chat plugin>'`, `'<chat server>'`, `'<rule>'` (or
 `'<rule> + <system prompt>'`) and `--resume '<session id>'` in place of the
 values that the server makes for each session. The line over it says "The app
-starts this in <folder> for each conversation.", because the app starts one
+starts this in <folder> for each conversation.", or "in the folder of each
+channel, or in a scratch folder," for a generic agent, because the app starts one
 process for each conversation of the agent, not one for each turn. Copy puts
 the text on the clipboard.
 

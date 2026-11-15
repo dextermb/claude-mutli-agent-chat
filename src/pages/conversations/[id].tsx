@@ -272,7 +272,7 @@ export default function ConversationPage() {
           <TabsContent value="files" className="min-h-0 flex-1 overflow-y-auto">
             <FilesTab
               entries={conversation.entries}
-              cwd={agent.cwd}
+              cwd={agent.sessionCwd}
               agentName={agent.name}
               onOpen={(entryId) => {
                 focusEntry.current = entryId
@@ -303,7 +303,7 @@ export default function ConversationPage() {
                   . In a DM, the agent replies to every message. It runs Claude
                   Code in{" "}
                   <code className="font-mono text-[13px] text-agent-yellow">
-                    {agent.cwd}
+                    {agent.sessionCwd}
                   </code>
                   .
                 </p>

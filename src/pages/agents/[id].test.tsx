@@ -231,7 +231,7 @@ describe("the agent configuration page", () => {
     expect(screen.queryByText("Use another folder.")).not.toBeInTheDocument()
   })
 
-  test("a save with empty fields sends nothing, and each empty field shows its message", async () => {
+  test("a save with no name sends nothing, and the name shows its message", async () => {
     const user = userEvent.setup()
     openPage("/agents/new")
 
@@ -242,12 +242,35 @@ describe("the agent configuration page", () => {
     expect(
       await screen.findByText("Give the agent a name.")
     ).toBeInTheDocument()
-    expect(
-      screen.getByText("Give the folder of the agent.")
-    ).toBeInTheDocument()
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
       []
     )
+  })
+
+  test("an agent with no working directory is generic, and the page says where it works", async () => {
+    const user = userEvent.setup()
+    const generic = { ...testRunner, cwd: null }
+    network.on("POST", "/api/agents", { agent: generic }, 201)
+    network.on("GET", "/api/agents/a1", { agent: generic })
+    openPage("/agents/new")
+
+    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+
+    expect(
+      screen.getByLabelText("Working directory")
+    ).toHaveAccessibleDescription(
+      "Empty: the agent works in the folder of each channel, or in a scratch folder."
+    )
+    expect(
+      screen.getByText(/The app starts this in the folder of each channel/)
+    ).toBeInTheDocument()
+    expect(
+      network.sent.find((request) => request.method === "POST")
+    ).toMatchObject({
+      body: { name: "test-runner", cwd: "" },
+    })
+    expect(window.location.pathname).toBe("/agents/a1")
   })
 
   test("a new agent shows the sidebar, the way back to Agents, and Cancel", async () => {
