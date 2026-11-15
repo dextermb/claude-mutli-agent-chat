@@ -46,6 +46,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import { NO_ANSWER, replyOf } from "@/lib/refusal"
 import { invalid, shown } from "@/lib/form-errors"
 import { channelSchema, type ChannelDraft } from "../../server/schemas.ts"
 
@@ -76,16 +77,22 @@ export function CreateChannelDialog({
   })
 
   async function create(draft: ChannelDraft) {
-    const response = await fetch("/api/conversations", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind: "channel", ...draft }),
-    })
-    const body = (await response.json()) as {
+    const reply = await replyOf<{
       conversation?: Conversation
       error?: string
+    }>(
+      fetch("/api/conversations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "channel", ...draft }),
+      })
+    )
+    if (!reply) {
+      setError(NO_ANSWER)
+      return
     }
-    if (!response.ok || !body.conversation) {
+    const { body } = reply
+    if (!reply.ok || !body.conversation) {
       setError(body.error ?? "The server did not create the channel.")
       return
     }

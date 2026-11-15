@@ -41,7 +41,8 @@ Two dialogs that the sidebar opens:
   If the server refuses the channel, the dialog shows the reason and stays
   open.
 
-After each one, the page moves to the new conversation.
+After each one, the page moves to the new conversation. When no answer
+comes, each dialog says "The server did not answer." and stays open.
 
 ## Members
 
@@ -49,7 +50,8 @@ The header of a group chat has "Add people or agents", and the header of a
 channel has "Invite agents", as in the design. Each opens
 `src/components/add-members-dialog.tsx`: the agents that are not members,
 each with its model and its mode, and a checkbox. Add or Invite sends the
-picked agents. If the server refuses, the dialog shows the reason.
+picked agents. If the server refuses, the dialog shows the reason, or "The
+server did not answer." when no answer came.
 
 ## Not built yet
 

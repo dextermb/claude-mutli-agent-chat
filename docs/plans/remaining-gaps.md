@@ -1,23 +1,23 @@
 # The remaining gaps
 
 **Status:** in progress. The user agreed the steps and the seams on
-2026-11-15, and answered G1 to G7 (see "Resolved"). Step 1 (housekeeping) is
-built. Step 2 to step 6 are ahead, in that order.
+2026-11-15, and answered G1 to G7 (see "Resolved"). Step 1 (housekeeping)
+and step 2 (the reason of a refused action) are built. Step 3 to step 6 are
+ahead, in that order.
 
 ## The gaps, and what to do with each
 
-| Gap                                                              | Where it is listed              | Action          | Step |
-| ---------------------------------------------------------------- | ------------------------------- | --------------- | ---- |
-| A refused Stop, Stop turn, New session or Remove shows no reason | `docs/web-app/session-panel.md` | Build           | 2    |
-| The session panel does not become a `Sheet` on a narrow screen   | `docs/web-app/session-panel.md` | Build           | 3    |
-| The status words differ from the design                          | `docs/web-app/conversation.md`  | Build           | 4    |
-| The text of a subagent shows at the top level                    | `docs/timeline.md`              | Measure, build  | 5    |
-| Unread rows of the sidebar                                       | `docs/web-app/sidebar.md`       | Build           | 6    |
-| A `rate_limit_event` that is not `allowed` is not measured       | `docs/protocol.md`              | Wait for a line | none |
-| `set_model` and `set_permission_mode` are not measured           | `docs/protocol.md`              | No action       | none |
-| `--max-turns` is not on the command line                         | `docs/agents.md`, `protocol`    | No action       | none |
-| Two sessions in the same folder are not measured                 | `docs/protocol.md`              | No action (G7)  | none |
-| The cost and the turns of a session are not stored               | `docs/store.md`                 | No action       | none |
+| Gap                                                            | Where it is listed              | Action          | Step |
+| -------------------------------------------------------------- | ------------------------------- | --------------- | ---- |
+| The session panel does not become a `Sheet` on a narrow screen | `docs/web-app/session-panel.md` | Build           | 3    |
+| The status words differ from the design                        | `docs/web-app/conversation.md`  | Build           | 4    |
+| The text of a subagent shows at the top level                  | `docs/timeline.md`              | Measure, build  | 5    |
+| Unread rows of the sidebar                                     | `docs/web-app/sidebar.md`       | Build           | 6    |
+| A `rate_limit_event` that is not `allowed` is not measured     | `docs/protocol.md`              | Wait for a line | none |
+| `set_model` and `set_permission_mode` are not measured         | `docs/protocol.md`              | No action       | none |
+| `--max-turns` is not on the command line                       | `docs/agents.md`, `protocol`    | No action       | none |
+| Two sessions in the same folder are not measured               | `docs/protocol.md`              | No action (G7)  | none |
+| The cost and the turns of a session are not stored             | `docs/store.md`                 | No action       | none |
 
 **No action, with the reason:**
 
@@ -34,26 +34,6 @@ built. Step 2 to step 6 are ahead, in that order.
   check the names in `docs/protocol.md`.
 - **Two sessions in the same folder.** The user chooses the folder of each
   agent. `docs/architecture.md` lists it as a risk.
-
-## Step 2: The reason of a refused action
-
-**Decisions:**
-
-- Stop, Stop turn, New session and Remove each await their request. A
-  refusal or a network failure shows an alert with the reason that the
-  server gave, or "The server did not answer." when no answer came.
-- The alert shows in the place of the action: in the session panel for Stop
-  turn, New session and Remove, and over the composer for Stop.
-- The alert closes at the next action, or with a Close button.
-- No `void` call to an action stays in the page, because a rejected promise
-  that nobody awaits is an unhandled error in the browser.
-- Start a chat and Create a channel also show "The server did not answer."
-  when `fetch` fails. The fake network cannot make `fetch` fail now, so the
-  fake gets a way to do that (a responder that throws).
-
-**Seams:** the DM page and the group chat page, with the fake network. For
-example: Remove of the last agent of a group chat gets `400 "A group chat
-needs one agent or more."`, and the panel shows that text.
 
 ## Step 3: The session panel on a narrow screen
 

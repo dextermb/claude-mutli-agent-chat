@@ -26,6 +26,12 @@ or a channel, each agent in the header is a button that opens the panel of
 that agent, with the name "Session of <agent>" and a Close button.
 
 In a group chat or a channel, the panel also has "Remove from conversation".
+After Remove, the panel closes.
+
+When the server refuses Stop turn, New session or Remove, an alert in the
+panel shows the reason, and the panel stays open. The alert closes at the
+next action that works, or with its Close button. Each agent has its own
+alert, so the reason of one agent does not show in the panel of another.
 
 A new session shows in the timeline as a divider: "New session · 14:03", or
 "New session for test-runner · 14:03" when the conversation has more than one
@@ -53,6 +59,4 @@ it.
 
 ## Not built yet
 
-- When the server refuses Stop turn, New session or Remove, the page does
-  not show the reason.
 - On a narrow screen, the session panel does not become a `Sheet`.

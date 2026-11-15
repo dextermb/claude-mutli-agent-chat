@@ -57,6 +57,8 @@ The browser tests use `src/test/fake-network.ts`. It replaces `fetch` and
 `EventSource`, keeps each request that the page sends, and lets a test send
 stream events. A page opens two streams, so `network.stream(address)` finds
 the last stream whose address starts with `address`.
+`network.fail(method, url)` makes `fetch` reject for that request, as it does
+when the server is down.
 `src/test/conversation-data.ts` holds the conversation, the
 agent and the timeline entries that the tests show.
 

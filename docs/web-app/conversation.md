@@ -80,6 +80,19 @@ The status of an agent:
 While an agent is `busy` or `waiting`, the header shows Stop, and a line over
 the message box says that the next message waits.
 
+## A refused action
+
+Each action of `useConversation()` resolves to the reason of a refusal, or to
+`null`. It never rejects. `refusalOf()` in `src/lib/refusal.ts` gives the
+`error` of the server, or "The server did not answer." when no answer came.
+
+When the server refuses Stop, a message or an answer to a card, an alert over
+the message box shows the reason. The alert closes at the next action that
+works, or with its Close button. The router keeps the page when the user
+opens another conversation, so the page keeps the ID of the conversation with
+the reason, and shows the alert only there. The session panel has its own
+alert (`docs/web-app/session-panel.md`).
+
 ## A group chat or a channel
 
 The header shows the name, the topic, and each agent with its status. Each
@@ -97,4 +110,3 @@ the place of the typed text. The message box names the active option with
 - The status words of the design. The design says "Idle" for `idle`, "Needs
   approval" for `waiting`, and "Stopped" for `exited`. The app says
   "Online", "Waiting" and "Idle" (the table above).
-- When the server refuses Stop, the page does not show the reason.

@@ -22,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import type { SessionCard } from "@/lib/agent-api"
 
 export function SessionPanel({
@@ -38,12 +39,13 @@ export function SessionPanel({
   card: SessionCard | null
   agentName: string
   working: boolean
-  onStopTurn: () => void
-  onNewSession: () => void
+  onStopTurn: () => Promise<string | null>
+  onNewSession: () => Promise<string | null>
   onClose?: () => void
-  onRemove?: () => void
+  onRemove?: () => Promise<string | null>
 }) {
   const [asking, setAsking] = useState(false)
+  const [refusal, setRefusal] = useState<string | null>(null)
   return (
     <aside
       aria-label={label}
@@ -103,7 +105,11 @@ export function SessionPanel({
         </CardContent>
         <CardFooter className="gap-2">
           {working && (
-            <Button variant="destructive" size="sm" onClick={onStopTurn}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => setRefusal(await onStopTurn())}
+            >
               <SquareIcon />
               Stop turn
             </Button>
@@ -123,9 +129,9 @@ export function SessionPanel({
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => {
+                  onClick={async () => {
                     setAsking(false)
-                    onNewSession()
+                    setRefusal(await onNewSession())
                   }}
                 >
                   Start new session
@@ -152,12 +158,15 @@ export function SessionPanel({
           </CardContent>
         </Card>
       )}
+      {refusal && (
+        <RefusalAlert refusal={refusal} onClose={() => setRefusal(null)} />
+      )}
       {onRemove && (
         <Button
           variant="ghost"
           size="sm"
           className="self-start text-destructive"
-          onClick={onRemove}
+          onClick={async () => setRefusal(await onRemove())}
         >
           Remove from conversation
         </Button>

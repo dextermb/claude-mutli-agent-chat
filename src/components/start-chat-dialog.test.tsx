@@ -107,6 +107,21 @@ describe("the Start a chat dialog", () => {
     expect(window.location.pathname).toBe("/conversations/ch1")
   })
 
+  test("the dialog says that the server did not answer when no answer comes", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations")
+    const dialog = await openDialog(user)
+
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick test-runner" })
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Open DM" }))
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "The server did not answer."
+    )
+  })
+
   test("two picked agents start a group chat, and the sidebar then lists it", async () => {
     const user = userEvent.setup()
     network.on("POST", "/api/conversations", { conversation: squadGroup }, 201)

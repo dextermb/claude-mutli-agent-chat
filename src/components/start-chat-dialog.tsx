@@ -34,6 +34,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import { NO_ANSWER, replyOf } from "@/lib/refusal"
 
 export function StartChatDialog({
   open,
@@ -63,20 +64,26 @@ export function StartChatDialog({
   }
 
   async function start() {
-    const response = await fetch("/api/conversations", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(
-        isGroup
-          ? { kind: "group", agentIds: picked }
-          : { kind: "dm", agentId: picked[0] }
-      ),
-    })
-    const body = (await response.json()) as {
+    const reply = await replyOf<{
       conversation?: Conversation
       error?: string
+    }>(
+      fetch("/api/conversations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          isGroup
+            ? { kind: "group", agentIds: picked }
+            : { kind: "dm", agentId: picked[0] }
+        ),
+      })
+    )
+    if (!reply) {
+      setError(NO_ANSWER)
+      return
     }
-    if (!response.ok || !body.conversation) {
+    const { body } = reply
+    if (!reply.ok || !body.conversation) {
       setError(body.error ?? "The server did not start the chat.")
       return
     }

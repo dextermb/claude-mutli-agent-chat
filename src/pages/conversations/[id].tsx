@@ -21,6 +21,7 @@ import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Composer } from "@/components/conversation/composer"
 import { FilesTab } from "@/components/conversation/files-tab"
+import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
 import { SessionPanel } from "@/components/conversation/session-panel"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline"
@@ -34,6 +35,10 @@ export default function ConversationPage() {
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [refusal, setRefusal] = useState<{
+    conversationId: string
+    reason: string
+  } | null>(null)
   const search = useSearch()
   const [, navigate] = useLocation()
   const tab = new URLSearchParams(search).get("tab") ?? "messages"
@@ -52,6 +57,11 @@ export default function ConversationPage() {
       entry.authorKey === `agent:${panelAgent?.id}` &&
       (entry.item.kind === "turn" || entry.item.kind === "session_start")
   ).length
+  const shownRefusal =
+    refusal?.conversationId === params.id ? refusal.reason : null
+  function showRefusal(reason: string | null) {
+    setRefusal(reason === null ? null : { conversationId: params.id, reason })
+  }
   const card = useSessionCard(
     params.id,
     panelAgent?.id,
@@ -160,9 +170,7 @@ export default function ConversationPage() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                void conversation.stop()
-              }}
+              onClick={async () => showRefusal(await conversation.stop())}
             >
               <SquareIcon />
               Stop
@@ -192,9 +200,9 @@ export default function ConversationPage() {
             <Timeline
               entries={conversation.entries}
               agents={conversation.agents}
-              onAnswer={(requestId, answer) => {
-                void conversation.answer(requestId, answer)
-              }}
+              onAnswer={async (requestId, answer) =>
+                showRefusal(await conversation.answer(requestId, answer))
+              }
             />
           </div>
           <div className="flex flex-col gap-1.5 px-5 pb-4">
@@ -211,14 +219,20 @@ export default function ConversationPage() {
                   : `${member.name} is working. Your next message waits until this turn ends.`}
               </p>
             ))}
+            {shownRefusal && (
+              <RefusalAlert
+                refusal={shownRefusal}
+                onClose={() => setRefusal(null)}
+              />
+            )}
             <Composer
               members={conversation.agents.map((member) => member.name)}
               label={`Message ${
                 conversation.conversation.kind === "channel" ? "#" : ""
               }${conversation.conversation.name}`}
-              onSend={(text) => {
-                void conversation.send(text)
-              }}
+              onSend={async (text) =>
+                showRefusal(await conversation.send(text))
+              }
             />
           </div>
         </TabsContent>
@@ -236,25 +250,23 @@ export default function ConversationPage() {
       )}
       {panelAgent && (
         <SessionPanel
+          key={panelAgent.id}
           label={isDirect ? "Session" : `Session of ${panelAgent.name}`}
           card={card}
           working={
             panelAgent.state === "busy" || panelAgent.state === "waiting"
           }
           agentName={panelAgent.name}
-          onStopTurn={() => {
-            void conversation.stopAgent(panelAgent.id)
-          }}
-          onNewSession={() => {
-            void conversation.newSession(panelAgent.id)
-          }}
+          onStopTurn={() => conversation.stopAgent(panelAgent.id)}
+          onNewSession={() => conversation.newSession(panelAgent.id)}
           onClose={isDirect ? undefined : () => setPickedId(null)}
           onRemove={
             isDirect
               ? undefined
-              : () => {
-                  setPickedId(null)
-                  void conversation.removeMember(panelAgent.id)
+              : async () => {
+                  const refusal = await conversation.removeMember(panelAgent.id)
+                  if (!refusal) setPickedId(null)
+                  return refusal
                 }
           }
         />
