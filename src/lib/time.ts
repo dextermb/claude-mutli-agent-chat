@@ -29,3 +29,14 @@ export function dayName(iso: string, now = new Date()): string {
   if (dayKey(iso) === yesterday.toDateString()) return "Yesterday"
   return longDay(iso)
 }
+
+const CLOCK_SECONDS = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+})
+
+export function clockSeconds(iso: string): string {
+  return CLOCK_SECONDS.format(new Date(iso))
+}

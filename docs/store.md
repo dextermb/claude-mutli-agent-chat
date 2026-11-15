@@ -122,19 +122,20 @@ in each replay.
 
 ## Queries
 
-| Function                                                                   | Result                                                               |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `createAgent(agent)`, `getAgent(id)`                                       | An agent                                                             |
-| `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order                             |
-| `addMember(id, memberKey)`, `removeMember(id, memberKey)`                  | Adds a member at the end with the `joined_seq` of now, or removes it |
-| `joinedSeq(id, memberKey)`, `renameConversation(id, name)`                 | The place where a member joined, and a new name                      |
-| `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first                                       |
-| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                                        |
-| `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                                     |
-| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)`          | The timeline                                                         |
-| `listSessionTurns(agentId, conversationId, claudeSessionId)`               | The turn items of each row with that Claude session ID               |
-| `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines                               |
-| `close()`                                                                  | Closes the database                                                  |
+| Function                                                                   | Result                                                                                                   |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `createAgent(agent)`, `getAgent(id)`                                       | An agent                                                                                                 |
+| `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order                                                                 |
+| `addMember(id, memberKey)`, `removeMember(id, memberKey)`                  | Adds a member at the end with the `joined_seq` of now, or removes it                                     |
+| `joinedSeq(id, memberKey)`, `renameConversation(id, name)`                 | The place where a member joined, and a new name                                                          |
+| `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first                                                                           |
+| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                                                                            |
+| `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                                                                         |
+| `listAgentLines(agentId, conversationId, { limit, before })`               | The lines of each session of that agent in that conversation, the last `limit` before `before`, in order |
+| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)`          | The timeline                                                                                             |
+| `listSessionTurns(agentId, conversationId, claudeSessionId)`               | The turn items of each row with that Claude session ID                                                   |
+| `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines                                                                   |
+| `close()`                                                                  | Closes the database                                                                                      |
 
 ## Not stored yet
 

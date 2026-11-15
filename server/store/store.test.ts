@@ -209,6 +209,34 @@ describe("Store", () => {
     ).toEqual(fixtureLines("resume-1"))
   })
 
+  test("the lines of an agent in a conversation come from each of its sessions, a page at a time", () => {
+    const store = memoryStore()
+    const { agent, conversation, session } = directMessage(store)
+    const later = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+    })
+    store.recordLine(session.id, "out", '{"type":"one"}')
+    store.recordLine(session.id, "in", '{"type":"two"}')
+    store.recordLine(later.id, "out", '{"type":"three"}')
+    store.recordLine(later.id, "out", '{"type":"four"}')
+
+    const last = store.listAgentLines(agent.id, conversation.id, { limit: 3 })
+    const earlier = store.listAgentLines(agent.id, conversation.id, {
+      limit: 3,
+      before: last[0].seq,
+    })
+
+    expect(
+      last.map((line) => [line.sessionId, line.direction, line.text])
+    ).toEqual([
+      [session.id, "in", '{"type":"two"}'],
+      [later.id, "out", '{"type":"three"}'],
+      [later.id, "out", '{"type":"four"}'],
+    ])
+    expect(earlier.map((line) => line.text)).toEqual(['{"type":"one"}'])
+  })
+
   test("a second change to a timeline item replaces the stored item", () => {
     const store = memoryStore()
     const { conversation, session } = directMessage(store)

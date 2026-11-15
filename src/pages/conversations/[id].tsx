@@ -5,12 +5,13 @@ import {
   UserPlusIcon,
   UsersIcon,
 } from "lucide-react"
-import { useState } from "react"
-import { useParams } from "wouter"
+import { useEffect, useRef, useState } from "react"
+import { useLocation, useParams, useSearch } from "wouter"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AVATAR_COLOURS,
   initialsOf,
@@ -19,8 +20,10 @@ import {
 import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Composer } from "@/components/conversation/composer"
+import { FilesTab } from "@/components/conversation/files-tab"
+import { SessionLogTab } from "@/components/conversation/session-log-tab"
 import { SessionPanel } from "@/components/conversation/session-panel"
-import { Timeline } from "@/components/conversation/timeline"
+import { entryAnchor, Timeline } from "@/components/conversation/timeline"
 import { useConversation } from "@/hooks/use-conversation"
 import { useSessionCard } from "@/hooks/use-session-card"
 import type { Conversation } from "@/lib/agent-api"
@@ -31,6 +34,15 @@ export default function ConversationPage() {
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const search = useSearch()
+  const [, navigate] = useLocation()
+  const tab = new URLSearchParams(search).get("tab") ?? "messages"
+  const focusEntry = useRef<string | null>(null)
+  useEffect(() => {
+    if (tab !== "messages" || !focusEntry.current) return
+    document.getElementById(entryAnchor(focusEntry.current))?.focus()
+    focusEntry.current = null
+  }, [tab])
   const panelAgent =
     conversation.conversation?.kind === "dm"
       ? agent
@@ -69,7 +81,18 @@ export default function ConversationPage() {
   return (
     <div className="flex h-svh bg-background text-sm text-foreground">
       <AppSidebar currentId={params.id} />
-      <main className="flex min-w-0 flex-1 flex-col">
+      <Tabs
+        value={isDirect ? tab : "messages"}
+        onValueChange={(value: string) =>
+          navigate(
+            value === "messages"
+              ? `/conversations/${params.id}`
+              : `/conversations/${params.id}?tab=${value}`,
+            { replace: true }
+          )
+        }
+        render={<main className="flex min-w-0 flex-1 flex-col" />}
+      >
         <header className="flex flex-wrap items-center gap-3 border-b px-5 py-3">
           {isDirect && agent ? (
             <Avatar size="sm">
@@ -126,6 +149,13 @@ export default function ConversationPage() {
             </Button>
           )}
           <div className="min-w-4 flex-1" />
+          {isDirect && (
+            <TabsList>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
+              <TabsTrigger value="files">Files</TabsTrigger>
+              <TabsTrigger value="log">Session log</TabsTrigger>
+            </TabsList>
+          )}
           {working.length > 0 && (
             <Button
               variant="destructive"
@@ -139,40 +169,60 @@ export default function ConversationPage() {
             </Button>
           )}
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <Timeline
-            entries={conversation.entries}
-            agents={conversation.agents}
-            onAnswer={(requestId, answer) => {
-              void conversation.answer(requestId, answer)
-            }}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5 px-5 pb-4">
-          {working.map((member) => (
-            <p
-              key={member.id}
-              className="m-0 flex items-center gap-2 text-xs text-foreground-faint"
-            >
-              <span
-                className={`size-2 rounded-full ${statusOf(member.state).dot}`}
-              />
-              {member.state === "waiting"
-                ? `${member.name} waits for your answer.`
-                : `${member.name} is working. Your next message waits until this turn ends.`}
-            </p>
-          ))}
-          <Composer
-            members={conversation.agents.map((member) => member.name)}
-            label={`Message ${
-              conversation.conversation.kind === "channel" ? "#" : ""
-            }${conversation.conversation.name}`}
-            onSend={(text) => {
-              void conversation.send(text)
-            }}
-          />
-        </div>
-      </main>
+        {isDirect && agent && (
+          <TabsContent value="files" className="min-h-0 flex-1 overflow-y-auto">
+            <FilesTab
+              entries={conversation.entries}
+              cwd={agent.cwd}
+              agentName={agent.name}
+              onOpen={(entryId) => {
+                focusEntry.current = entryId
+                navigate(`/conversations/${params.id}`, { replace: true })
+              }}
+            />
+          </TabsContent>
+        )}
+        {isDirect && agent && (
+          <TabsContent value="log" className="min-h-0 flex-1 overflow-y-auto">
+            <SessionLogTab conversationId={params.id} agentId={agent.id} />
+          </TabsContent>
+        )}
+        <TabsContent value="messages" className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Timeline
+              entries={conversation.entries}
+              agents={conversation.agents}
+              onAnswer={(requestId, answer) => {
+                void conversation.answer(requestId, answer)
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 px-5 pb-4">
+            {working.map((member) => (
+              <p
+                key={member.id}
+                className="m-0 flex items-center gap-2 text-xs text-foreground-faint"
+              >
+                <span
+                  className={`size-2 rounded-full ${statusOf(member.state).dot}`}
+                />
+                {member.state === "waiting"
+                  ? `${member.name} waits for your answer.`
+                  : `${member.name} is working. Your next message waits until this turn ends.`}
+              </p>
+            ))}
+            <Composer
+              members={conversation.agents.map((member) => member.name)}
+              label={`Message ${
+                conversation.conversation.kind === "channel" ? "#" : ""
+              }${conversation.conversation.name}`}
+              onSend={(text) => {
+                void conversation.send(text)
+              }}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
       {!isDirect && (
         <AddMembersDialog
           open={adding}

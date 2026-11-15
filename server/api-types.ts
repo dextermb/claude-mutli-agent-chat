@@ -41,6 +41,14 @@ export type SessionCard = {
   configChanged: boolean
 }
 
+export type LogLine = {
+  seq: number
+  sessionId: string
+  direction: "in" | "out"
+  at: string
+  text: string
+}
+
 export type Conversation = {
   id: string
   kind: "channel" | "group" | "dm"

@@ -71,6 +71,7 @@ const URGENCY: SessionState[] = [
 const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 1_000_000
 const EVENT_LOG_SIZE = 500
+const LOG_PAGE = 200
 
 export function createServer({
   store,
@@ -98,6 +99,11 @@ export function createServer({
 
   function publish(conversationId: string, data: unknown) {
     publishTo(channelOf(conversationId), data)
+  }
+
+  function sendLive(conversationId: string, data: unknown) {
+    const text = `data: ${JSON.stringify(data)}\n\n`
+    for (const client of channelOf(conversationId).clients) client.write(text)
   }
 
   function publishTo(channel: Channel, data: unknown) {
@@ -164,6 +170,17 @@ export function createServer({
     if (event.type === "line") {
       const seq = store.recordLine(session.id, event.direction, event.text)
       if (event.direction === "out") session.lastOutSeq = seq
+      sendLive(session.conversationId, {
+        type: "line",
+        agentId: session.agentId,
+        line: {
+          seq,
+          sessionId: session.id,
+          direction: event.direction,
+          at: new Date().toISOString(),
+          text: event.text,
+        },
+      })
     }
     if (event.type === "changes") {
       const entries = store.saveItems(
@@ -537,6 +554,16 @@ export function createServer({
       store.removeMember(params.id, memberKey)
       promptCursors.delete(`${params.agentId} ${params.id}`)
       return send(response, 200, { conversation: membersChanged(params.id) })
+    }
+
+    if ((params = route("GET", "api/conversations/:id/agents/:agentId/log"))) {
+      const before = Number(url.searchParams.get("before"))
+      return send(response, 200, {
+        lines: store.listAgentLines(params.agentId, params.id, {
+          limit: LOG_PAGE,
+          before: Number.isInteger(before) && before > 0 ? before : undefined,
+        }),
+      })
     }
 
     if ((params = route("POST", "api/conversations/:id/stop"))) {

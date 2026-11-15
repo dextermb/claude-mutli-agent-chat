@@ -2,6 +2,7 @@ import type { Json } from "../../server/protocol/decode.ts"
 import type {
   Agent,
   Conversation,
+  LogLine,
   SessionCard,
   SessionState,
   TimelineEntry,
@@ -20,6 +21,7 @@ export type {
   Agent,
   Conversation,
   Json,
+  LogLine,
   SessionCard,
   SessionState,
   TimelineEntry,
@@ -32,3 +34,4 @@ export type StreamMessage =
   | { type: "agent_state"; agentId: string; state: SessionState }
   | { type: "conversation"; conversation: Conversation }
   | { type: "reset" }
+  | { type: "line"; agentId: string; line: LogLine }

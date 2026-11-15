@@ -33,6 +33,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
 | `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`            |
 | `useWorkspace()`, fake network    | `src/hooks/use-workspace.test.ts`               |
+| `filesOf()`, the Files tab rows   | `src/lib/files.test.ts`                         |
 | The DM page, fake network         | `src/pages/conversations/[id].test.tsx`         |
 | `Composer`, the mention list      | `src/components/conversation/composer.test.tsx` |
 | The Start a chat dialog           | `src/components/start-chat-dialog.test.tsx`     |

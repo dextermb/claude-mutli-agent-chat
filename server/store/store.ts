@@ -11,6 +11,7 @@ import type {
   Agent,
   Conversation,
   NewAgent,
+  LogLine,
   NewConversation,
   SessionConfig,
   TimelineEntry,
@@ -477,6 +478,37 @@ export function openStore(location: string) {
     }
   }
 
+  function listAgentLines(
+    agentId: string,
+    conversationId: string,
+    page: { limit: number; before?: number }
+  ): LogLine[] {
+    return db
+      .prepare(
+        `SELECT session_events.seq, session_events.session_id,
+           session_events.direction, session_events.line, session_events.at
+         FROM session_events
+         JOIN agent_sessions ON agent_sessions.id = session_events.session_id
+         WHERE agent_sessions.agent_id = ? AND agent_sessions.conversation_id = ?
+           AND session_events.seq < ?
+         ORDER BY session_events.seq DESC LIMIT ?`
+      )
+      .all(
+        agentId,
+        conversationId,
+        page.before ?? Number.MAX_SAFE_INTEGER,
+        page.limit
+      )
+      .map((row) => ({
+        seq: Number(row.seq),
+        sessionId: String(row.session_id),
+        direction: String(row.direction) as LogLine["direction"],
+        at: String(row.at),
+        text: String(row.line),
+      }))
+      .reverse()
+  }
+
   function listSessionTurns(
     agentId: string,
     conversationId: string,
@@ -536,6 +568,7 @@ export function openStore(location: string) {
     rebuildTimeline,
     listTimeline,
     listSessionTurns,
+    listAgentLines,
     close: () => db.close(),
   }
 }
