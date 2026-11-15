@@ -5,11 +5,19 @@ each agent. It reads and writes through the agent server (`docs/server.md`).
 
 ## Run it
 
-Start the agent server and the Vite dev server in two terminals:
+Start the agent server and the Vite dev server with one command:
 
 ```sh
-pnpm server   # the agent server on 127.0.0.1:4100
-pnpm dev      # the web app; Vite sends /api to port 4100
+pnpm dev
+```
+
+`pnpm dev` runs `concurrently "pnpm:dev:*"`, so it starts each script whose
+name starts with `dev:`, and marks each output line with the name of its
+script. When one script stops, `-k` stops the others. To run one alone:
+
+```sh
+pnpm dev:server   # the agent server on 127.0.0.1:4100
+pnpm dev:web      # the web app; Vite sends /api to port 4100
 ```
 
 ## Pages
