@@ -11,11 +11,11 @@ export const AVATAR_COLOURS: Record<string, string> = {
 
 const STATUS: Record<SessionState, { label: string; dot: string }> = {
   starting: { label: "Starting", dot: "bg-status-working" },
-  idle: { label: "Online", dot: "bg-status-online" },
+  idle: { label: "Idle", dot: "bg-status-online" },
   busy: { label: "Working", dot: "bg-status-working" },
-  waiting: { label: "Waiting", dot: "bg-status-waiting" },
+  waiting: { label: "Needs approval", dot: "bg-status-waiting" },
   failed: { label: "Error", dot: "bg-status-error" },
-  exited: { label: "Idle", dot: "bg-status-idle" },
+  exited: { label: "Stopped", dot: "bg-status-idle" },
 }
 
 export function statusOf(state: SessionState) {

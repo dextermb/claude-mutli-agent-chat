@@ -89,7 +89,7 @@ describe("the DM page", () => {
       await screen.findByRole("heading", { name: "test-runner" })
     ).toBeInTheDocument()
     expect(
-      within(screen.getByRole("banner")).getByText("Online")
+      within(screen.getByRole("banner")).getByText("Idle")
     ).toBeInTheDocument()
     const messages = screen.getAllByRole("article")
     expect(within(messages[0]).getByText("You")).toBeInTheDocument()
@@ -99,6 +99,15 @@ describe("the DM page", () => {
     expect(within(messages[1]).getByText("test-runner")).toBeInTheDocument()
     expect(
       within(messages[1]).getByText("I will use a fixed clock.")
+    ).toBeInTheDocument()
+  })
+
+  test("an agent whose process has exited shows Stopped, as in the design", async () => {
+    openConversation([userMessage], "exited")
+
+    await screen.findByRole("heading", { name: "test-runner" })
+    expect(
+      within(screen.getByRole("banner")).getByText("Stopped")
     ).toBeInTheDocument()
   })
 
@@ -695,7 +704,7 @@ describe("the DM page", () => {
         .emit(1, { type: "agent_state", agentId: "a1", state: "idle" })
     )
     expect(
-      within(screen.getByRole("banner")).getByText("Online")
+      within(screen.getByRole("banner")).getByText("Idle")
     ).toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Stop" })
@@ -743,7 +752,7 @@ describe("the DM page", () => {
     expect(current).toHaveAttribute("href", "/conversations/c1")
     expect(current).toHaveAttribute("aria-current", "page")
     expect(
-      within(sidebar).getByRole("button", { name: "reviewer-bot Online" })
+      within(sidebar).getByRole("button", { name: "reviewer-bot Idle" })
     ).toBeInTheDocument()
   })
 
@@ -752,7 +761,7 @@ describe("the DM page", () => {
     const sidebar = await screen.findByRole("navigation", {
       name: "Conversations",
     })
-    await within(sidebar).findByRole("button", { name: "reviewer-bot Online" })
+    await within(sidebar).findByRole("button", { name: "reviewer-bot Idle" })
     expect(within(sidebar).getByText("1 agent working")).toBeInTheDocument()
 
     act(() =>
@@ -762,7 +771,9 @@ describe("the DM page", () => {
     )
 
     expect(
-      within(sidebar).getByRole("button", { name: "reviewer-bot Waiting" })
+      within(sidebar).getByRole("button", {
+        name: "reviewer-bot Needs approval",
+      })
     ).toBeInTheDocument()
     expect(
       within(sidebar).getByText("1 agent working · 1 needs approval")
@@ -780,9 +791,7 @@ describe("the DM page", () => {
       screen.queryByRole("complementary", { name: "Session" })
     ).not.toBeInTheDocument()
 
-    await user.click(
-      header.getByRole("button", { name: "reviewer-bot Online" })
-    )
+    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
 
     const panel = await screen.findByRole("complementary", {
       name: "Session of reviewer-bot",
@@ -844,9 +853,7 @@ describe("the DM page", () => {
       conversation: releaseChannel,
     })
     const header = within(await screen.findByRole("banner"))
-    await user.click(
-      header.getByRole("button", { name: "reviewer-bot Online" })
-    )
+    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
     const panel = await screen.findByRole("complementary", {
       name: "Session of reviewer-bot",
     })
@@ -918,7 +925,7 @@ describe("the DM page", () => {
       within(members)
         .getAllByRole("listitem")
         .map((item) => item.textContent)
-    ).toEqual(["test-runner Working", "reviewer-bot Online"])
+    ).toEqual(["test-runner Working", "reviewer-bot Idle"])
     const messages = screen.getAllByRole("article")
     expect(within(messages[1]).getByText("reviewer-bot")).toBeInTheDocument()
     expect(within(messages[2]).getByText("test-runner")).toBeInTheDocument()
@@ -992,7 +999,7 @@ describe("a refused action", () => {
     )
     openGroupOfOne()
     const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "test-runner Online" }))
+    await user.click(header.getByRole("button", { name: "test-runner Idle" }))
     const panel = await screen.findByRole("complementary", {
       name: "Session of test-runner",
     })
@@ -1088,9 +1095,7 @@ describe("a refused action", () => {
     })
     network.fail("DELETE", "/api/conversations/ch1/members/a2")
     const header = within(await screen.findByRole("banner"))
-    await user.click(
-      header.getByRole("button", { name: "reviewer-bot Online" })
-    )
+    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
     const panel = await screen.findByRole("complementary", {
       name: "Session of reviewer-bot",
     })
@@ -1235,9 +1240,7 @@ describe("a narrow screen", () => {
     })
     const header = within(await screen.findByRole("banner"))
 
-    await user.click(
-      header.getByRole("button", { name: "reviewer-bot Online" })
-    )
+    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
     const sheet = await screen.findByRole("dialog", {
       name: "Session of reviewer-bot",
     })
@@ -1248,7 +1251,7 @@ describe("a narrow screen", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     )
     expect(
-      header.getByRole("button", { name: "reviewer-bot Online" })
+      header.getByRole("button", { name: "reviewer-bot Idle" })
     ).toHaveAttribute("aria-pressed", "false")
   })
 

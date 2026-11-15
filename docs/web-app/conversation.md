@@ -68,14 +68,16 @@ A message that is still arriving has `aria-busy="true"`. A turn summary shows
 
 The status of an agent:
 
-| State      | Label    |
-| ---------- | -------- |
-| `starting` | Starting |
-| `idle`     | Online   |
-| `busy`     | Working  |
-| `waiting`  | Waiting  |
-| `failed`   | Error    |
-| `exited`   | Idle     |
+| State      | Label          |
+| ---------- | -------------- |
+| `starting` | Starting       |
+| `idle`     | Idle           |
+| `busy`     | Working        |
+| `waiting`  | Needs approval |
+| `failed`   | Error          |
+| `exited`   | Stopped        |
+
+The labels are the words of the design.
 
 While an agent is `busy` or `waiting`, the header shows Stop, and a line over
 the message box says that the next message waits.
@@ -104,9 +106,3 @@ the ends. Tab or Enter picks the active name, and a click picks any one.
 Escape closes the list until the text changes. The pick puts `@<name> ` in
 the place of the typed text. The message box names the active option with
 `aria-activedescendant`.
-
-## Not built yet
-
-- The status words of the design. The design says "Idle" for `idle`, "Needs
-  approval" for `waiting`, and "Stopped" for `exited`. The app says
-  "Online", "Waiting" and "Idle" (the table above).
