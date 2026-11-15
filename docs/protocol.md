@@ -30,6 +30,9 @@ claude -p
 - `--setting-sources user,project` gives the agent the user's settings, MCP
   servers, memory files and hooks, the same as a terminal session.
 
+`buildArgs()` in `server/session/args.ts` makes this command line. See
+`docs/agents.md`.
+
 ## The environment of the child
 
 A `claude` process that runs inside another Claude Code session gets the
@@ -42,7 +45,8 @@ child is a new session and does not get the token of the parent:
 `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PID` and `CLAUDE_EFFORT`.
 
 Keep each other `CLAUDE_CODE_*` variable, because the user can set one on
-purpose, for example to select a provider.
+purpose, for example to select a provider. `childEnvironment()` in
+`server/session/environment.ts` removes them, and the recorder uses it too.
 
 ## Input lines
 
@@ -96,6 +100,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F22 | The lines of a subagent carry `parent_tool_use_id`, set to the id of the `Agent` call. The lines of the main agent carry `null`. | `subagent` |
 | F23 | With the user settings, `SessionStart` hooks send `system/hook_started` and `system/hook_response` lines **before** `system/init`. | Each fixture |
 | F24 | `system/commands_changed` carries the full list of the user's commands and skills. | Each fixture, cleared |
+| F25 | Claude Code answers `initialize` about 1 s after the start, before any prompt and with no `system/init`. When stdin closes and no turn runs, the process exits with code 0. | Probe |
 
 ## The decoder and the encoders
 
@@ -164,4 +169,6 @@ and the names of the user's plugins before the commit.
 ## Not measured
 
 - `set_model` and `set_permission_mode` on this version.
+- `--max-turns`. The help of 2.1.311 does not list it.
+- Two permission requests that are open at the same time.
 - Two sessions that write to the same folder at the same time.

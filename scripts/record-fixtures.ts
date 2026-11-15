@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { createInterface } from "node:readline"
+import { childEnvironment } from "../server/session/environment.ts"
 
 type Json = Record<string, unknown>
 type Envelope = { dir: "in" | "out"; line: Json }
@@ -21,19 +22,6 @@ type Scenario = {
 }
 
 const FIXTURE_ROOT = "/tmp/claude-fixture"
-
-const PARENT_SESSION_VARIABLES = [
-  "CLAUDECODE",
-  "CLAUDE_CODE_ENTRYPOINT",
-  "CLAUDE_CODE_CHILD_SESSION",
-  "CLAUDE_CODE_EXECPATH",
-  "CLAUDE_CODE_MESSAGING_SOCKET",
-  "CLAUDE_CODE_MESSAGING_TOKEN",
-  "CLAUDE_CODE_SESSION_ATTENDED",
-  "CLAUDE_CODE_SESSION_ID",
-  "CLAUDE_PID",
-  "CLAUDE_EFFORT",
-]
 
 const PERSONAL_INIT_LISTS = [
   "skills",
@@ -123,12 +111,6 @@ const scenarios: Scenario[] = [
   },
 ]
 
-function childEnvironment(): NodeJS.ProcessEnv {
-  const env = { ...process.env }
-  for (const name of PARENT_SESSION_VARIABLES) delete env[name]
-  return env
-}
-
 function answerFor(request: Json): Json {
   const toolName = String(request.tool_name)
   const input = (request.input ?? {}) as Json
@@ -182,7 +164,7 @@ function record(
   ]
   const child = spawn("claude", args, {
     cwd: workDir,
-    env: childEnvironment(),
+    env: childEnvironment(process.env),
     stdio: ["pipe", "pipe", "pipe"],
   })
   const envelopes: Envelope[] = []
