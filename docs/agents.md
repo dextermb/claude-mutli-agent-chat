@@ -10,14 +10,20 @@ output. The browser never talks to the process.
 of `claude`. The fixed part is in `docs/protocol.md`. The agent configuration
 adds the rest:
 
-| Field             | Argument                                          |
-| ----------------- | ------------------------------------------------- |
-| `model`           | `--model <model>`                                 |
-| `permissionMode`  | `--permission-mode <mode>`                        |
-| `allowedTools`    | `--allowedTools <rule> …`, if the list has one    |
-| `disallowedTools` | `--disallowedTools <rule> …`, if the list has one |
-| `systemPrompt`    | `--append-system-prompt <prompt>`, if set         |
-| `claudeSessionId` | `--resume <id>`, if the session has one           |
+| Field              | Argument                                                             |
+| ------------------ | -------------------------------------------------------------------- |
+| `model`            | `--model <model>`                                                    |
+| `permissionMode`   | `--permission-mode <mode>`                                           |
+| `allowedTools`     | `--allowedTools <rule> …`, if the list has one                       |
+| `disallowedTools`  | `--disallowedTools <rule> …`, if the list has one                    |
+| `systemPrompt`     | `--append-system-prompt <prompt>`, if set                            |
+| `claudeSessionId`  | `--resume <id>`, if the session has one                              |
+| `claudeSessionNew` | With a Claude session ID: `--session-id <id>` in place of `--resume` |
+
+`claudeSessionNew` is true for an ID that the server chose and that has had
+no turn yet. Before the first turn, `--resume` of that ID fails (F30). After
+it, `--session-id` of that ID fails (F31). So the server clears the flag at
+the first `system/init`.
 
 The system prompt of an agent goes after the default prompt of Claude Code.
 So the agent keeps the guidance for its tools.

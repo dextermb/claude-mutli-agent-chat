@@ -1,6 +1,7 @@
 import type {
   AgentWithState,
   Conversation,
+  SessionCard,
   TimelineEntry,
 } from "@/lib/agent-api"
 
@@ -272,4 +273,23 @@ export const failedNotice = agentEntry(15, {
   status: "failed",
   exitCode: 1,
   stderr: "Error: the SessionStart hook failed\n    at hook.js:4\n",
+})
+
+export const testRunnerSession: SessionCard = {
+  claudeSessionId: "4f1c9a2e-7b3d-4e5f-8a6b-1c2d3e4f5a6b",
+  state: "idle",
+  model: "claude-sonnet-5-5",
+  permissionMode: "acceptEdits",
+  directory: "~/code/web-app",
+  allowedTools: ["Read", "Bash(pnpm test:*)"],
+  turns: 7,
+  costUsd: 0.18,
+  configChanged: false,
+}
+
+export const sessionStart = agentEntry(16, {
+  kind: "session_start",
+  id: "start",
+  status: "done",
+  claudeSessionId: "4f1c9a2e-7b3d-4e5f-8a6b-1c2d3e4f5a6b",
 })

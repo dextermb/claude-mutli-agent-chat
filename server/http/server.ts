@@ -3,7 +3,9 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http"
+import { randomUUID } from "node:crypto"
 import type { AddressInfo } from "node:net"
+import { homedir } from "node:os"
 import type { PermissionAnswer } from "../protocol/encode.ts"
 import { parseMentions } from "../conversation/mentions.ts"
 import { buildArgs } from "../session/args.ts"
@@ -16,6 +18,7 @@ import type {
   SessionRow,
   Store,
 } from "../store/store.ts"
+import type { SessionCard, SessionConfig } from "../api-types.ts"
 
 export type SessionHandle = {
   prompt(text: string): void
@@ -121,11 +124,15 @@ export function createServer({
     const running = findLive(agentId, conversationId)
     if (running) return running
     const earlier = store.latestSession(agentId, conversationId)
+    const agent = store.getAgent(agentId)
+    if (!agent) return undefined
     return start(
       store.createSession({
         agentId,
         conversationId,
         claudeSessionId: earlier?.claudeSessionId,
+        claudeSessionNew: earlier?.claudeSessionNew,
+        config: configOf(agent),
       })
     )
   }
@@ -196,6 +203,7 @@ export function createServer({
     if (event.type === "claude_session") {
       store.updateSession(session.id, {
         claudeSessionId: event.claudeSessionId,
+        claudeSessionNew: false,
       })
     }
     if (event.type === "state") {
@@ -225,6 +233,36 @@ export function createServer({
   function created(response: ServerResponse, conversation: Conversation) {
     publishTo(appChannel, { type: "conversation", conversation })
     send(response, 201, { conversation })
+  }
+
+  function sessionCard(
+    agent: Agent,
+    conversationId: string
+  ): SessionCard | null {
+    const row = store.latestSession(agent.id, conversationId)
+    if (!row) return null
+    const config = row.config ?? configOf(agent)
+    const turns = row.claudeSessionId
+      ? store.listSessionTurns(agent.id, conversationId, row.claudeSessionId)
+      : []
+    return {
+      claudeSessionId: row.claudeSessionId,
+      state: liveState(agent.id, conversationId),
+      model: config.model,
+      permissionMode: config.permissionMode,
+      directory: homeShort(config.cwd),
+      allowedTools: config.allowedTools,
+      turns: turns.reduce((sum, turn) => sum + turn.numTurns, 0),
+      costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
+      configChanged: JSON.stringify(config) !== JSON.stringify(configOf(agent)),
+    }
+  }
+
+  function stopTurn(session: LiveSession) {
+    session.queue = []
+    if (session.state === "busy" || session.state === "waiting") {
+      session.handle?.interrupt()
+    }
   }
 
   function addFailedNotice(session: LiveSession) {
@@ -390,14 +428,66 @@ export function createServer({
       return openStream(channelOf(params.id), request, response, url)
     }
 
+    if (
+      (params = route("GET", "api/conversations/:id/agents/:agentId/session"))
+    ) {
+      const agent = store.getAgent(params.agentId)
+      if (!agent) return send(response, 404, { error: "no such agent" })
+      return send(response, 200, { session: sessionCard(agent, params.id) })
+    }
+
+    if (
+      (params = route("POST", "api/conversations/:id/agents/:agentId/sessions"))
+    ) {
+      const agent = store.getAgent(params.agentId)
+      const conversationId = params.id
+      if (!agent || !agentIdsOf(conversationId).includes(agent.id)) {
+        return send(response, 404, {
+          error: "no such agent in this conversation",
+        })
+      }
+      const running = findLive(agent.id, conversationId)
+      if (running) {
+        stopTurn(running)
+        await running.handle?.stop()
+      }
+      const row = store.createSession({
+        agentId: agent.id,
+        conversationId,
+        claudeSessionId: randomUUID(),
+        claudeSessionNew: true,
+        config: configOf(agent),
+      })
+      const [entry] = store.saveItems(row.id, [
+        {
+          kind: "session_start",
+          id: "start",
+          status: "done",
+          claudeSessionId: row.claudeSessionId ?? "",
+        },
+      ])
+      if (entry) {
+        publish(conversationId, { type: "item", entry })
+        promptCursors.set(`${agent.id} ${conversationId}`, entry.seq)
+      }
+      start(row)
+      return send(response, 201, {
+        session: sessionCard(agent, conversationId),
+      })
+    }
+
     if ((params = route("POST", "api/conversations/:id/stop"))) {
       for (const session of live.values()) {
-        if (session.conversationId !== params.id) continue
-        session.queue = []
-        if (session.state === "busy" || session.state === "waiting") {
-          session.handle?.interrupt()
-        }
+        if (session.conversationId === params.id) stopTurn(session)
       }
+      return send(response, 202, {})
+    }
+
+    if (
+      (params = route("POST", "api/conversations/:id/agents/:agentId/stop"))
+    ) {
+      const session = findLive(params.agentId, params.id)
+      if (session) stopTurn(session)
       return send(response, 202, {})
     }
 
@@ -528,6 +618,13 @@ export function createServer({
   }
 
   return {
+    autostart() {
+      for (const agent of store.listAgents()) {
+        if (!agent.autostart) continue
+        const dm = store.findDirectMessage(agent.id)
+        if (dm) liveSessionFor(agent.id, dm.id)
+      }
+    },
     listen(port: number): Promise<{ host: string; port: number }> {
       return new Promise((resolve) => {
         http.listen(port, HOST, () => {
@@ -546,6 +643,24 @@ export function createServer({
       await new Promise<void>((resolve) => http.close(() => resolve()))
     },
   }
+}
+
+function configOf(agent: Agent): SessionConfig {
+  return {
+    model: agent.model,
+    permissionMode: agent.permissionMode,
+    cwd: agent.cwd,
+    allowedTools: agent.allowedTools,
+    disallowedTools: agent.disallowedTools,
+    systemPrompt: agent.systemPrompt,
+  }
+}
+
+function homeShort(folder: string): string {
+  const home = homedir()
+  return folder === home || folder.startsWith(`${home}/`)
+    ? `~${folder.slice(home.length)}`
+    : folder
 }
 
 function toNewAgent(body: Record<string, unknown>): NewAgent {

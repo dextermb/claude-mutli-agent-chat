@@ -2,6 +2,7 @@ import type { Json } from "../../server/protocol/decode.ts"
 import type {
   Agent,
   Conversation,
+  SessionCard,
   SessionState,
   TimelineEntry,
 } from "../../server/api-types.ts"
@@ -15,7 +16,14 @@ export type {
   ToolCallResult,
   TurnItem,
 } from "../../server/timeline/reduce.ts"
-export type { Agent, Conversation, Json, SessionState, TimelineEntry }
+export type {
+  Agent,
+  Conversation,
+  Json,
+  SessionCard,
+  SessionState,
+  TimelineEntry,
+}
 
 export type AgentWithState = Agent & { state: SessionState }
 

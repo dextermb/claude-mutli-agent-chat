@@ -101,6 +101,12 @@ call that started the subagent. The browser shows such a call inside the card
 of its `Agent` call, not at the top level. The tool results of a subagent
 have no `tool_use_result`, so their `result` is `null`.
 
+### Session start
+
+The server adds a `session_start` item when the user starts a new session
+(`docs/server.md`). It holds the new `claudeSessionId`. The reducer never
+adds it. The browser shows it as a divider, not in the block of the agent.
+
 ### Notices
 
 A `rate_limit` line with a status other than `allowed` adds a `notice` item

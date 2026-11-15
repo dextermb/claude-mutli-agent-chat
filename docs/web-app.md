@@ -157,6 +157,32 @@ Escape closes the list until the text changes. The pick puts `@<name> ` in
 the place of the typed text. The message box names the active option with
 `aria-activedescendant`.
 
+## The session panel
+
+`src/components/conversation/session-panel.tsx` is the panel on the right of
+a conversation, as in the design. It has two cards:
+
+- **Session**: Model, Permissions, Directory, Session ID (8 characters, with
+  "Copy session ID" for the full ID), Turns and Cost. `useSessionCard()`
+  (`src/hooks/use-session-card.ts`) loads it from
+  `GET …/agents/:agentId/session`, and loads it again when the state of the
+  agent changes or a turn or a divider of that agent comes.
+- **Allowed tools**: a badge for each rule.
+
+Stop turn shows while the agent works or waits, and stops that agent only.
+New session asks first: "Start a new session? test-runner forgets this
+conversation. The messages stay here." When the agent configuration changed
+after the process started, the card says "The configuration changed. Start a
+new session to use it."
+
+In a DM, the panel is always there, with the name "Session". In a group chat
+or a channel, each agent in the header is a button that opens the panel of
+that agent, with the name "Session of <agent>" and a Close button.
+
+A new session shows in the timeline as a divider: "New session · 14:03", or
+"New session for test-runner · 14:03" when the conversation has more than one
+agent.
+
 ## The agent page
 
 The form sends every field. A new agent goes to `POST /api/agents`, then the
@@ -171,5 +197,5 @@ uses the new configuration.
 
 ## Not built yet
 
-- The session card of the design: model, folder, session ID, turns and cost.
-- New session, and the Files and Session log tabs.
+- The Files and Session log tabs.
+- On a narrow screen, the session panel does not become a `Sheet`.

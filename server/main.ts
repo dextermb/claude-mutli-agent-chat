@@ -27,6 +27,7 @@ const server = createServer({
 
 const address = await server.listen(PORT)
 console.log(`Agent server on http://${address.host}:${address.port}`)
+server.autostart()
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {

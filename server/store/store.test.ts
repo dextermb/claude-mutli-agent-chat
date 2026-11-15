@@ -309,7 +309,7 @@ describe("Store", () => {
       stderr: "Error: the hook failed\n",
     })
 
-    expect(store.getSession("s1")).toEqual({
+    expect(store.getSession("s1")).toMatchObject({
       id: "s1",
       agentId: "a1",
       conversationId: "c1",
@@ -340,6 +340,39 @@ describe("Store", () => {
     expect(turns).toHaveLength(2)
     expect(turns[0]).toBeCloseTo(0.00843574, 10)
     expect(turns[1]).toBeCloseTo(0.00068716, 10)
+  })
+
+  test("a session keeps the configuration that its process started with, and whether its Claude session is new", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+    const config = {
+      model: "claude-haiku-5-5",
+      permissionMode: "default",
+      cwd: "/home/user/projects/app",
+      allowedTools: ["Read"],
+      disallowedTools: [],
+      systemPrompt: null,
+    }
+
+    const created = store.createSession({
+      agentId: "a1",
+      conversationId: "c1",
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+      claudeSessionNew: true,
+      config,
+    })
+    store.updateSession(created.id, { claudeSessionNew: false })
+
+    expect(store.getSession("s1")).toMatchObject({
+      config: null,
+      claudeSessionNew: false,
+    })
+    expect(store.getSession(created.id)).toMatchObject({
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+      claudeSessionNew: false,
+      config,
+    })
   })
 
   test("a session keeps its Claude session id and its state for the next start", () => {

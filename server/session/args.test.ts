@@ -50,6 +50,19 @@ describe("buildArgs", () => {
     ])
   })
 
+  test("a new Claude session id that has had no turn starts with that id, not with resume", () => {
+    const args = buildArgs(reviewer, {
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+      claudeSessionNew: true,
+    })
+
+    expect(args.slice(-2)).toEqual([
+      "--session-id",
+      "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    ])
+    expect(args).not.toContain("--resume")
+  })
+
   test("the allowed and the disallowed tool rules of the agent each get a flag", () => {
     const args = buildArgs(
       {

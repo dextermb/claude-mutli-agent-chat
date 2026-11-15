@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
@@ -106,6 +106,157 @@ describe("createServer", () => {
       stderr: "fake claude (crash): crash on the first prompt\n",
       endedAt: expect.stringMatching(/^2\d{3}-/),
     })
+  })
+
+  test("the session of an agent gives the data of the session card", async () => {
+    const { base, agent, conversation } = await startServer()
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cwd: join(homedir(), "code", "web-app") }),
+    })
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.at(-1)?.item.kind).toBe("turn")
+    })
+
+    const response = await fetch(
+      `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+    )
+
+    expect(await response.json()).toEqual({
+      session: {
+        claudeSessionId: "7e27a04a-8178-4a22-aad9-d886c125c430",
+        state: "idle",
+        model: "claude-haiku-5-5",
+        permissionMode: "default",
+        directory: "~/code/web-app",
+        allowedTools: [],
+        turns: 1,
+        costUsd: 0.00553128,
+        configChanged: false,
+      },
+    })
+  })
+
+  test("after a change to the agent, the session shows the configuration that runs, and that it changed", async () => {
+    const { base, agent, conversation } = await startServer()
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.at(-1)?.item.kind).toBe("turn")
+    })
+
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-5-5" }),
+    })
+    const response = await fetch(
+      `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+    )
+
+    expect(await response.json()).toMatchObject({
+      session: { model: "claude-haiku-5-5", configChanged: true },
+    })
+  })
+
+  test("new session stops the process, adds a divider, and starts a process with a new Claude session id", async () => {
+    const { base, started, agent, conversation } = await startServer()
+    const stream = openEvents(base, conversation.id)
+    await stream.ready
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(() => expect(agentStates(stream.events)).toHaveLength(4))
+
+    const response = await postJson(
+      base,
+      `/api/conversations/${conversation.id}/agents/${agent.id}/sessions`,
+      {}
+    )
+
+    expect(response.status).toBe(201)
+    const { session } = (await response.json()) as {
+      session: { claudeSessionId: string; turns: number }
+    }
+    expect(session.claudeSessionId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(session.claudeSessionId).not.toBe(
+      "7e27a04a-8178-4a22-aad9-d886c125c430"
+    )
+    expect(session.turns).toBe(0)
+    await vi.waitFor(() =>
+      expect(agentStates(stream.events)).toEqual([
+        "starting",
+        "idle",
+        "busy",
+        "idle",
+        "exited",
+        "starting",
+        "idle",
+      ])
+    )
+    expect(started).toHaveLength(2)
+    expect(started[1].slice(-2)).toEqual([
+      "--session-id",
+      session.claudeSessionId,
+    ])
+    expect(started[1]).not.toContain("--resume")
+    const { items } = await timeline(base, conversation.id)
+    expect(items.at(-1)).toMatchObject({
+      authorKey: `agent:${agent.id}`,
+      item: { kind: "session_start", claudeSessionId: session.claudeSessionId },
+    })
+  })
+
+  test("autostart starts the DM process of each autostart agent, with no prompt", async () => {
+    const { store, server, startedAgents, sentTo } = await startServer()
+    const runner = store.createAgent({
+      name: "test-runner",
+      colour: "aqua",
+      model: "claude-haiku-5-5",
+      permissionMode: "default",
+      cwd: process.cwd(),
+      autostart: true,
+      allowedTools: [],
+      disallowedTools: [],
+      systemPrompt: null,
+    })
+    store.createConversation({
+      kind: "dm",
+      name: "test-runner",
+      topic: null,
+      private: true,
+      replyMode: "every",
+      members: ["user:me", `agent:${runner.id}`],
+    })
+    store.createAgent({ ...runner, name: "docs-writer" })
+
+    server.autostart()
+
+    expect(startedAgents).toEqual(["test-runner"])
+    await vi.waitFor(() =>
+      expect(
+        (sentTo.get("test-runner") ?? []).map((line) => line.type)
+      ).toEqual(["control_request"])
+    )
+  })
+
+  test("a new Claude session that had no turn before a server start starts again with its id, not with resume", async () => {
+    const { base, store, started, agent, conversation } = await startServer()
+    const earlier = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+      claudeSessionNew: true,
+    })
+    store.updateSession(earlier.id, { state: "exited" })
+
+    await sendMessage(base, conversation.id, "Hello.")
+
+    expect(started[0].slice(-2)).toEqual([
+      "--session-id",
+      "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    ])
   })
 
   test("a message to an agent with a stored Claude session resumes that session", async () => {

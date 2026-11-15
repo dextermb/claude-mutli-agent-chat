@@ -78,6 +78,7 @@ export async function startServer(
     conversation,
     address,
     stop,
+    server,
   }
 }
 
