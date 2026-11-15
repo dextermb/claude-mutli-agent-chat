@@ -1,5 +1,6 @@
 import { HashIcon } from "lucide-react"
-import { useState, type FormEvent } from "react"
+import { useForm } from "@tanstack/react-form"
+import { useState } from "react"
 
 import {
   AVATAR_COLOURS,
@@ -21,6 +22,7 @@ import {
   Field,
   FieldContent,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
@@ -44,16 +46,10 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import { invalid, shown } from "@/lib/form-errors"
+import { channelSchema, type ChannelDraft } from "../../server/schemas.ts"
 
-type Draft = {
-  name: string
-  topic: string
-  private: boolean
-  replyMode: "mention" | "every"
-  agentIds: string[]
-}
-
-const EMPTY: Draft = {
+const EMPTY: ChannelDraft = {
   name: "",
   topic: "",
   private: false,
@@ -72,23 +68,14 @@ export function CreateChannelDialog({
   onOpenChange: (open: boolean) => void
   onCreated: (conversation: Conversation) => void
 }) {
-  const [draft, setDraft] = useState<Draft>(EMPTY)
   const [error, setError] = useState<string | null>(null)
+  const form = useForm({
+    defaultValues: EMPTY,
+    validators: { onBlur: channelSchema, onSubmit: channelSchema },
+    onSubmit: ({ value }) => create(value),
+  })
 
-  const change = <K extends keyof Draft>(field: K, value: Draft[K]) =>
-    setDraft((current) => ({ ...current, [field]: value }))
-
-  function invite(agentId: string, on: boolean) {
-    change(
-      "agentIds",
-      on
-        ? [...draft.agentIds, agentId]
-        : draft.agentIds.filter((id) => id !== agentId)
-    )
-  }
-
-  async function create(event: FormEvent) {
-    event.preventDefault()
+  async function create(draft: ChannelDraft) {
     const response = await fetch("/api/conversations", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -102,7 +89,7 @@ export function CreateChannelDialog({
       setError(body.error ?? "The server did not create the channel.")
       return
     }
-    setDraft(EMPTY)
+    form.reset()
     setError(null)
     onCreated(body.conversation)
   }
@@ -110,7 +97,14 @@ export function CreateChannelDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[520px]">
-        <form onSubmit={create} className="flex flex-col gap-4">
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault()
+            void form.handleSubmit()
+          }}
+          className="flex flex-col gap-4"
+        >
           <DialogHeader>
             <DialogTitle>Create a channel</DialogTitle>
             <DialogDescription>
@@ -118,32 +112,45 @@ export function CreateChannelDialog({
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="channel-name">Name</FieldLabel>
-              <InputGroup>
-                <InputGroupAddon>
-                  <HashIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="channel-name"
-                  value={draft.name}
-                  onChange={(event) =>
-                    change("name", event.currentTarget.value)
-                  }
-                />
-              </InputGroup>
-              <FieldDescription>
-                Lowercase letters, numbers and hyphens.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="channel-topic">Topic</FieldLabel>
-              <Input
-                id="channel-topic"
-                value={draft.topic}
-                onChange={(event) => change("topic", event.currentTarget.value)}
-              />
-            </Field>
+            <form.Field name="name">
+              {(field) => (
+                <Field data-invalid={invalid(field.state.meta)}>
+                  <FieldLabel htmlFor="channel-name">Name</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <HashIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="channel-name"
+                      value={field.state.value}
+                      aria-invalid={invalid(field.state.meta)}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.currentTarget.value)
+                      }
+                    />
+                  </InputGroup>
+                  <FieldDescription>
+                    Lowercase letters, numbers and hyphens.
+                  </FieldDescription>
+                  <FieldError errors={shown(field.state.meta)} />
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="topic">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="channel-topic">Topic</FieldLabel>
+                  <Input
+                    id="channel-topic"
+                    value={field.state.value ?? ""}
+                    onChange={(event) =>
+                      field.handleChange(event.currentTarget.value)
+                    }
+                  />
+                </Field>
+              )}
+            </form.Field>
             <Field orientation="horizontal">
               <FieldContent>
                 <FieldLabel htmlFor="channel-private">
@@ -153,11 +160,15 @@ export function CreateChannelDialog({
                   Only invited agents can see it.
                 </FieldDescription>
               </FieldContent>
-              <Switch
-                id="channel-private"
-                checked={draft.private}
-                onCheckedChange={(checked) => change("private", checked)}
-              />
+              <form.Field name="private">
+                {(field) => (
+                  <Switch
+                    id="channel-private"
+                    checked={field.state.value ?? false}
+                    onCheckedChange={(checked) => field.handleChange(checked)}
+                  />
+                )}
+              </form.Field>
             </Field>
             <FieldSet>
               <FieldLegend variant="label">Invite agents</FieldLegend>
@@ -180,11 +191,24 @@ export function CreateChannelDialog({
                       </ItemDescription>
                     </ItemContent>
                     <ItemActions>
-                      <Checkbox
-                        aria-label={`Invite ${agent.name}`}
-                        checked={draft.agentIds.includes(agent.id)}
-                        onCheckedChange={(on) => invite(agent.id, on)}
-                      />
+                      <form.Field name="agentIds">
+                        {(field) => {
+                          const picked = field.state.value ?? []
+                          return (
+                            <Checkbox
+                              aria-label={`Invite ${agent.name}`}
+                              checked={picked.includes(agent.id)}
+                              onCheckedChange={(on) =>
+                                field.handleChange(
+                                  on
+                                    ? [...picked, agent.id]
+                                    : picked.filter((id) => id !== agent.id)
+                                )
+                              }
+                            />
+                          )
+                        }}
+                      </form.Field>
                     </ItemActions>
                   </Item>
                 ))}
@@ -192,25 +216,31 @@ export function CreateChannelDialog({
             </FieldSet>
             <FieldSet>
               <FieldLegend variant="label">When agents reply</FieldLegend>
-              <RadioGroup
-                value={draft.replyMode}
-                onValueChange={(value) =>
-                  change("replyMode", value === "every" ? "every" : "mention")
-                }
-              >
-                <Field orientation="horizontal">
-                  <RadioGroupItem value="mention" id="reply-mention" />
-                  <FieldLabel htmlFor="reply-mention">
-                    Only when @mentioned
-                  </FieldLabel>
-                </Field>
-                <Field orientation="horizontal">
-                  <RadioGroupItem value="every" id="reply-every" />
-                  <FieldLabel htmlFor="reply-every">
-                    Every message (each agent spends tokens on each message)
-                  </FieldLabel>
-                </Field>
-              </RadioGroup>
+              <form.Field name="replyMode">
+                {(field) => (
+                  <RadioGroup
+                    value={field.state.value}
+                    onValueChange={(value) =>
+                      field.handleChange(
+                        value === "every" ? "every" : "mention"
+                      )
+                    }
+                  >
+                    <Field orientation="horizontal">
+                      <RadioGroupItem value="mention" id="reply-mention" />
+                      <FieldLabel htmlFor="reply-mention">
+                        Only when @mentioned
+                      </FieldLabel>
+                    </Field>
+                    <Field orientation="horizontal">
+                      <RadioGroupItem value="every" id="reply-every" />
+                      <FieldLabel htmlFor="reply-every">
+                        Every message (each agent spends tokens on each message)
+                      </FieldLabel>
+                    </Field>
+                  </RadioGroup>
+                )}
+              </form.Field>
             </FieldSet>
           </FieldGroup>
           {error && (

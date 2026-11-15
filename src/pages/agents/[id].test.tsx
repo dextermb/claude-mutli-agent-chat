@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
@@ -74,6 +74,21 @@ describe("the agent configuration page", () => {
     expect(window.location.pathname).toBe("/agents/a1")
   })
 
+  test("an empty name shows its message after the user leaves the field", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const name = await screen.findByLabelText("Name")
+    expect(screen.queryByText("Give the agent a name.")).not.toBeInTheDocument()
+
+    await user.click(name)
+    await user.tab()
+
+    expect(
+      await screen.findByText("Give the agent a name.")
+    ).toBeInTheDocument()
+    expect(name).toHaveAttribute("aria-invalid", "true")
+  })
+
   test("a saved agent loads in the form, and a change goes to the server", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
@@ -105,16 +120,89 @@ describe("the agent configuration page", () => {
     network.on(
       "POST",
       "/api/agents",
-      { error: "These fields are empty: name, cwd." },
+      { error: "The server refused the agent." },
       400
     )
+    openPage("/agents/new")
+    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(
+      screen.getByLabelText("Working directory"),
+      "/home/user/code/web-app"
+    )
+
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server refused the agent."
+    )
+    expect(window.location.pathname).toBe("/agents/new")
+  })
+
+  test("a message of the server for a field shows under that field", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/agents",
+      {
+        error: "Give the folder of the agent.",
+        fields: { cwd: "Give the folder of the agent." },
+      },
+      400
+    )
+    openPage("/agents/new")
+    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    const folder = screen.getByLabelText("Working directory")
+    await user.type(folder, "/home/user/code/web-app")
+
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    await waitFor(() => expect(folder).toHaveAttribute("aria-invalid", "true"))
+    expect(folder.closest("[data-slot='field']")).toHaveTextContent(
+      "Give the folder of the agent."
+    )
+  })
+
+  test("after a server message, a change to that field lets the user save again", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/agents",
+      { error: "Pick a model.", fields: { cwd: "Use another folder." } },
+      400
+    )
+    openPage("/agents/new")
+    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    const folder = screen.getByLabelText("Working directory")
+    await user.type(folder, "/home/user/code/web-app")
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+    await screen.findByText("Use another folder.")
+    network.on("POST", "/api/agents", { agent: testRunner }, 201)
+
+    await user.type(folder, "-2")
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    await waitFor(() =>
+      expect(
+        network.sent.filter((request) => request.method === "POST")
+      ).toHaveLength(2)
+    )
+    expect(screen.queryByText("Use another folder.")).not.toBeInTheDocument()
+  })
+
+  test("a save with empty fields sends nothing, and each empty field shows its message", async () => {
+    const user = userEvent.setup()
     openPage("/agents/new")
 
     await user.click(await screen.findByRole("button", { name: "Save agent" }))
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "These fields are empty: name, cwd."
+    expect(
+      await screen.findByText("Give the agent a name.")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Give the folder of the agent.")
+    ).toBeInTheDocument()
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      []
     )
-    expect(window.location.pathname).toBe("/agents/new")
   })
 })

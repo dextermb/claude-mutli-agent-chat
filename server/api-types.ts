@@ -1,3 +1,5 @@
+import type { z } from "zod"
+import type { agentSchema } from "./schemas.ts"
 import type { TimelineItem } from "./timeline/reduce.ts"
 
 export type SessionState =
@@ -17,7 +19,7 @@ export type Agent = {
   createdAt: string
 }
 
-export type NewAgent = Omit<Agent, "id" | "createdAt">
+export type NewAgent = z.output<typeof agentSchema>
 
 export type SessionConfig = Pick<
   Agent,

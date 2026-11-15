@@ -33,6 +33,8 @@ manager is pnpm.
 - `docs/server.md`: the routes and the event stream of the agent server.
 - `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.
 - `docs/web-app.md`: the pages, the conversation hook and the DM parts.
+- `docs/forms.md`: the two forms, the shared Zod schema in
+  `server/schemas.ts`, and the shape of a refused body.
 
 ## Rules
 
