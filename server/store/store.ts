@@ -193,6 +193,34 @@ export function openStore(location: string) {
       .flatMap((row) => getConversation(String(row.id)) ?? [])
   }
 
+  function markRead(conversationId: string, seq: number) {
+    db.prepare(
+      `INSERT INTO conversation_reads (conversation_id, last_read_seq, read_at)
+       VALUES (:conversationId, :seq, :readAt)
+       ON CONFLICT (conversation_id) DO UPDATE SET
+         last_read_seq = max(last_read_seq, excluded.last_read_seq),
+         read_at = excluded.read_at`
+    ).run({ conversationId, seq, readAt: new Date().toISOString() })
+  }
+
+  function listUnread(): string[] {
+    return db
+      .prepare(
+        `SELECT conversations.id FROM conversations
+         LEFT JOIN conversation_reads
+           ON conversation_reads.conversation_id = conversations.id
+         WHERE EXISTS (
+           SELECT 1 FROM timeline_items
+           WHERE timeline_items.conversation_id = conversations.id
+             AND timeline_items.author_key LIKE 'agent:%'
+             AND timeline_items.seq > coalesce(conversation_reads.last_read_seq, 0)
+         )
+         ORDER BY conversations.created_at, conversations.rowid`
+      )
+      .all()
+      .map((row) => String(row.id))
+  }
+
   function findDirectMessage(agentId: string): Conversation | undefined {
     const row = db
       .prepare(
@@ -552,6 +580,8 @@ export function openStore(location: string) {
     createConversation,
     getConversation,
     listConversations,
+    listUnread,
+    markRead,
     addMember,
     renameConversation,
     removeMember,

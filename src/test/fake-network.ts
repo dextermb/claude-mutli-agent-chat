@@ -46,10 +46,13 @@ export function fakeNetwork() {
       const reply = responder
         ? responder(body)
         : { status: 404, body: { error: "not found" } }
-      return new Response(JSON.stringify(reply.body), {
-        status: reply.status,
-        headers: { "content-type": "application/json" },
-      })
+      return new Response(
+        reply.status === 204 ? null : JSON.stringify(reply.body),
+        {
+          status: reply.status,
+          headers: { "content-type": "application/json" },
+        }
+      )
     })
   )
 

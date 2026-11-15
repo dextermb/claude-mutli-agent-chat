@@ -143,7 +143,13 @@ function applyMessage(
   if (message.type === "conversation") {
     return { ...view, conversation: message.conversation }
   }
-  if (message.type === "reset" || message.type === "line") return view
+  if (
+    message.type === "reset" ||
+    message.type === "line" ||
+    message.type === "unread"
+  ) {
+    return view
+  }
   if (message.type === "agent_state") {
     return {
       ...view,

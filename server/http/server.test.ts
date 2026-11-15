@@ -392,7 +392,11 @@ describe("createServer", () => {
     await sendMessage(base, conversation.id, "Remember kiwi.")
 
     await vi.waitFor(() =>
-      expect(stream.events.map(({ data }) => data)).toEqual([
+      expect(
+        stream.events
+          .map(({ data }) => data)
+          .filter((data) => data.type === "agent_state")
+      ).toEqual([
         { type: "agent_state", agentId: agent.id, state: "starting" },
         { type: "agent_state", agentId: agent.id, state: "idle" },
         { type: "agent_state", agentId: agent.id, state: "busy" },

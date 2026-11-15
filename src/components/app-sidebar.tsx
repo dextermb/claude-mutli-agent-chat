@@ -20,7 +20,7 @@ const ROW =
   "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-sidebar-foreground hover:bg-sidebar-accent"
 
 export function AppSidebar({ currentId }: { currentId: string }) {
-  const { conversations, agents } = useWorkspace()
+  const { conversations, agents, unread } = useWorkspace()
   const [dialog, setDialog] = useState<"chat" | "channel" | null>(null)
   const [, navigate] = useLocation()
 
@@ -37,19 +37,30 @@ export function AppSidebar({ currentId }: { currentId: string }) {
     navigate(`/conversations/${conversation.id}`)
   }
 
-  const linkTo = (conversation: Conversation, children: ReactNode) => (
-    <Link
-      href={`/conversations/${conversation.id}`}
-      aria-current={conversation.id === currentId ? "page" : undefined}
-      className={cn(
-        ROW,
-        conversation.id === currentId &&
-          "bg-sidebar-accent font-medium text-foreground-strong"
-      )}
-    >
-      {children}
-    </Link>
-  )
+  const linkTo = (conversation: Conversation, children: ReactNode) => {
+    const isUnread =
+      conversation.id !== currentId && unread.includes(conversation.id)
+    return (
+      <Link
+        href={`/conversations/${conversation.id}`}
+        aria-current={conversation.id === currentId ? "page" : undefined}
+        className={cn(
+          ROW,
+          isUnread && "font-semibold text-foreground-strong",
+          conversation.id === currentId &&
+            "bg-sidebar-accent font-medium text-foreground-strong"
+        )}
+      >
+        {children}
+        {isUnread && (
+          <>
+            {" "}
+            <span className="sr-only">unread</span>
+          </>
+        )}
+      </Link>
+    )
+  }
 
   const channels = conversations.filter((item) => item.kind === "channel")
   const groups = conversations.filter((item) => item.kind === "group")

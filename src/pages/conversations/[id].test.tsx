@@ -30,13 +30,18 @@ import {
   userMessage,
 } from "@/test/conversation-data"
 import { fakeNetwork } from "@/test/fake-network"
-import { screenWidth } from "@/test/fake-screen"
+import { screenWidth, windowFocus } from "@/test/fake-screen"
 
 let network: ReturnType<typeof fakeNetwork>
 
-function openConversation(entries: TimelineEntry[], state = testRunner.state) {
+function openConversation(
+  entries: TimelineEntry[],
+  state = testRunner.state,
+  unread: string[] = []
+) {
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, squadGroup, directMessage],
+    unread,
   })
   network.on("GET", "/api/agents", {
     agents: [reviewerBot, { ...testRunner, state }],
@@ -1266,5 +1271,116 @@ describe("a narrow screen", () => {
     expect(
       header.queryByRole("button", { name: "Session" })
     ).not.toBeInTheDocument()
+  })
+})
+
+describe("unread rows", () => {
+  test("the sidebar marks each conversation in which an agent wrote after the last visit", async () => {
+    openConversation([userMessage], "idle", ["ch1"])
+    const sidebar = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+
+    expect(
+      await within(sidebar).findByRole("link", { name: "release-train unread" })
+    ).toHaveAttribute("href", "/conversations/ch1")
+    expect(
+      within(sidebar).getByRole("link", { name: "reviewer-bot, test-runner" })
+    ).toBeInTheDocument()
+  })
+
+  test("the sidebar follows the unread events of the app stream", async () => {
+    openConversation([userMessage])
+    const sidebar = within(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    )
+    await sidebar.findByRole("link", { name: "release-train" })
+
+    act(() =>
+      network
+        .stream("/api/events")
+        .emit(1, { type: "unread", conversationId: "ch1", unread: true })
+    )
+    expect(
+      sidebar.getByRole("link", { name: "release-train unread" })
+    ).toBeInTheDocument()
+
+    act(() =>
+      network
+        .stream("/api/events")
+        .emit(2, { type: "unread", conversationId: "ch1", unread: false })
+    )
+    expect(
+      sidebar.getByRole("link", { name: "release-train" })
+    ).toBeInTheDocument()
+  })
+
+  test("an open conversation in a focused window counts as seen up to its last entry", async () => {
+    windowFocus(true)
+    network.on("POST", "/api/conversations/c1/read", {}, 204)
+
+    openConversation([userMessage, agentMessage])
+
+    await waitFor(() =>
+      expect(
+        network.sent.filter((request) => request.url.endsWith("/read"))
+      ).toEqual([
+        { method: "POST", url: "/api/conversations/c1/read", body: { seq: 2 } },
+      ])
+    )
+  })
+
+  test("a conversation in a window without the focus counts as seen when the window gets the focus", async () => {
+    network.on("POST", "/api/conversations/c1/read", {}, 204)
+    openConversation([userMessage, agentMessage])
+    await screen.findByRole("heading", { name: "test-runner" })
+    expect(
+      network.sent.filter((request) => request.url.endsWith("/read"))
+    ).toEqual([])
+
+    windowFocus(true)
+    act(() => {
+      window.dispatchEvent(new FocusEvent("focus"))
+    })
+
+    await waitFor(() =>
+      expect(
+        network.sent.filter((request) => request.url.endsWith("/read"))
+      ).toEqual([
+        { method: "POST", url: "/api/conversations/c1/read", body: { seq: 2 } },
+      ])
+    )
+  })
+
+  test("a new entry in a focused window counts as seen at once", async () => {
+    windowFocus(true)
+    network.on("POST", "/api/conversations/c1/read", {}, 204)
+    openConversation([userMessage])
+    await screen.findByRole("heading", { name: "test-runner" })
+
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "item", entry: agentMessage })
+    )
+
+    await waitFor(() =>
+      expect(
+        network.sent
+          .filter((request) => request.url.endsWith("/read"))
+          .map((request) => request.body)
+      ).toEqual([{ seq: 1 }, { seq: 2 }])
+    )
+  })
+
+  test("the row of the open conversation is never marked unread", async () => {
+    openConversation([userMessage], "idle", ["c1"])
+    const sidebar = within(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    )
+
+    expect(
+      await sidebar.findByRole("link", { name: "test-runner Idle" })
+    ).toHaveAttribute("aria-current", "page")
   })
 })
