@@ -17,6 +17,7 @@ beforeEach(() => {
   network = fakeNetwork()
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, directMessage],
+    unread: { [releaseChannel.id]: 2 },
   })
   network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
 })
@@ -72,5 +73,30 @@ describe("useWorkspace", () => {
     await waitFor(() => expect(result.current.agents).toEqual([testRunner]))
     expect(first.closed).toBe(true)
     expect(network.stream("/api/events")).not.toBe(first)
+  })
+
+  test("the unread count of each conversation follows the stream, and the count 0 clears it", async () => {
+    const { result } = renderHook(() => useWorkspace())
+    await waitFor(() =>
+      expect(result.current.unread).toEqual({ [releaseChannel.id]: 2 })
+    )
+    const stream = network.stream("/api/events")
+
+    act(() =>
+      stream.emit(1, {
+        type: "unread",
+        conversationId: directMessage.id,
+        count: 1,
+      })
+    )
+    act(() =>
+      stream.emit(2, {
+        type: "unread",
+        conversationId: releaseChannel.id,
+        count: 0,
+      })
+    )
+
+    expect(result.current.unread).toEqual({ [directMessage.id]: 1 })
   })
 })

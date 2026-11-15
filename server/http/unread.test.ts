@@ -21,17 +21,17 @@ async function finishedTurn(base: string, conversationId: string) {
 
 async function listing(base: string) {
   const response = await fetch(`${base}/api/conversations`)
-  return (await response.json()) as { unread: string[] }
+  return (await response.json()) as { unread: Record<string, number> }
 }
 
 describe("unread conversations", () => {
-  test("the list of conversations names each conversation in which an agent wrote", async () => {
+  test("the list of conversations counts the unread messages of the agents in each conversation", async () => {
     const { base, conversation } = await startServer()
-    expect((await listing(base)).unread).toEqual([])
+    expect((await listing(base)).unread).toEqual({})
 
     await finishedTurn(base, conversation.id)
 
-    expect((await listing(base)).unread).toEqual([conversation.id])
+    expect((await listing(base)).unread).toEqual({ [conversation.id]: 1 })
   })
 
   test("a read of the last item clears the conversation, and the app stream says so", async () => {
@@ -51,10 +51,10 @@ describe("unread conversations", () => {
     )
 
     expect(read.status).toBe(204)
-    expect((await listing(base)).unread).toEqual([])
+    expect((await listing(base)).unread).toEqual({})
     await vi.waitFor(() =>
       expect(stream.events.map(({ data }) => data)).toEqual([
-        { type: "unread", conversationId: conversation.id, unread: false },
+        { type: "unread", conversationId: conversation.id, count: 0 },
       ])
     )
   })
@@ -79,7 +79,7 @@ describe("unread conversations", () => {
     })
   })
 
-  test("the first item of an agent sends one unread event, and the read sends one more", async () => {
+  test("each new count goes to the app stream, and the read sends the count 0", async () => {
     const { base, conversation } = await startServer()
     const stream = openAppEvents(base)
     await stream.ready
@@ -99,8 +99,8 @@ describe("unread conversations", () => {
           .map(({ data }) => data)
           .filter((data) => data.type === "unread")
       ).toEqual([
-        { type: "unread", conversationId: conversation.id, unread: true },
-        { type: "unread", conversationId: conversation.id, unread: false },
+        { type: "unread", conversationId: conversation.id, count: 1 },
+        { type: "unread", conversationId: conversation.id, count: 0 },
       ])
     )
   })
@@ -123,9 +123,9 @@ describe("unread conversations", () => {
           .map(({ data }) => data)
           .filter((data) => data.type === "unread")
       ).toEqual([
-        { type: "unread", conversationId: conversation.id, unread: true },
+        { type: "unread", conversationId: conversation.id, count: 1 },
       ])
     )
-    expect((await listing(base)).unread).toEqual([conversation.id])
+    expect((await listing(base)).unread).toEqual({ [conversation.id]: 1 })
   })
 })

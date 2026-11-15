@@ -262,7 +262,7 @@ describe("reduceTimeline", () => {
     expect(second.changes).toEqual([])
   })
 
-  test("an interrupt while a tool runs stops the turn and ends the tool call", () => {
+  test("an interrupt while a tool runs stops the turn and the tool call, with no error text", () => {
     const items = replay("interrupt-tool")
 
     expect(ofKind(items, "turn")).toEqual([
@@ -270,7 +270,8 @@ describe("reduceTimeline", () => {
     ])
     expect(toolCall(items, "toolu_01PFqairxqQrsUe8rD6zsBaB")).toMatchObject({
       name: "Bash",
-      status: "error",
+      status: "stopped",
+      result: null,
     })
   })
 

@@ -29,6 +29,12 @@ pnpm dev:web      # the web app; Vite sends /api to port 4100
 | `/agents/:id`        | `src/pages/agents/[id].tsx`        | The form for a saved agent                        |
 | `/conversations/:id` | `src/pages/conversations/[id].tsx` | The DM with an agent                              |
 
+The home page reads the agents from `useWorkspace()`, so the status of each
+agent follows the app stream. It shows a search by name, a line that counts
+the agents by status ("5 agents · 1 working · 1 error"), and for each agent
+its status dot, its status Badge, Message and Configure. With no agents, it
+shows "There are no agents." and New agent.
+
 Message on the home page opens the DM with that agent. The server gives back
 the same DM each time, so an agent has one DM.
 
@@ -44,6 +50,6 @@ type check of the app does not need the Node types.
 | Page                            | Open it for                                                                                          |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `docs/web-app/conversation.md`  | `useConversation()`, the parts of the timeline, the status words, a refused action, and the `@` list |
-| `docs/web-app/session-panel.md` | The session panel, Stop turn, New session, Remove, and the Files and Session log tabs                |
+| `docs/web-app/session-panel.md` | The session panel, the members of a channel, Stop turn, New session, Remove, and the DM tabs         |
 | `docs/web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs Start a chat, Create a channel and Members            |
 | `docs/web-app/agent-page.md`    | The form for a new or a saved agent                                                                  |

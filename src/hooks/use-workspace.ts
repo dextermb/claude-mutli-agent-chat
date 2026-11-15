@@ -9,14 +9,16 @@ import type {
 type Workspace = {
   conversations: Conversation[]
   agents: AgentWithState[]
-  unread: string[]
+  unread: Record<string, number>
+  loaded: boolean
 }
 
 export function useWorkspace() {
   const [workspace, setWorkspace] = useState<Workspace>({
     conversations: [],
     agents: [],
-    unread: [],
+    unread: {},
+    loaded: false,
   })
 
   useEffect(() => {
@@ -51,15 +53,17 @@ export function useWorkspace() {
 
 async function load(): Promise<Workspace> {
   const [listed, team] = await Promise.all([
-    getJson<{ conversations: Conversation[]; unread?: string[] }>(
-      "/api/conversations"
-    ),
+    getJson<{
+      conversations: Conversation[]
+      unread?: Record<string, number>
+    }>("/api/conversations"),
     getJson<{ agents: AgentWithState[] }>("/api/agents"),
   ])
   return {
     conversations: listed.conversations,
     agents: team.agents,
-    unread: listed.unread ?? [],
+    unread: listed.unread ?? {},
+    loaded: true,
   }
 }
 
@@ -75,13 +79,12 @@ function applyMessage(workspace: Workspace, message: StreamMessage): Workspace {
     }
   }
   if (message.type === "unread") {
-    const others = workspace.unread.filter(
-      (id) => id !== message.conversationId
-    )
-    return {
-      ...workspace,
-      unread: message.unread ? [...others, message.conversationId] : others,
+    const unread = {
+      ...workspace.unread,
+      [message.conversationId]: message.count,
     }
+    if (message.count === 0) delete unread[message.conversationId]
+    return { ...workspace, unread }
   }
   if (message.type === "conversation") {
     const { conversation } = message

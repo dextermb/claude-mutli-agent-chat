@@ -1,17 +1,38 @@
 # The agent page
 
-`src/pages/agents/[id].tsx` holds the form for a new agent and for a saved
-agent.
+`src/pages/agents/[id].tsx` holds the form for a new agent (`/agents/new`) and
+for a saved agent (`/agents/:id`).
+
+Both screens show the sidebar (`docs/web-app/sidebar.md`) and the breadcrumb
+"Agents / name", where Agents links to `/`. On a saved agent, the row of its
+DM in the sidebar is active.
+
+The header:
+
+- **New agent:** a bot icon, "The agent starts when it gets its first
+  message.", Cancel (back to `/`), and Create agent.
+- **Saved agent:** its avatar with a status dot, its status Badge, the line
+  "Headless Claude Code agent. Runs in 2 channels and 1 group chat.", and Save
+  agent. The status and the counts come from `useWorkspace()`, so they follow
+  the app stream.
 
 The form sends every field. A new agent goes to `POST /api/agents`, then the
 page moves to `/agents/<id>`. A saved agent goes to `PATCH /api/agents/:id`.
 The form checks each field with the schema of the server, and shows each
-message under its field. If the server refuses the agent, the page shows the
-reason in an alert, and each message of the server under its field. See
-`docs/forms.md`.
+message under its field, in place of the description of that field. The input
+names its message with `aria-describedby`. If the server refuses the agent,
+the page shows an alert with the title "The server refused the agent." and the
+reason, and each message of the server under its field. See `docs/forms.md`.
 
-The model and the permission mode use a native `<select>`
-(`native-select`), because it is accessible and easy to test.
+The page keeps a loaded agent in state and gives it to `useForm()` as the
+default values. A call to `form.reset()` is not enough: the page renders again
+when the workspace loads, and the form then goes back to the default values
+of its options, because the user has not changed a field yet.
+
+The model and the permission mode use the Base UI `Select`, with a mono
+trigger, as the design shows. The description under the permission mode
+changes with the mode. The working directory has a folder icon. A tool goes
+into the allowed or the blocked list with Enter or with Add.
 
 A change to an agent does not change a process that runs. The next process
 uses the new configuration.

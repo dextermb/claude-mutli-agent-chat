@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, test } from "vitest"
 
@@ -19,7 +19,7 @@ beforeEach(() => {
   network = fakeNetwork()
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, squadGroup, directMessage],
-    unread: [],
+    unread: {},
   })
   network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
 })
@@ -40,5 +40,107 @@ describe("the home page on a narrow screen", () => {
     expect(
       await screen.findByRole("navigation", { name: "Conversations" })
     ).toBeInTheDocument()
+  })
+})
+
+describe("the workspace rail", () => {
+  test("the rail goes home and to the agents, and shows the pages that are not built yet as disabled", async () => {
+    window.history.pushState({}, "", "/")
+    render(<App />)
+    const rail = within(
+      await screen.findByRole("navigation", { name: "Workspace" })
+    )
+
+    expect(rail.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/"
+    )
+    expect(rail.getByRole("link", { name: "Agents" })).toHaveAttribute(
+      "href",
+      "/"
+    )
+    expect(rail.getByRole("button", { name: "Direct messages" })).toBeDisabled()
+    expect(rail.getByRole("button", { name: "Activity" })).toBeDisabled()
+  })
+})
+
+describe("the sidebar", () => {
+  test("the + of Group chats opens Start a chat", async () => {
+    const user = userEvent.setup()
+    window.history.pushState({}, "", "/")
+    render(<App />)
+    const sidebar = within(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    )
+
+    await user.click(
+      sidebar.getByRole("button", { name: "Start a group chat" })
+    )
+
+    expect(
+      await screen.findByRole("dialog", { name: "Start a chat" })
+    ).toBeInTheDocument()
+  })
+})
+
+describe("the agents page", () => {
+  const migrator = {
+    ...testRunner,
+    id: "a3",
+    name: "migrator",
+    colour: "blue",
+    state: "failed" as const,
+  }
+
+  test("each agent shows its status, and a line counts the agents by status", async () => {
+    network.on("GET", "/api/agents", {
+      agents: [reviewerBot, { ...testRunner, state: "busy" }, migrator],
+    })
+    window.history.pushState({}, "", "/")
+    render(<App />)
+    const list = within(await screen.findByRole("list", { name: "Agents" }))
+
+    await waitFor(() => expect(list.getAllByRole("listitem")).toHaveLength(3))
+    const runner = within(list.getByRole("listitem", { name: "test-runner" }))
+    expect(runner.getByText("Working")).toBeInTheDocument()
+    expect(
+      screen.getByText("3 agents · 1 working · 1 error")
+    ).toBeInTheDocument()
+  })
+
+  test("the user can search the agents by name", async () => {
+    const user = userEvent.setup()
+    window.history.pushState({}, "", "/")
+    render(<App />)
+    const list = within(await screen.findByRole("list", { name: "Agents" }))
+    await waitFor(() => expect(list.getAllByRole("listitem")).toHaveLength(2))
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Search agents" }),
+      "REVIEW"
+    )
+
+    expect(list.getAllByRole("listitem")).toHaveLength(1)
+    expect(
+      list.getByRole("listitem", { name: "reviewer-bot" })
+    ).toBeInTheDocument()
+  })
+
+  test("with no agents, the page says how to start", async () => {
+    network.on("GET", "/api/agents", { agents: [] })
+    window.history.pushState({}, "", "/")
+    render(<App />)
+
+    expect(
+      await screen.findByRole("heading", { name: "There are no agents." })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Make an agent. Then message it in a DM, or invite it to a channel."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("textbox", { name: "Search agents" })
+    ).not.toBeInTheDocument()
   })
 })

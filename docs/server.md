@@ -28,7 +28,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `POST /api/agents`                                     | The agent                       | `201 { agent }`. `400` if a field is empty                                                                                                            |
 | `GET /api/agents/:id`                                  |                                 | `{ agent }`. `404` for an unknown agent                                                                                                               |
 | `PATCH /api/agents/:id`                                | Some fields of the agent        | `{ agent }`. The other fields stay                                                                                                                    |
-| `GET /api/conversations`                               |                                 | `{ conversations, unread }`. `unread` holds the IDs of the unread conversations                                                                       |
+| `GET /api/conversations`                               |                                 | `{ conversations, unread }`. `unread` gives the unread count of each conversation that has one                                                        |
 | `POST /api/conversations`                              | A DM, a group chat or a channel | `201 { conversation }`, or `200` with the DM that exists                                                                                              |
 | `GET /api/conversations/:id`                           |                                 | `{ conversation, agents }`, each agent with its `state`                                                                                               |
 | `POST /api/conversations/:id/messages`                 | `{ text }`                      | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation                                                                        |
@@ -133,17 +133,19 @@ these lines would push the other events out of the log of 500.
 `GET /api/events` is one more stream, for the whole app. It works in the
 same way, with its own counter and log. It sends:
 
-| Event                                        | When                                                   |
-| -------------------------------------------- | ------------------------------------------------------ |
-| `{ type: "agent_state", agentId, state }`    | The state of an agent over all its sessions changes    |
-| `{ type: "conversation", conversation }`     | The server makes a conversation, or its members change |
-| `{ type: "unread", conversationId, unread }` | A conversation becomes unread, or the user reads it    |
+| Event                                       | When                                                   |
+| ------------------------------------------- | ------------------------------------------------------ |
+| `{ type: "agent_state", agentId, state }`   | The state of an agent over all its sessions changes    |
+| `{ type: "conversation", conversation }`    | The server makes a conversation, or its members change |
+| `{ type: "unread", conversationId, count }` | The unread count of a conversation changes             |
 
-A conversation is unread when an agent item comes after the place that the
-user saw last (`docs/store.md`). The server checks it after it saves the items
+The unread count of a conversation counts the agent items for the user to
+read after the place that the user saw last: messages, notices, permission
+requests and questions (`docs/store.md`). Tool calls, turn summaries and
+dividers do not count. The server checks the count after it saves the items
 of an agent, after the notice of a failed process, and after a read. It keeps
-the last value that it sent for each conversation, so a turn of many items
-sends one `unread` event. The divider of a new session sends none, because
+the last count that it sent for each conversation, and sends an `unread`
+event only when the count changes. A read sends the count 0. The divider of a new session sends none, because
 the user starts it from the open page.
 
 The state of an agent follows the rule of `GET /api/agents`

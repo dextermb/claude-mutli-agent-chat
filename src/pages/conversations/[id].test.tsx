@@ -16,6 +16,7 @@ import {
   finishedTurn,
   localTime,
   pushCall,
+  stoppedCall,
   pushRequest,
   rateLimitNotice,
   sessionStart,
@@ -37,7 +38,7 @@ let network: ReturnType<typeof fakeNetwork>
 function openConversation(
   entries: TimelineEntry[],
   state = testRunner.state,
-  unread: string[] = []
+  unread: Record<string, number> = {}
 ) {
   network.on("GET", "/api/conversations", {
     conversations: [releaseChannel, squadGroup, directMessage],
@@ -78,6 +79,31 @@ function openChannel(entries: TimelineEntry[]) {
   return render(<App />)
 }
 
+type Shown = "complementary" | "dialog"
+
+async function openMembers(
+  user: ReturnType<typeof userEvent.setup>,
+  shown: Shown = "complementary"
+) {
+  const header = within(await screen.findByRole("banner"))
+  await user.click(header.getByRole("button", { name: /^Members:/ }))
+  return within(await screen.findByRole(shown, { name: "Members" }))
+}
+
+async function openMember(
+  user: ReturnType<typeof userEvent.setup>,
+  row: string,
+  shown: Shown = "complementary"
+) {
+  const members = await openMembers(user, shown)
+  await user.click(members.getByRole("button", { name: row }))
+  return within(
+    await members.findByRole("region", {
+      name: `Session of ${row.split(" ")[0]}`,
+    })
+  )
+}
+
 beforeEach(() => {
   network = fakeNetwork()
 })
@@ -105,6 +131,34 @@ describe("the DM page", () => {
     expect(
       within(messages[1]).getByText("I will use a fixed clock.")
     ).toBeInTheDocument()
+  })
+
+  test("a DM starts with a line that names the agent, the reply rule and its folder", async () => {
+    openConversation([userMessage])
+
+    expect(await screen.findByText(/This is your DM with/)).toHaveTextContent(
+      "This is your DM with test-runner. In a DM, the agent replies to every message. It runs Claude Code in /home/user/code/web-app."
+    )
+  })
+
+  test("an agent whose process failed says that the next message starts it again", async () => {
+    openConversation([userMessage, failedNotice], "failed")
+
+    expect(
+      await screen.findByText(
+        "test-runner stopped. Your next message starts it again and resumes the session."
+      )
+    ).toBeInTheDocument()
+  })
+
+  test("Configure in the header of a DM opens the agent page", async () => {
+    openConversation([userMessage])
+
+    const header = within(await screen.findByRole("banner"))
+    expect(header.getByRole("link", { name: "Configure" })).toHaveAttribute(
+      "href",
+      "/agents/a1"
+    )
   })
 
   test("an agent whose process has exited shows Stopped, as in the design", async () => {
@@ -343,7 +397,22 @@ describe("the DM page", () => {
             .map((cell) => cell.textContent)
         )
     ).toEqual([["src/notes.txt", "Edited", "+1 −1", "14:05"]])
+    expect(screen.getByRole("heading", { name: "1 file" })).toBeInTheDocument()
     expect(window.location.search).toBe("?tab=files")
+  })
+
+  test("a file that the agent only read has no line changes", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage, readCall])
+
+    await user.click(await screen.findByRole("tab", { name: "Files" }))
+
+    const table = await screen.findByRole("table", { name: "Files" })
+    expect(
+      within(within(table).getAllByRole("row")[1])
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent)
+    ).toEqual(["src/notes.txt", "Read", "none", "14:05"])
   })
 
   test("a click on a file goes to the messages and to the last tool call on that file", async () => {
@@ -498,6 +567,39 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("text between backticks in a message shows as code", async () => {
+    openConversation([
+      userMessage,
+      {
+        ...agentMessage,
+        item: {
+          kind: "message",
+          id: "item-1",
+          text: "The test reads `Date.now()` twice. Use a `fixed clock`, not a `.",
+          status: "done",
+        },
+      },
+    ])
+
+    expect(
+      await screen.findByText("Date.now()", { selector: "code" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("fixed clock", { selector: "code" })
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/twice\. Use a/)).toHaveLength(1)
+    expect(screen.getByText(/, not a `\.$/)).toBeInTheDocument()
+  })
+
+  test("a tool call that a stop ended says Stopped", async () => {
+    openConversation([userMessage, stoppedCall])
+
+    const ping = await screen.findByRole("region", {
+      name: "Bash ping -c 30 127.0.0.1",
+    })
+    expect(within(ping).getByText("Stopped")).toBeInTheDocument()
+  })
+
   test("the tool calls of a subagent show inside its Agent card, behind a button", async () => {
     const user = userEvent.setup()
     openConversation([agentCall, subagentRead])
@@ -608,7 +710,9 @@ describe("the DM page", () => {
       name: "Approval for Bash git push origin release-train",
     })
     expect(
-      screen.getByText("test-runner waits for your answer.")
+      screen.getByText(
+        "test-runner needs your approval. Your next message waits until this turn ends."
+      )
     ).toBeInTheDocument()
 
     await user.click(within(card).getByRole("button", { name: "Allow once" }))
@@ -689,6 +793,11 @@ describe("the DM page", () => {
     const card = await screen.findByRole("region", {
       name: "Which colour do you prefer?",
     })
+    expect(
+      screen.getByText(
+        "test-runner waits for your answer. Your next message waits until this turn ends."
+      )
+    ).toBeInTheDocument()
 
     await user.click(within(card).getByRole("button", { name: /Red/ }))
 
@@ -821,26 +930,32 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
-  test("in a channel, a click on an agent in the header opens the session panel of that agent", async () => {
+  test("in a channel, the members button opens the members, and a click on an agent opens its session", async () => {
     const user = userEvent.setup()
     openChannel([userMessage])
     network.on("GET", "/api/conversations/ch1/agents/a2/session", {
-      session: { ...testRunnerSession, model: "claude-opus-5-5" },
+      session: { ...testRunnerSession, permissionMode: "plan" },
     })
     const header = within(await screen.findByRole("banner"))
-    expect(
-      screen.queryByRole("complementary", { name: "Session" })
-    ).not.toBeInTheDocument()
-
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of reviewer-bot",
+    const button = header.getByRole("button", {
+      name: "Members: 1 person, 2 agents",
     })
+    expect(button).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+
+    const members = await openMembers(user)
+    expect(button).toHaveAttribute("aria-expanded", "true")
+    expect(members.getByText("1 person · 2 agents")).toBeInTheDocument()
+    await user.click(members.getByRole("button", { name: "reviewer-bot Idle" }))
+
+    const session = within(
+      await members.findByRole("region", { name: "Session of reviewer-bot" })
+    )
+    expect(await session.findByText("plan")).toBeInTheDocument()
     expect(
-      await within(panel).findByText("claude-opus-5-5")
-    ).toBeInTheDocument()
-    await user.click(within(panel).getByRole("button", { name: "Close" }))
+      members.getByRole("button", { name: "reviewer-bot Idle" })
+    ).toHaveAttribute("aria-expanded", "true")
+    await user.click(members.getByRole("button", { name: "Close" }))
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
   })
 
@@ -854,20 +969,24 @@ describe("the DM page", () => {
     network.on("POST", "/api/conversations/ch1/members", {
       conversation: releaseChannel,
     })
-    const header = within(await screen.findByRole("banner"))
+    const members = await openMembers(user)
 
-    await user.click(header.getByRole("button", { name: "Invite agents" }))
+    await user.click(members.getByRole("button", { name: "Invite agents" }))
     const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
+    expect(dialog).toHaveAccessibleDescription(
+      "A new member sees only the messages after it joins. It replies when someone @mentions it."
+    )
     await waitFor(() =>
       expect(
         within(dialog)
           .getAllByRole("checkbox")
           .map((box) => box.getAttribute("aria-label"))
-      ).toEqual(["Pick docs-writer"])
+      ).toEqual(["Invite docs-writer"])
     )
     await user.click(
-      within(dialog).getByRole("checkbox", { name: "Pick docs-writer" })
+      within(dialog).getByRole("checkbox", { name: "Invite docs-writer" })
     )
+    expect(within(dialog).getByText("1 picked")).toBeInTheDocument()
     await user.click(within(dialog).getByRole("button", { name: "Invite" }))
 
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
@@ -893,15 +1012,9 @@ describe("the DM page", () => {
     network.on("DELETE", "/api/conversations/ch1/members/a2", {
       conversation: releaseChannel,
     })
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of reviewer-bot",
-    })
+    const session = await openMember(user, "reviewer-bot Idle")
 
-    await user.click(
-      within(panel).getByRole("button", { name: "Remove from conversation" })
-    )
+    await user.click(session.getByRole("button", { name: "Remove" }))
 
     expect(
       network.sent.filter((request) => request.method === "DELETE")
@@ -912,7 +1025,9 @@ describe("the DM page", () => {
         body: undefined,
       },
     ])
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("region", { name: "Session of reviewer-bot" })
+    ).not.toBeInTheDocument()
   })
 
   test("in a channel, the divider of a new session names the agent", async () => {
@@ -959,14 +1074,13 @@ describe("the DM page", () => {
       header.getByRole("heading", { name: "release-train" })
     ).toBeInTheDocument()
     expect(header.getByText("Ship v2.4 on Friday.")).toBeInTheDocument()
-    const members = header.getByRole("list", {
-      name: "Agents in this conversation",
-    })
     expect(
-      within(members)
-        .getAllByRole("listitem")
-        .map((item) => item.textContent)
-    ).toEqual(["test-runner Working", "reviewer-bot Idle"])
+      header.getByRole("button", { name: "Members: 1 person, 2 agents" })
+    ).toBeInTheDocument()
+    expect(header.getByRole("button", { name: "Stop all" })).toBeInTheDocument()
+    expect(
+      screen.getByText("test-runner is working. reviewer-bot is idle.")
+    ).toBeInTheDocument()
     const messages = screen.getAllByRole("article")
     expect(within(messages[1]).getByText("reviewer-bot")).toBeInTheDocument()
     expect(within(messages[2]).getByText("test-runner")).toBeInTheDocument()
@@ -994,18 +1108,16 @@ describe("the DM page", () => {
     })
 
     await user.type(box, "Please @te")
-    const suggestions = screen.getByRole("listbox", { name: "Mention" })
-    expect(
-      within(suggestions)
-        .getAllByRole("option")
-        .map((option) => option.textContent)
-    ).toEqual(["test-runner"])
+    const suggestions = within(screen.getByRole("listbox", { name: "Members" }))
+    expect(suggestions.getAllByRole("option")).toEqual([
+      suggestions.getByRole("option", { name: "test-runner Idle" }),
+    ])
     await user.keyboard("{Tab}")
     expect(box).toHaveValue("Please @test-runner ")
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
 
     await user.type(box, "and @")
-    await user.click(screen.getByRole("option", { name: "reviewer-bot" }))
+    await user.click(screen.getByRole("option", { name: "reviewer-bot Idle" }))
     expect(box).toHaveValue("Please @test-runner and @reviewer-bot ")
   })
 })
@@ -1039,19 +1151,13 @@ describe("a refused action", () => {
       400
     )
     openGroupOfOne()
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "test-runner Idle" }))
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of test-runner",
-    })
+    const session = await openMember(user, "test-runner Idle")
 
-    await user.click(
-      within(panel).getByRole("button", { name: "Remove from conversation" })
-    )
+    await user.click(session.getByRole("button", { name: "Remove" }))
 
-    expect(await within(panel).findByRole("alert")).toHaveTextContent(
-      "A group chat needs one agent or more."
-    )
+    const alert = await session.findByRole("alert")
+    expect(alert).toHaveTextContent("Remove did not work.")
+    expect(alert).toHaveTextContent("A group chat needs one agent or more.")
   })
   test("a refused stop turn shows the reason of the server in the session panel", async () => {
     const user = userEvent.setup()
@@ -1101,7 +1207,9 @@ describe("a refused action", () => {
     )
     const alert = await within(panel).findByRole("alert")
 
-    await user.click(within(alert).getByRole("button", { name: "Close" }))
+    await user.click(
+      within(alert).getByRole("button", { name: "Close the alert" })
+    )
 
     expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
   })
@@ -1135,23 +1243,17 @@ describe("a refused action", () => {
       session: testRunnerSession,
     })
     network.fail("DELETE", "/api/conversations/ch1/members/a2")
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of reviewer-bot",
-    })
-    await user.click(
-      within(panel).getByRole("button", { name: "Remove from conversation" })
-    )
-    await within(panel).findByRole("alert")
+    const session = await openMember(user, "reviewer-bot Idle")
+    await user.click(session.getByRole("button", { name: "Remove" }))
+    await session.findByRole("alert")
 
     await user.click(
-      header.getByRole("button", { name: "test-runner Working" })
+      screen.getByRole("button", { name: "test-runner Working" })
     )
 
     expect(
       within(
-        screen.getByRole("complementary", { name: "Session of test-runner" })
+        await screen.findByRole("region", { name: "Session of test-runner" })
       ).queryByRole("alert")
     ).not.toBeInTheDocument()
   })
@@ -1216,17 +1318,19 @@ describe("a refused action", () => {
       agents: [docsWriter, reviewerBot, testRunner],
     })
     network.fail("POST", "/api/conversations/ch1/members")
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "Invite agents" }))
+    const members = await openMembers(user)
+    await user.click(members.getByRole("button", { name: "Invite agents" }))
     const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
 
     await user.click(
-      await within(dialog).findByRole("checkbox", { name: "Pick docs-writer" })
+      await within(dialog).findByRole("checkbox", {
+        name: "Invite docs-writer",
+      })
     )
     await user.click(within(dialog).getByRole("button", { name: "Invite" }))
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "The server did not answer."
+      "The server did not answer. The agents were not added."
     )
   })
 
@@ -1359,7 +1463,7 @@ describe("a narrow screen", () => {
     ).toBeInTheDocument()
   })
 
-  test("in a channel, a click on an agent opens its session panel as a sheet, and Close closes it", async () => {
+  test("in a channel, the members open as a sheet, and Close closes it", async () => {
     const user = userEvent.setup()
     screenWidth(375)
     openChannel([userMessage])
@@ -1368,19 +1472,23 @@ describe("a narrow screen", () => {
     })
     const header = within(await screen.findByRole("banner"))
 
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-    const sheet = await screen.findByRole("dialog", {
-      name: "Session of reviewer-bot",
-    })
+    const session = await openMember(user, "reviewer-bot Idle", "dialog")
+    expect(await session.findByText("acceptEdits")).toBeInTheDocument()
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
-    await user.click(within(sheet).getByRole("button", { name: "Close" }))
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Members" })).getByRole(
+        "button",
+        { name: "Close" }
+      )
+    )
 
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     )
-    expect(
-      header.getByRole("button", { name: "reviewer-bot Idle" })
-    ).toHaveAttribute("aria-pressed", "false")
+    expect(header.getByRole("button", { name: /^Members:/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    )
   })
 
   test("a wide screen shows the session panel at the side, with no session button", async () => {
@@ -1398,15 +1506,18 @@ describe("a narrow screen", () => {
 })
 
 describe("unread rows", () => {
-  test("the sidebar marks each conversation in which an agent wrote after the last visit", async () => {
-    openConversation([userMessage], "idle", ["ch1"])
+  test("the sidebar counts the unread items of each conversation in which an agent wrote after the last visit", async () => {
+    openConversation([userMessage], "idle", { ch1: 2 })
     const sidebar = await screen.findByRole("navigation", {
       name: "Conversations",
     })
 
     expect(
-      await within(sidebar).findByRole("link", { name: "release-train unread" })
+      await within(sidebar).findByRole("link", {
+        name: "release-train 2 unread",
+      })
     ).toHaveAttribute("href", "/conversations/ch1")
+    expect(within(sidebar).getByText("2")).toBeInTheDocument()
     expect(
       within(sidebar).getByRole("link", { name: "reviewer-bot, test-runner" })
     ).toBeInTheDocument()
@@ -1422,16 +1533,16 @@ describe("unread rows", () => {
     act(() =>
       network
         .stream("/api/events")
-        .emit(1, { type: "unread", conversationId: "ch1", unread: true })
+        .emit(1, { type: "unread", conversationId: "ch1", count: 1 })
     )
     expect(
-      sidebar.getByRole("link", { name: "release-train unread" })
+      sidebar.getByRole("link", { name: "release-train 1 unread" })
     ).toBeInTheDocument()
 
     act(() =>
       network
         .stream("/api/events")
-        .emit(2, { type: "unread", conversationId: "ch1", unread: false })
+        .emit(2, { type: "unread", conversationId: "ch1", count: 0 })
     )
     expect(
       sidebar.getByRole("link", { name: "release-train" })
@@ -1497,7 +1608,7 @@ describe("unread rows", () => {
   })
 
   test("the row of the open conversation is never marked unread", async () => {
-    openConversation([userMessage], "idle", ["c1"])
+    openConversation([userMessage], "idle", { c1: 1 })
     const sidebar = within(
       await screen.findByRole("navigation", { name: "Conversations" })
     )

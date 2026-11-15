@@ -1,10 +1,11 @@
-import { TriangleAlertIcon } from "lucide-react"
+import { RotateCcwIcon, TriangleAlertIcon } from "lucide-react"
 import { Fragment, useState } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   AVATAR_COLOURS,
+  HUMAN_AVATAR,
   initialsOf,
 } from "@/components/conversation/agent-look"
 import { QuestionCard } from "@/components/conversation/question-card"
@@ -80,13 +81,19 @@ function SessionDivider({
   createdAt: string
   agentName: string | undefined
 }) {
+  const label = `New session${agentName ? ` for ${agentName}` : ""} · ${clockTime(createdAt)}`
   return (
-    <div className="flex items-center gap-3 px-5 py-2">
-      <Separator className="flex-1" />
-      <p className="m-0 text-xs text-foreground-faint">
-        {`New session${agentName ? ` for ${agentName}` : ""} · ${clockTime(createdAt)}`}
-      </p>
-      <Separator className="flex-1" />
+    <div
+      role="separator"
+      aria-label={label}
+      className="mx-5 my-1 flex items-center gap-3 text-xs text-link"
+    >
+      <span className="flex-1 border-t border-dashed border-link" />
+      <span className="inline-flex items-center gap-1.5">
+        <RotateCcwIcon aria-hidden="true" className="size-3.5" />
+        {label}
+      </span>
+      <span className="flex-1 border-t border-dashed border-link" />
     </div>
   )
 }
@@ -121,13 +128,18 @@ function AuthorGroup({
     <article className="flex gap-3 px-5 py-2">
       <Avatar className="flex-none">
         <AvatarFallback
-          className={agent ? AVATAR_COLOURS[agent.colour] : "bg-human"}
+          className={agent ? AVATAR_COLOURS[agent.colour] : HUMAN_AVATAR}
         >
           {initialsOf(name)}
         </AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex items-center gap-2">
+        <div
+          className={cn(
+            "flex gap-2",
+            agent ? "items-center" : "items-baseline"
+          )}
+        >
           <span className="font-semibold text-foreground-strong">{name}</span>
           {agent && <Badge>Agent</Badge>}
           <time
@@ -231,11 +243,26 @@ function EntryBody({
         aria-busy={item.status === "streaming"}
         className="m-0 leading-[22px] whitespace-pre-wrap"
       >
-        {item.text}
+        {withInlineCode(item.text)}
       </p>
     )
   }
   return null
+}
+
+function withInlineCode(text: string) {
+  return text.split(/`([^`\n]+)`/).map((part, index) =>
+    index % 2 === 1 ? (
+      <code
+        key={index}
+        className="rounded-sm bg-muted px-[5px] py-px font-mono text-[13px] text-agent-yellow"
+      >
+        {part}
+      </code>
+    ) : (
+      part
+    )
+  )
 }
 
 function FailedNotice({
