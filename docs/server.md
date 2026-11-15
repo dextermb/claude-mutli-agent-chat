@@ -22,21 +22,24 @@ in `server/http/server.ts` does the work, so a test can give it a
 
 ## Routes
 
-| Route                                  | Body                            | Result                                                                         |
-| -------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------ |
-| `GET /api/agents`                      |                                 | `{ agents }`, by name                                                          |
-| `POST /api/agents`                     | The agent                       | `201 { agent }`. `400` if a field is empty                                     |
-| `GET /api/agents/:id`                  |                                 | `{ agent }`. `404` for an unknown agent                                        |
-| `PATCH /api/agents/:id`                | Some fields of the agent        | `{ agent }`. The other fields stay                                             |
-| `GET /api/conversations`               |                                 | `{ conversations }`                                                            |
-| `POST /api/conversations`              | A DM, a group chat or a channel | `201 { conversation }`, or `200` with the DM that exists                       |
-| `GET /api/conversations/:id`           |                                 | `{ conversation, agents }`, each agent with its `state`                        |
-| `POST /api/conversations/:id/messages` | `{ text }`                      | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation |
-| `GET /api/conversations/:id/timeline`  |                                 | `{ items, lastEventId }`                                                       |
-| `GET /api/conversations/:id/events`    |                                 | The event stream (SSE)                                                         |
-| `GET /api/events`                      |                                 | The app stream (SSE)                                                           |
-| `POST /api/conversations/:id/stop`     |                                 | `202`. Interrupts each busy agent                                              |
-| `POST /api/requests/:requestId`        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                        |
+| Route                                                  | Body                            | Result                                                                         |
+| ------------------------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /api/agents`                                      |                                 | `{ agents }`, by name                                                          |
+| `POST /api/agents`                                     | The agent                       | `201 { agent }`. `400` if a field is empty                                     |
+| `GET /api/agents/:id`                                  |                                 | `{ agent }`. `404` for an unknown agent                                        |
+| `PATCH /api/agents/:id`                                | Some fields of the agent        | `{ agent }`. The other fields stay                                             |
+| `GET /api/conversations`                               |                                 | `{ conversations }`                                                            |
+| `POST /api/conversations`                              | A DM, a group chat or a channel | `201 { conversation }`, or `200` with the DM that exists                       |
+| `GET /api/conversations/:id`                           |                                 | `{ conversation, agents }`, each agent with its `state`                        |
+| `POST /api/conversations/:id/messages`                 | `{ text }`                      | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation |
+| `GET /api/conversations/:id/timeline`                  |                                 | `{ items, lastEventId }`                                                       |
+| `GET /api/conversations/:id/events`                    |                                 | The event stream (SSE)                                                         |
+| `GET /api/events`                                      |                                 | The app stream (SSE)                                                           |
+| `POST /api/conversations/:id/stop`                     |                                 | `202`. Interrupts each busy agent                                              |
+| `GET /api/conversations/:id/agents/:agentId/session`   |                                 | `{ session }`, the session card, or `null` before the first process            |
+| `POST /api/conversations/:id/agents/:agentId/stop`     |                                 | `202`. Interrupts that agent and empties its queue                             |
+| `POST /api/conversations/:id/agents/:agentId/sessions` |                                 | `201 { session }`. New session. `404` if the agent is not a member             |
+| `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                        |
 
 An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
 `cwd` would start `claude` in the folder of the server, so the server refuses
@@ -51,9 +54,12 @@ The state of an agent with no live process is `exited`.
 2. Each agent that the message addresses gets a prompt. The rules and the
    shape of the prompt are in `docs/conversations.md`.
 3. If the agent has no live process, the server starts one. It makes a new
-   session row, with the Claude session ID of the latest row of that agent in
-   that conversation. So `buildArgs()` adds `--resume`, and the agent keeps its
-   memory after a server start.
+   session row, with the Claude session ID and the `claudeSessionNew` flag of
+   the latest row of that agent in that conversation. So `buildArgs()` adds
+   `--resume` (or `--session-id` before the first turn, see
+   `docs/agents.md`), and the agent keeps its memory after a server start.
+   The row also keeps the configuration of the agent at the start, in
+   `config`.
 4. Each agent session has a queue. A prompt goes to the process only when the
    session is `idle`. A prompt that comes while the agent is `starting`,
    `busy` or `waiting` waits in the queue.
@@ -141,5 +147,44 @@ The card changes when the echo of the answer comes back on stdout.
 `POST /api/conversations/:id/stop` empties the queue of each agent session in
 the conversation, and interrupts each session that is `busy` or `waiting`.
 Each interrupted turn ends as `stopped`.
+
+`POST /api/conversations/:id/agents/:agentId/stop` does the same for one
+agent. This is Stop turn on the session card.
+
+## Sessions
+
+`sessionCard()` gives the session card of an agent in a conversation, from
+its latest session row:
+
+| Field                                     | From                                                                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `claudeSessionId`                         | The row                                                                                        |
+| `state`                                   | The live process, or `exited`                                                                  |
+| `model`, `permissionMode`, `allowedTools` | `config` of the row: what the process runs with                                                |
+| `directory`                               | `config.cwd`, with the home folder as `~`                                                      |
+| `turns`, `costUsd`                        | The sums of `numTurns` and `costUsd` of the turn items of each row with that Claude session ID |
+| `configChanged`                           | True when the agent configuration now differs from `config`                                    |
+
+A change to an agent does not reach a process that runs. The card shows the
+configuration that runs, and `configChanged` says that New session would use
+the new one.
+
+**New session** (`POST …/agents/:agentId/sessions`):
+
+1. Interrupt the turn of the agent, empty its queue, and stop its process.
+2. Make a session row with a new UUID as the Claude session ID,
+   `claudeSessionNew` set, and the configuration of now.
+3. Add a `session_start` item of the agent to the timeline, and send it.
+4. In a group chat or a channel, move the prompt cursor of the agent to the
+   `seq` of that item. So the first prompt holds only the messages after it.
+   After a server start, the fallback (the last item of the agent) is that
+   item too.
+5. Start a process. It gets `--session-id <uuid>`.
+
+**Autostart.** `server/main.ts` calls `server.autostart()` after `listen()`.
+For each agent with `autostart` that has a DM, it starts the process of that
+DM with no prompt. It costs nothing (F25), but the `SessionStart` hooks of
+the user run (F23). An agent with no DM does not start, and the server does
+not make a DM for it.
 
 ## Not handled yet

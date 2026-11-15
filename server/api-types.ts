@@ -19,6 +19,28 @@ export type Agent = {
 
 export type NewAgent = Omit<Agent, "id" | "createdAt">
 
+export type SessionConfig = Pick<
+  Agent,
+  | "model"
+  | "permissionMode"
+  | "cwd"
+  | "allowedTools"
+  | "disallowedTools"
+  | "systemPrompt"
+>
+
+export type SessionCard = {
+  claudeSessionId: string | null
+  state: SessionState
+  model: string
+  permissionMode: string
+  directory: string
+  allowedTools: string[]
+  turns: number
+  costUsd: number
+  configChanged: boolean
+}
+
 export type Conversation = {
   id: string
   kind: "channel" | "group" | "dm"

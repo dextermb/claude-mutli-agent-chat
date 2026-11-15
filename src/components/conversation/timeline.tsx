@@ -46,21 +46,47 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
         const newDay =
           index === 0 ||
           dayKey(groups[index - 1].entries[0].createdAt) !== dayKey(createdAt)
+        const agent = agents.find(
+          (agent) => `agent:${agent.id}` === group.authorKey
+        )
         return (
           <Fragment key={group.entries[0].id}>
             {newDay && <DayHeading createdAt={createdAt} />}
-            <AuthorGroup
-              group={group}
-              agent={agents.find(
-                (agent) => `agent:${agent.id}` === group.authorKey
-              )}
-              requests={requests}
-              subagentCalls={subagentCalls}
-              onAnswer={onAnswer}
-            />
+            {group.entries[0].item.kind === "session_start" ? (
+              <SessionDivider
+                createdAt={createdAt}
+                agentName={agents.length > 1 ? agent?.name : undefined}
+              />
+            ) : (
+              <AuthorGroup
+                group={group}
+                agent={agent}
+                requests={requests}
+                subagentCalls={subagentCalls}
+                onAnswer={onAnswer}
+              />
+            )}
           </Fragment>
         )
       })}
+    </div>
+  )
+}
+
+function SessionDivider({
+  createdAt,
+  agentName,
+}: {
+  createdAt: string
+  agentName: string | undefined
+}) {
+  return (
+    <div className="flex items-center gap-3 px-5 py-2">
+      <Separator className="flex-1" />
+      <p className="m-0 text-xs text-foreground-faint">
+        {`New session${agentName ? ` for ${agentName}` : ""} · ${clockTime(createdAt)}`}
+      </p>
+      <Separator className="flex-1" />
     </div>
   )
 }
@@ -285,7 +311,9 @@ function groupByAuthor(entries: TimelineEntry[]): Group[] {
     if (
       last &&
       last.authorKey === entry.authorKey &&
-      dayKey(last.entries[0].createdAt) === dayKey(entry.createdAt)
+      dayKey(last.entries[0].createdAt) === dayKey(entry.createdAt) &&
+      last.entries[0].item.kind !== "session_start" &&
+      entry.item.kind !== "session_start"
     ) {
       last.entries.push(entry)
     } else {

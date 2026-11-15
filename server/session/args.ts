@@ -6,7 +6,10 @@ export type AgentConfig = {
   systemPrompt: string | null
 }
 
-export type SessionRef = { claudeSessionId: string | null }
+export type SessionRef = {
+  claudeSessionId: string | null
+  claudeSessionNew?: boolean
+}
 
 export function buildArgs(agent: AgentConfig, session: SessionRef): string[] {
   const args = [
@@ -37,7 +40,10 @@ export function buildArgs(agent: AgentConfig, session: SessionRef): string[] {
     args.push("--append-system-prompt", agent.systemPrompt)
   }
   if (session.claudeSessionId) {
-    args.push("--resume", session.claudeSessionId)
+    args.push(
+      session.claudeSessionNew ? "--session-id" : "--resume",
+      session.claudeSessionId
+    )
   }
   return args
 }

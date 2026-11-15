@@ -65,6 +65,8 @@ the last prompt of that agent, one line for each, with its author:
 - The server keeps the place of the last prompt of each agent in memory.
   After a server start, it uses the last item of that agent in the
   conversation instead.
+- New session moves that place to its divider, because the agent forgot the
+  conversation (`docs/server.md`).
 
 ## The state of an agent
 

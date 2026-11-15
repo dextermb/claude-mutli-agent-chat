@@ -76,4 +76,12 @@ export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
       ALTER TABLE agent_sessions ADD COLUMN stderr TEXT;
     `,
   },
+  {
+    version: 3,
+    sql: `
+      ALTER TABLE agent_sessions ADD COLUMN config TEXT;
+      ALTER TABLE agent_sessions
+        ADD COLUMN claude_session_new INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ]

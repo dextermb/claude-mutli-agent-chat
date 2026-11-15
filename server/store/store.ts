@@ -5,12 +5,14 @@ import {
   emptyTimeline,
   reduceTimeline,
   type TimelineItem,
+  type TurnItem,
 } from "../timeline/reduce.ts"
 import type {
   Agent,
   Conversation,
   NewAgent,
   NewConversation,
+  SessionConfig,
   TimelineEntry,
 } from "../api-types.ts"
 import { MIGRATIONS, SCHEMA } from "./schema.ts"
@@ -28,6 +30,8 @@ export type SessionRow = {
   agentId: string
   conversationId: string
   claudeSessionId: string | null
+  claudeSessionNew: boolean
+  config: SessionConfig | null
   state: string
   startedAt: string
   endedAt: string | null
@@ -177,12 +181,16 @@ export function openStore(location: string) {
     agentId: string
     conversationId: string
     claudeSessionId?: string | null
+    claudeSessionNew?: boolean
+    config?: SessionConfig
   }): SessionRow {
     const created: SessionRow = {
       agentId: session.agentId,
       conversationId: session.conversationId,
       id: randomUUID(),
       claudeSessionId: session.claudeSessionId ?? null,
+      claudeSessionNew: session.claudeSessionNew ?? false,
+      config: session.config ?? null,
       state: "starting",
       startedAt: new Date().toISOString(),
       endedAt: null,
@@ -191,10 +199,16 @@ export function openStore(location: string) {
     }
     db.prepare(
       `INSERT INTO agent_sessions (id, agent_id, conversation_id,
-         claude_session_id, state, started_at, ended_at, exit_code, stderr)
-       VALUES (:id, :agentId, :conversationId, :claudeSessionId, :state,
-         :startedAt, :endedAt, :exitCode, :stderr)`
-    ).run(created)
+         claude_session_id, claude_session_new, config, state, started_at,
+         ended_at, exit_code, stderr)
+       VALUES (:id, :agentId, :conversationId, :claudeSessionId,
+         :claudeSessionNew, :config, :state, :startedAt, :endedAt, :exitCode,
+         :stderr)`
+    ).run({
+      ...created,
+      claudeSessionNew: created.claudeSessionNew ? 1 : 0,
+      config: created.config ? JSON.stringify(created.config) : null,
+    })
     return created
   }
 
@@ -224,6 +238,11 @@ export function openStore(location: string) {
       conversationId: String(row.conversation_id),
       claudeSessionId:
         row.claude_session_id === null ? null : String(row.claude_session_id),
+      claudeSessionNew: row.claude_session_new === 1,
+      config:
+        row.config === null
+          ? null
+          : (JSON.parse(String(row.config)) as SessionConfig),
       state: String(row.state),
       startedAt: String(row.started_at),
       endedAt: row.ended_at === null ? null : String(row.ended_at),
@@ -237,7 +256,12 @@ export function openStore(location: string) {
     change: Partial<
       Pick<
         SessionRow,
-        "claudeSessionId" | "state" | "endedAt" | "exitCode" | "stderr"
+        | "claudeSessionId"
+        | "claudeSessionNew"
+        | "state"
+        | "endedAt"
+        | "exitCode"
+        | "stderr"
       >
     >
   ) {
@@ -246,12 +270,13 @@ export function openStore(location: string) {
     const next = { ...current, ...change }
     db.prepare(
       `UPDATE agent_sessions SET claude_session_id = :claudeSessionId,
-         state = :state, ended_at = :endedAt, exit_code = :exitCode,
+         claude_session_new = :claudeSessionNew, state = :state, ended_at = :endedAt, exit_code = :exitCode,
          stderr = :stderr
        WHERE id = :id`
     ).run({
       id,
       claudeSessionId: next.claudeSessionId,
+      claudeSessionNew: next.claudeSessionNew ? 1 : 0,
       state: next.state,
       endedAt: next.endedAt,
       exitCode: next.exitCode,
@@ -411,6 +436,25 @@ export function openStore(location: string) {
     }
   }
 
+  function listSessionTurns(
+    agentId: string,
+    conversationId: string,
+    claudeSessionId: string
+  ): TurnItem[] {
+    return db
+      .prepare(
+        `SELECT timeline_items.payload FROM timeline_items
+         JOIN agent_sessions ON agent_sessions.id = timeline_items.session_id
+         WHERE agent_sessions.agent_id = ?
+           AND agent_sessions.conversation_id = ?
+           AND agent_sessions.claude_session_id = ?
+           AND timeline_items.kind = 'turn'
+         ORDER BY timeline_items.seq`
+      )
+      .all(agentId, conversationId, claudeSessionId)
+      .map((row) => JSON.parse(String(row.payload)) as TurnItem)
+  }
+
   function listTimeline(conversationId: string): TimelineEntry[] {
     return db
       .prepare(
@@ -446,6 +490,7 @@ export function openStore(location: string) {
     addUserMessage,
     rebuildTimeline,
     listTimeline,
+    listSessionTurns,
     close: () => db.close(),
   }
 }

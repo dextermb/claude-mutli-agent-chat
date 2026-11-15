@@ -20,7 +20,7 @@ claude -p
   --setting-sources user,project
   --model <model>
   --permission-mode <mode>
-  [--resume <session_id>]
+  [--resume <session_id> | --session-id <uuid>]
 ```
 
 - `--verbose` is necessary. Claude Code refuses `--output-format stream-json`
@@ -104,6 +104,9 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F26 | **Claude Code sends one permission request at a time.** Two `Write` calls in one `assistant` message give the second `can_use_tool` request only after the answer to the first. So two requests are never open at the same time. | `two-requests` |
 | F27 | **Claude Code blocks `sleep N` that a command follows.** `sleep 30 && echo finished` gives a `tool_result` with `is_error: true` and the text "Blocked: sleep 30 followed by: echo finished", with no permission request. A long test command must not use `sleep`. | Probe |
 | F28 | **An interrupt while a tool runs ends with another reason.** The running `Bash` call gets a `tool_result` with `is_error: true` ("The user doesn't want to proceed with this tool use …"), then a `user` line `[Request interrupted by user for tool use]`, then a `result` with `terminal_reason: "aborted_tools"`. | `interrupt-tool` |
+| F29 | **`--session-id <uuid>` starts a session with that ID.** The process answers `initialize`, and the `system/init` of the first turn gives the same ID. | Probe, live check |
+| F30 | **A session ID has no transcript until its first turn.** `--resume` of an ID that has had no turn writes `result/error_during_execution`, prints "No conversation found with session ID: …" to stderr, and exits with code 1, with no answer to `initialize`. `--session-id` of the same ID works again. | Probe |
+| F31 | **`--session-id` refuses an ID that has a transcript.** It prints "Error: Session ID … is already in use." and exits with code 1 before `initialize`. `--resume` of that ID works. | Probe |
 
 ## The decoder and the encoders
 

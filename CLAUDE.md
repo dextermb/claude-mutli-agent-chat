@@ -14,7 +14,7 @@ manager is pnpm.
 | `pnpm lint`      | Runs ESLint.                                         |
 | `pnpm build`     | Checks the types and builds `dist`.                  |
 | `pnpm server`    | Starts the agent server.                             |
-| `pnpm test:live` | Runs the live check (real `claude`, about 0.01 USD). |
+| `pnpm test:live` | Runs the live check (real `claude`, about 0.02 USD). |
 
 ## Where things are
 

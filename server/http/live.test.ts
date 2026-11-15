@@ -76,4 +76,104 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
       rmSync(folder, { recursive: true })
     }
   }, 120_000)
+
+  test("a new session uses the id that the server chose, and the next process resumes it", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "live-check-"))
+    const store = openStore(":memory:")
+    const started: string[][] = []
+    const startServer = async () => {
+      const server = createServer({
+        store,
+        startSession: ({ args, cwd, onEvent }) => {
+          started.push(args)
+          const session = new AgentSession({
+            command: "claude",
+            args,
+            cwd,
+            env: process.env,
+            onEvent,
+          })
+          session.start()
+          return session
+        },
+      })
+      const address = await server.listen(0)
+      return { server, base: `http://${address.host}:${address.port}` }
+    }
+    const agent = store.createAgent({
+      name: "live-check",
+      colour: "aqua",
+      model: "claude-haiku-5-5",
+      permissionMode: "default",
+      cwd: folder,
+      autostart: false,
+      allowedTools: [],
+      disallowedTools: [],
+      systemPrompt: null,
+    })
+    const conversation = store.createConversation({
+      kind: "dm",
+      name: agent.name,
+      topic: null,
+      private: true,
+      replyMode: "every",
+      members: ["user:me", `agent:${agent.id}`],
+    })
+    const post = (base: string, route: string, body: unknown) =>
+      fetch(`${base}${route}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    const untilTurns = (count: number) =>
+      vi.waitFor(
+        () =>
+          expect(
+            store
+              .listTimeline(conversation.id)
+              .filter(({ item }) => item.kind === "turn")
+          ).toHaveLength(count),
+        { timeout: 90_000, interval: 500 }
+      )
+    let first = await startServer()
+    try {
+      const response = await post(
+        first.base,
+        `/api/conversations/${conversation.id}/agents/${agent.id}/sessions`,
+        {}
+      )
+      const { session } = (await response.json()) as {
+        session: { claudeSessionId: string }
+      }
+      await post(first.base, `/api/conversations/${conversation.id}/messages`, {
+        text: "Remember the word kiwi. Reply with the single word ok. Do not use any tools.",
+      })
+      await untilTurns(1)
+      await first.server.close()
+
+      first = await startServer()
+      await post(first.base, `/api/conversations/${conversation.id}/messages`, {
+        text: "Which word did I ask you to remember? Reply with that word only.",
+      })
+      await untilTurns(2)
+
+      expect(started.map((args) => args.slice(-2))).toEqual([
+        ["--session-id", session.claudeSessionId],
+        ["--resume", session.claudeSessionId],
+      ])
+      expect(
+        store.latestSession(agent.id, conversation.id)?.claudeSessionId
+      ).toBe(session.claudeSessionId)
+      const replies = store
+        .listTimeline(conversation.id)
+        .flatMap(({ authorKey, item }) =>
+          authorKey !== "user:me" && item.kind === "message" ? [item.text] : []
+        )
+      expect(replies.at(-1)?.toLowerCase()).toContain("kiwi")
+    } finally {
+      await first.server.close()
+      store.close()
+      rmSync(folder, { recursive: true })
+    }
+  }, 240_000)
 })

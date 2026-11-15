@@ -78,6 +78,10 @@ session (F23).
 stops a chain with Stop. The prompt of a mentioned agent holds the messages
 since its last turn (`docs/conversations.md`).
 
+**New session keeps the configuration and chooses the Claude session ID.**
+The server passes `--session-id` with a new UUID, so the card shows the ID at
+once. The old timeline stays, above a divider.
+
 **An open request expires when the server stops.** Its process stops too, so
 the request cannot get an answer. The next prompt resumes the session.
 

@@ -1,8 +1,8 @@
 # The outstanding work of the agent chat app
 
 **Status:** in progress. The user agreed the plan, the order and the seams
-on 2026-11-15. Steps 1 to 4 are built, and their result is in `docs/*.md`.
-Step 5 is next. Nothing below is built. The decisions stand as written. Each
+on 2026-11-15. Steps 1 to 5 are built, and their result is in `docs/*.md`.
+Step 6 is next. Nothing below is built. The decisions stand as written. Each
 open question at the end keeps the decision of its step as the default,
 until the user answers it.
 
@@ -17,7 +17,7 @@ merges into `master` before the next step starts.
 | 2    | The stream                     | Built                                                                                                  | none         |
 | 3    | The process                    | Built                                                                                                  | migration v2 |
 | 4    | Live status and the event log  | Built                                                                                                  | none         |
-| 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart                     | migration v3 |
+| 5    | The session panel              | Built                                                                                                  | migration v3 |
 | 6    | Members                        | Add and remove the members of a conversation                                                           | migration v4 |
 | 7    | The Files and Session log tabs | The two tabs of the DM header                                                                          | none         |
 | 8    | TanStack Form                  | The agent page and Create a channel on TanStack Form, with validation in the browser and on the server | none         |
@@ -30,12 +30,6 @@ state. Steps 6 and 7 are independent of each other.
 
 These facts shape the plan. They are not in the docs yet.
 
-- **F-c. `--session-id <uuid>` is in the help of 2.1.311.** "Use a specific
-  session ID for the conversation (must be a valid UUID)." So the server can
-  choose the Claude session ID of a new session.
-- **F-d. `--max-turns` is still not in the help.** The design shows "Turns
-  7 of 30". The "of 30" has no flag to come from. `--max-budget-usd` is in the
-  help.
 - **F-f. The design does not show the Files tab, the Session log tab, the
   divider, a remove button for a member, or any notice.** The plan proposes
   each one.
@@ -45,8 +39,8 @@ These facts shape the plan. They are not in the docs yet.
 
 ## Schema changes
 
-Step 3 built the migration loop and version 2 (`docs/store.md`). Steps 5
-and 6 add versions 3 and 4 to `MIGRATIONS`. Rejected for the loop: a check
+Step 3 built the migration loop and version 2, and step 5 built version 3
+(`docs/store.md`). Step 6 adds version 4 to `MIGRATIONS`. Rejected for the loop: a check
 of `PRAGMA table_info` for each column, because it grows with each column
 and cannot run data changes.
 
@@ -83,7 +77,8 @@ agent_sessions                                    1:N CASCADE from conversations
 | ended_at          (v2)     |
 | exit_code         (v2)     |
 | stderr            (v2)     |
-| config            NEW (v3) |
+| config            (v3)     |
+| claude_session_new (v3)    |
 +------+---------------+-----+
        | 1:N CASCADE   | 1:N  ON DELETE SET NULL
        v               v
@@ -92,158 +87,21 @@ session_events     timeline_items
                     session_start)
 ```
 
-- `agent_sessions.config` (TEXT, JSON, null for the rows before v3): the
-  model, permission mode, folder, tool lists and system prompt that the
-  process started with.
 - `conversation_members.joined_seq` (INTEGER NOT NULL DEFAULT 0): the `seq`
   when the member joined. The prompt of a new member starts after it.
 - `timeline_items.kind` gets `session_start`, the divider of New session.
 
 ## The new routes and events
 
-| Route                                                  | Step | Body            | Result                                       |
-| ------------------------------------------------------ | ---- | --------------- | -------------------------------------------- |
-| `GET /api/conversations/:id/agents/:agentId/session`   | 5    |                 | `{ session }`, the data of the session card  |
-| `POST /api/conversations/:id/agents/:agentId/stop`     | 5    |                 | `202`. Interrupts that one agent             |
-| `POST /api/conversations/:id/agents/:agentId/sessions` | 5    |                 | `201 { session }`. New session               |
-| `POST /api/conversations/:id/members`                  | 6    | `{ agentIds }`  | `{ conversation }`. `400` for a DM           |
-| `DELETE /api/conversations/:id/members/:agentId`       | 6    |                 | `{ conversation }`. `400` for the last agent |
-| `GET /api/conversations/:id/agents/:agentId/log`       | 7    | `?before=<seq>` | `{ lines }`, the last 200 lines before `seq` |
+| Route                                            | Step | Body            | Result                                       |
+| ------------------------------------------------ | ---- | --------------- | -------------------------------------------- |
+| `POST /api/conversations/:id/members`            | 6    | `{ agentIds }`  | `{ conversation }`. `400` for a DM           |
+| `DELETE /api/conversations/:id/members/:agentId` | 6    |                 | `{ conversation }`. `400` for the last agent |
+| `GET /api/conversations/:id/agents/:agentId/log` | 7    | `?before=<seq>` | `{ lines }`, the last 200 lines before `seq` |
 
 | Stream event                             | Stream | Step | When                                                                                           |
 | ---------------------------------------- | ------ | ---- | ---------------------------------------------------------------------------------------------- |
 | `{ type: "conversation", conversation }` | both   | 6    | The members of a conversation change. Step 4 sends it on the app stream for a new conversation |
-
----
-
-## Step 5: The session panel
-
-The design puts the panel on the right side of the DM, about 340 px wide,
-with two cards: "Session" and "Allowed tools". On a narrow screen it is a
-`Sheet`.
-
-### 5.1 The configuration of each process
-
-**Decision:** the server writes the agent configuration to
-`agent_sessions.config` when it starts a process (migration v3). The card
-shows this configuration, because it is what the process uses. This closes
-the item "a change to an agent reaches only its next process":
-
-- When the agent configuration differs from the configuration of the live
-  process, the card shows "The configuration changed. Start a new session to
-  use it."
-- A live change with `set_model` or `set_permission_mode` is not in this
-  plan, because neither line is measured on 2.1.311. See Q7.
-
-### 5.2 The session card
-
-| Label       | Value                                                               |
-| ----------- | ------------------------------------------------------------------- |
-| Model       | `config.model`                                                      |
-| Permissions | `config.permissionMode`                                             |
-| Directory   | `config.cwd`, with the home folder as `~`                           |
-| Session ID  | The first 8 characters of the Claude session ID, with a copy button |
-| Turns       | The sum of `numTurns` of the turn items of this Claude session      |
-| Cost        | The sum of `costUsd` of the same turn items, as "$0.18"             |
-
-- "This Claude session" means each session row of this agent in this
-  conversation with the same `claude_session_id`. A `--resume` makes a new
-  row with the same ID, so the card adds the turns of each row.
-- The turns and the cost are derived from the turn items. They are not
-  stored.
-- The design shows "7 of 30". The plan shows "7", because there is no
-  `--max-turns` (F-d). See Q8.
-- Stop turn interrupts this one agent and empties its queue. It shows only
-  while the agent is `busy` or `waiting`.
-- The "Allowed tools" card shows `config.allowedTools` as badges.
-- The card loads `GET …/agents/:agentId/session`, and loads it again on each
-  `agent_state` event and each `turn` item of that agent.
-- In a group chat or a channel, a click on an agent in the header opens the
-  same panel for that agent. See Q9.
-
-**Data flow:** `GET …/session` → `latestSession()` → the rows with the same
-`claude_session_id` → their turn items → `{ model, permissionMode, cwd,
-allowedTools, claudeSessionId, state, turns, costUsd, configChanged }`.
-
-### 5.3 New session (decided by the user)
-
-The agent gets a new Claude session ID and keeps its configuration. The old
-timeline stays above a divider.
-
-**Decisions:**
-
-- New session asks first, in an `AlertDialog`: "Start a new session?
-  test-runner forgets this conversation. The messages stay here." The design
-  has no dialog. See Q10.
-- The server empties the queue of the agent, interrupts a turn that runs,
-  and stops the process.
-- It makes a new session row with a new UUID as `claude_session_id`, and
-  starts a process with `--session-id <uuid>` in place of `--resume` (F-c).
-  So the card shows the new ID at once, and the next message resumes it.
-  `buildArgs()` uses `--session-id` for a new ID and `--resume` for a known
-  one, so the session row gets a flag for "new". The live check of this step
-  measures that `system/init` gives the same ID (Q5).
-- It adds a `session_start` item, authored by the agent, at the next `seq`:
-  `{ kind: "session_start", id, claudeSessionId }`. The timeline shows it as
-  a divider: "New session · 14:03". In a group chat or a channel: "New
-  session for test-runner · 14:03".
-- In a group chat or a channel, the prompt cursor of the agent moves to the
-  `seq` of the divider. So the first prompt of the new session holds only the
-  messages after the divider. After a server start, the fallback (the last
-  item of the agent) gives the same place, because the divider is an item of
-  the agent.
-
-**Data flow:** New session → `POST …/agents/:agentId/sessions` → stop the
-live process → `createSession({ claudeSessionId: uuid, fresh: true, config })`
-→ `saveItems()` with the divider → `item` event → start the process →
-`agent_state` events → the card loads again.
-
-### 5.4 Autostart
-
-**Decisions:**
-
-- When the server starts, it starts a process for each agent with
-  `autostart` that has a DM. The process resumes the latest session of that
-  DM. It does not send a prompt, so it costs nothing (F25). But the
-  `SessionStart` hooks of the user run (F23).
-- The server does not make a DM for an autostart agent that has none. See
-  Q11.
-- `createServer()` gets a `start()` method that does this, and
-  `server/main.ts` calls it after `listen()`. A test can then check the
-  behaviour without a real start of the server.
-- The form keeps `autostart` off by default. The design shows it on. See Q11.
-
-### Seams of step 5
-
-- `buildArgs()`: a session row with a new ID gives `--session-id <id>` and no
-  `--resume`.
-- `Store`: migration v3, and the rows of one Claude session give the sum of
-  their turns and costs.
-- `createServer()`:
-  - `GET …/session` gives the values of the card. The expected cost is the
-    sum of the turn costs of the fixture, as a literal.
-  - `POST …/sessions` stops the old fake process, adds a divider, and starts
-    a process with `--session-id`.
-  - After New session, the prompt in a group chat holds only the messages
-    after the divider.
-  - `POST …/agents/:agentId/stop` interrupts that agent and not the other
-    agent.
-  - `start()` starts the DM process of an autostart agent, and the fake
-    `claude` gets `initialize` but no prompt.
-- The DM page, with the fake network:
-  - The card shows the six labels and their values.
-  - New session asks first, and then sends the POST.
-  - The divider shows "New session · 14:03".
-  - "The configuration changed …" shows when the agent differs.
-- The live check (`pnpm test:live`): a new session with `--session-id` gives
-  that ID in `system/init`, and a second process resumes it. About 0.02 USD.
-
-### Docs when step 5 lands
-
-`docs/agents.md` (`--session-id`, `config`), `docs/store.md` (v3, the card
-query), `docs/server.md` (three routes, autostart), `docs/conversations.md`
-(the prompt after New session), `docs/web-app.md` (the panel, the divider),
-`docs/protocol.md` (the `--session-id` finding).
 
 ---
 
@@ -367,14 +225,6 @@ store is.
 
 ---
 
-## Resolved
-
-- **Q2 (2026-11-15).** Step 1 shipped the day headings in each kind of
-  conversation, as the plan proposed. The user can still ask for a change.
-- **Q5 (2026-11-15).** The user agreed to spend about 0.04 USD on three real
-  `claude` runs with Haiku: the two fixtures of step 2 (about 0.01 USD each)
-  and the live check of `--session-id` in step 5 (about 0.02 USD).
-
 ## Step 8: TanStack Form
 
 The user asked for this step on 2026-11-15, after step 1. It comes after
@@ -390,6 +240,14 @@ What is decided:
 What is still open: the schema library (for example Zod, through Standard
 Schema), and whether the browser and the server share one schema.
 
+## Resolved
+
+- **Q2 (2026-11-15).** Step 1 shipped the day headings in each kind of
+  conversation, as the plan proposed. The user can still ask for a change.
+- **Q5 (2026-11-15).** The user agreed to spend about 0.04 USD on three real
+  `claude` runs with Haiku: the two fixtures of step 2 (about 0.01 USD each)
+  and the live check of `--session-id` in step 5 (about 0.02 USD).
+
 - **Q15 (2026-11-15).** The user agreed one more recording for slice 2.3.
   The three recordings of step 2 cost 0.0209 USD in total. The live check
   of step 5 (about 0.02 USD) is still ahead.
@@ -397,6 +255,14 @@ Schema), and whether the browser and the server share one schema.
 - **Q1 (2026-11-15).** Step 3 shipped migration v2 with a rebuild of each
   stored timeline, as the plan proposed. The user can still ask for a
   change.
+
+- **Q7 to Q11 (2026-11-15).** Step 5 shipped the defaults, as the user
+  asked: a notice in the card for a changed configuration (no `set_model`),
+  "Turns 7" with no limit, the panel in a group chat on a click of an agent,
+  a dialog before New session, and autostart of the DM process only, with
+  the switch off for a new agent. The measurements of `--session-id` (F29 to
+  F31 in `docs/protocol.md`) added the `claude_session_new` column. Step 5
+  spent about 0.018 USD on real `claude` runs.
 
 ## Open questions
 
@@ -406,17 +272,6 @@ Schema), and whether the browser and the server share one schema.
   from a recorded line. Is that acceptable until a real line is seen?
 - **Q6.** Unread rows and mention counts in the sidebar are in the design.
   Add them as a later step, or leave them out?
-- **Q7.** A change to the model or the mode reaches only the next process.
-  Is the notice in the card enough? Or do you want a live change with
-  `set_model`, which needs a measurement first?
-- **Q8.** The design shows "Turns 7 of 30". There is no `--max-turns` on
-  2.1.311. Show "7" only? Or use `--max-budget-usd` and show "Cost $0.18 of
-  $1.00", with a budget field on the agent?
-- **Q9.** The session panel in a group chat or a channel: open it with a
-  click on an agent in the header? Or keep the panel to the DM only?
-- **Q10.** Ask before New session? The design shows no dialog.
-- **Q11.** Autostart: start only the DM process? Make a DM when the agent
-  has none? And should the switch be on for a new agent, as in the design?
 - **Q12.** A new member sees only the messages after it joins. Should it get
   a short history instead, for example the last 20 messages? And should a
   member that joins again resume its old Claude session, or start a new one?

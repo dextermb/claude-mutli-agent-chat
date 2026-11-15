@@ -83,7 +83,25 @@ export function useConversation(conversationId: string) {
     [conversationId]
   )
 
-  return { ...view, send, answer, stop }
+  const stopAgent = useCallback(
+    (agentId: string) =>
+      postJson(
+        `/api/conversations/${conversationId}/agents/${agentId}/stop`,
+        {}
+      ),
+    [conversationId]
+  )
+
+  const newSession = useCallback(
+    (agentId: string) =>
+      postJson(
+        `/api/conversations/${conversationId}/agents/${agentId}/sessions`,
+        {}
+      ),
+    [conversationId]
+  )
+
+  return { ...view, send, answer, stop, stopAgent, newSession }
 }
 
 export type RequestAnswer =

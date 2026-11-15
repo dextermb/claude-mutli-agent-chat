@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
@@ -18,6 +18,7 @@ import {
   pushCall,
   pushRequest,
   rateLimitNotice,
+  sessionStart,
   readCall,
   releaseChannel,
   reviewerBot,
@@ -25,6 +26,7 @@ import {
   stoppedTurn,
   subagentRead,
   testRunner,
+  testRunnerSession,
   userMessage,
 } from "@/test/conversation-data"
 import { fakeNetwork } from "@/test/fake-network"
@@ -46,7 +48,27 @@ function openConversation(entries: TimelineEntry[], state = testRunner.state) {
     items: entries,
     lastEventId: 0,
   })
+  network.on("GET", "/api/conversations/c1/agents/a1/session", {
+    session: { ...testRunnerSession, state },
+  })
   window.history.pushState({}, "", "/conversations/c1")
+  return render(<App />)
+}
+
+function openChannel(entries: TimelineEntry[]) {
+  network.on("GET", "/api/conversations", {
+    conversations: [releaseChannel, squadGroup, directMessage],
+  })
+  network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+  network.on("GET", "/api/conversations/ch1", {
+    conversation: releaseChannel,
+    agents: [{ ...testRunner, state: "busy" }, reviewerBot],
+  })
+  network.on("GET", "/api/conversations/ch1/timeline", {
+    items: entries,
+    lastEventId: 0,
+  })
+  window.history.pushState({}, "", "/conversations/ch1")
   return render(<App />)
 }
 
@@ -115,6 +137,142 @@ describe("the DM page", () => {
         .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent)
     ).toEqual(["Friday 13 November", "Yesterday", "Today"])
+  })
+
+  test("the session card shows the model, the mode, the folder, the session id, the turns and the cost", async () => {
+    openConversation([userMessage])
+
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await waitFor(() =>
+      expect(
+        within(panel)
+          .getAllByRole("term")
+          .map((term) => [
+            term.textContent,
+            term.nextElementSibling?.textContent,
+          ])
+      ).toEqual([
+        ["Model", "claude-sonnet-5-5"],
+        ["Permissions", "acceptEdits"],
+        ["Directory", "~/code/web-app"],
+        ["Session ID", "4f1c9a2e"],
+        ["Turns", "7"],
+        ["Cost", "$0.18"],
+      ])
+    )
+    expect(within(panel).getByText("Bash(pnpm test:*)")).toBeInTheDocument()
+  })
+
+  test("the user can copy the full session id from the session card", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(
+      await within(panel).findByRole("button", { name: "Copy session ID" })
+    )
+
+    expect(await navigator.clipboard.readText()).toBe(
+      "4f1c9a2e-7b3d-4e5f-8a6b-1c2d3e4f5a6b"
+    )
+  })
+
+  test("stop turn in the session card stops this agent, and shows only while it works", async () => {
+    const user = userEvent.setup()
+    network.on("POST", "/api/conversations/c1/agents/a1/stop", {}, 202)
+    openConversation([userMessage], "busy")
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(
+      await within(panel).findByRole("button", { name: "Stop turn" })
+    )
+
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      [
+        {
+          method: "POST",
+          url: "/api/conversations/c1/agents/a1/stop",
+          body: {},
+        },
+      ]
+    )
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "agent_state", agentId: "a1", state: "idle" })
+    )
+    expect(
+      within(panel).queryByRole("button", { name: "Stop turn" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("new session asks first, and then starts a new session for the agent", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/conversations/c1/agents/a1/sessions",
+      { session: { ...testRunnerSession, turns: 0 } },
+      201
+    )
+    openConversation([userMessage])
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(within(panel).getByRole("button", { name: "New session" }))
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Start a new session?",
+    })
+    expect(dialog).toHaveTextContent(
+      "test-runner forgets this conversation. The messages stay here."
+    )
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      []
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start new session" })
+    )
+
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      [
+        {
+          method: "POST",
+          url: "/api/conversations/c1/agents/a1/sessions",
+          body: {},
+        },
+      ]
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
+  })
+
+  test("a new session shows as a divider with its time, between the messages", async () => {
+    openConversation([
+      userMessage,
+      agentMessage,
+      { ...sessionStart, createdAt: localTime(15, 14, 30) },
+      { ...userMessage, id: "u2", seq: 20 },
+    ])
+
+    const divider = await screen.findByText("New session · 14:30")
+
+    expect(divider.closest("article")).toBeNull()
+    expect(screen.getAllByRole("article")).toHaveLength(3)
+  })
+
+  test("the session card says when the agent configuration changed after the process started", async () => {
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/agents/a1/session", {
+      session: { ...testRunnerSession, configChanged: true },
+    })
+
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    expect(
+      await within(panel).findByText(
+        "The configuration changed. Start a new session to use it."
+      )
+    ).toBeInTheDocument()
   })
 
   test("shows a message while it arrives, and marks it busy until it is complete", async () => {
@@ -481,6 +639,42 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
     expect(
       within(sidebar).getByText("1 agent working · 1 needs approval")
+    ).toBeInTheDocument()
+  })
+
+  test("in a channel, a click on an agent in the header opens the session panel of that agent", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("GET", "/api/conversations/ch1/agents/a2/session", {
+      session: { ...testRunnerSession, model: "claude-opus-5-5" },
+    })
+    const header = within(await screen.findByRole("banner"))
+    expect(
+      screen.queryByRole("complementary", { name: "Session" })
+    ).not.toBeInTheDocument()
+
+    await user.click(
+      header.getByRole("button", { name: "reviewer-bot Online" })
+    )
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Session of reviewer-bot",
+    })
+    expect(
+      await within(panel).findByText("claude-opus-5-5")
+    ).toBeInTheDocument()
+    await user.click(within(panel).getByRole("button", { name: "Close" }))
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+  })
+
+  test("in a channel, the divider of a new session names the agent", async () => {
+    openChannel([
+      userMessage,
+      { ...sessionStart, createdAt: localTime(15, 14, 30) },
+    ])
+
+    expect(
+      await screen.findByText("New session for test-runner · 14:30")
     ).toBeInTheDocument()
   })
 

@@ -60,8 +60,9 @@ the last stream whose address starts with `address`.
 agent and the timeline entries that the tests show.
 
 `server/http/live.test.ts` runs the real `claude` with Haiku. It runs only
-with `pnpm test:live` (`CLAUDE_LIVE=1`), because each run costs about
-0.01 USD.
+with `pnpm test:live` (`CLAUDE_LIVE=1`), because each run costs money: about
+0.005 USD for the DM test, and about 0.013 USD for the test of New session
+and `--resume` (three turns in all, about 0.02 USD).
 
 The `Store` tests use `:memory:`. A test of a server start uses a database
 file in a temporary folder, and opens the store a second time.

@@ -88,6 +88,13 @@ export type NoticeItem =
       stderr: string
     }
 
+export type SessionStartItem = {
+  kind: "session_start"
+  id: string
+  status: "done"
+  claudeSessionId: string
+}
+
 export type TimelineItem =
   | ToolCallItem
   | MessageItem
@@ -95,6 +102,7 @@ export type TimelineItem =
   | QuestionItem
   | TurnItem
   | NoticeItem
+  | SessionStartItem
 
 const QUESTION_TOOL = "AskUserQuestion"
 const INTERRUPTED = ["aborted_streaming", "aborted_tools"]

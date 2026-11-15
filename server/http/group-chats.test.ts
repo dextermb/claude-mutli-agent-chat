@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
+  openEvents,
   postJson,
   promptsTo,
   runCleanups,
@@ -36,6 +37,43 @@ async function untilTurns(base: string, conversationId: string, count: number) {
 }
 
 describe("group chats and channels", () => {
+  test("stop turn for one agent interrupts that agent and not the other", async () => {
+    const { base, sentTo } = await startServer("interrupt")
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    const stream = openEvents(base, group.id)
+    await stream.ready
+    await sendMessage(
+      base,
+      group.id,
+      "@reviewer-bot @test-runner write a long story."
+    )
+    await vi.waitFor(() =>
+      expect(
+        stream.events.filter(
+          ({ data }) => data.type === "agent_state" && data.state === "busy"
+        )
+      ).toHaveLength(2)
+    )
+
+    const response = await postJson(
+      base,
+      `/api/conversations/${group.id}/agents/${reviewer.id}/stop`,
+      {}
+    )
+
+    expect(response.status).toBe(202)
+    const interrupts = (name: string) =>
+      (sentTo.get(name) ?? []).filter(
+        (line) =>
+          line.type === "control_request" &&
+          (line.request as { subtype: string }).subtype === "interrupt"
+      )
+    await vi.waitFor(() => expect(interrupts("reviewer-bot")).toHaveLength(1))
+    expect(interrupts("test-runner")).toHaveLength(0)
+  })
+
   test("a group chat with two agents takes their names, and its reply mode is mention", async () => {
     const { base } = await startServer()
     const reviewer = await createAgent(base, "reviewer-bot")
@@ -157,6 +195,36 @@ describe("group chats and channels", () => {
     ])
   })
 
+  test("after a new session, the first prompt holds only the messages after the divider", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ reply: "Done." })
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    await sendMessage(base, group.id, "@test-runner run the tests.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "@reviewer-bot look at PR 212.")
+    await untilTurns(base, group.id, 2)
+
+    await postJson(
+      base,
+      `/api/conversations/${group.id}/agents/${runner.id}/sessions`,
+      {}
+    )
+    await sendMessage(base, group.id, "@test-runner add a test for it.")
+
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "test-runner")).toEqual([
+        "[User] @test-runner run the tests.",
+        "[User] @test-runner add a test for it.",
+      ])
+    )
+  })
+
   test("a mention in the reply of an agent starts a turn for the other agent", async () => {
     const { base, sentTo } = await startServer(
       "resume-1",
@@ -253,7 +321,8 @@ describe("group chats and channels", () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: "Use only lowercase letters, numbers and hyphens in a channel name.",
+      error:
+        "Use only lowercase letters, numbers and hyphens in a channel name.",
     })
   })
 

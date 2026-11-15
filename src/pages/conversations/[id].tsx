@@ -1,4 +1,5 @@
 import { HashIcon, LockIcon, SquareIcon, UsersIcon } from "lucide-react"
+import { useState } from "react"
 import { useParams } from "wouter"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -11,14 +12,31 @@ import {
 } from "@/components/conversation/agent-look"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Composer } from "@/components/conversation/composer"
+import { SessionPanel } from "@/components/conversation/session-panel"
 import { Timeline } from "@/components/conversation/timeline"
 import { useConversation } from "@/hooks/use-conversation"
+import { useSessionCard } from "@/hooks/use-session-card"
 import type { Conversation } from "@/lib/agent-api"
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
   const conversation = useConversation(params.id)
   const agent = conversation.agents[0]
+  const [pickedId, setPickedId] = useState<string | null>(null)
+  const panelAgent =
+    conversation.conversation?.kind === "dm"
+      ? agent
+      : conversation.agents.find((member) => member.id === pickedId)
+  const turnsOfAgent = conversation.entries.filter(
+    (entry) =>
+      entry.authorKey === `agent:${panelAgent?.id}` &&
+      (entry.item.kind === "turn" || entry.item.kind === "session_start")
+  ).length
+  const card = useSessionCard(
+    params.id,
+    panelAgent?.id,
+    `${panelAgent?.state} ${turnsOfAgent}`
+  )
 
   if (conversation.status === "loading") {
     return (
@@ -70,15 +88,21 @@ export default function ConversationPage() {
               className="m-0 flex list-none flex-wrap gap-3 p-0"
             >
               {conversation.agents.map((member) => (
-                <li
-                  key={member.id}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`size-2 rounded-full ${statusOf(member.state).dot}`}
-                  />
-                  {`${member.name} ${statusOf(member.state).label}`}
+                <li key={member.id}>
+                  <button
+                    type="button"
+                    aria-pressed={member.id === pickedId}
+                    className="flex items-center gap-1.5 rounded px-1 text-xs text-muted-foreground hover:bg-accent aria-pressed:text-foreground"
+                    onClick={() =>
+                      setPickedId(member.id === pickedId ? null : member.id)
+                    }
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`size-2 rounded-full ${statusOf(member.state).dot}`}
+                    />
+                    {`${member.name} ${statusOf(member.state).label}`}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -131,6 +155,23 @@ export default function ConversationPage() {
           />
         </div>
       </main>
+      {panelAgent && (
+        <SessionPanel
+          label={isDirect ? "Session" : `Session of ${panelAgent.name}`}
+          card={card}
+          working={
+            panelAgent.state === "busy" || panelAgent.state === "waiting"
+          }
+          agentName={panelAgent.name}
+          onStopTurn={() => {
+            void conversation.stopAgent(panelAgent.id)
+          }}
+          onNewSession={() => {
+            void conversation.newSession(panelAgent.id)
+          }}
+          onClose={isDirect ? undefined : () => setPickedId(null)}
+        />
+      )}
     </div>
   )
 }
