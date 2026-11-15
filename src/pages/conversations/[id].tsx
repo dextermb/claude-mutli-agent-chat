@@ -1,4 +1,5 @@
 import {
+  EllipsisIcon,
   HashIcon,
   InfoIcon,
   LockIcon,
@@ -27,6 +28,7 @@ import {
 } from "@/components/conversation/agent-look"
 import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
+import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer"
 import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
@@ -53,6 +55,7 @@ export default function ConversationPage() {
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [configuring, setConfiguring] = useState(false)
   const [showingSheet, setShowingSheet] = useState(false)
   const [showingMembers, setShowingMembers] = useState(false)
   const [showingSidebar, setShowingSidebar] = useState(false)
@@ -180,9 +183,16 @@ export default function ConversationPage() {
               {status.label}
             </Badge>
           )}
-          {conversation.conversation.topic && (
+          {conversation.conversation.kind === "channel" && (
             <span className="min-w-40 text-[13px] text-foreground-faint">
-              {conversation.conversation.topic}
+              {conversation.conversation.topic && (
+                <span>{conversation.conversation.topic} </span>
+              )}
+              <span>
+                {conversation.conversation.replyMode === "every"
+                  ? "Agents reply to every message."
+                  : "Agents reply when you @mention them."}
+              </span>
             </span>
           )}
           <div className="min-w-4 flex-1" />
@@ -216,6 +226,16 @@ export default function ConversationPage() {
                 ))}
               </AvatarGroup>
               {people + agentCount}
+            </Button>
+          )}
+          {conversation.conversation.kind === "channel" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Channel settings"
+              onClick={() => setConfiguring(true)}
+            >
+              <EllipsisIcon />
             </Button>
           )}
           {isDirect && (
@@ -359,6 +379,13 @@ export default function ConversationPage() {
           }
           conversation={conversation.conversation}
           onOpenChange={setAdding}
+        />
+      )}
+      {conversation.conversation.kind === "channel" && (
+        <ChannelSettingsDialog
+          open={configuring}
+          conversation={conversation.conversation}
+          onOpenChange={setConfiguring}
         />
       )}
       {isDirect && panel && isMobile && (

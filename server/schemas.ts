@@ -40,9 +40,17 @@ export const channelSchema = z.object({
   agentIds: z.array(z.string()).default([]),
 })
 
+export const channelSettingsSchema = channelSchema.pick({
+  topic: true,
+  private: true,
+  replyMode: true,
+})
+
 export type AgentDraft = z.input<typeof agentSchema>
 
 export type ChannelDraft = z.input<typeof channelSchema>
+
+export type ChannelSettingsDraft = z.input<typeof channelSettingsSchema>
 
 export type FieldErrors = Record<string, string>
 

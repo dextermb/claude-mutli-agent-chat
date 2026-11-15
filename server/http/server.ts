@@ -7,7 +7,12 @@ import { randomUUID } from "node:crypto"
 import type { AddressInfo } from "node:net"
 import type { PermissionAnswer } from "../protocol/encode.ts"
 import { parseMentions } from "../conversation/mentions.ts"
-import { agentSchema, channelSchema, checkBody } from "../schemas.ts"
+import {
+  agentSchema,
+  channelSchema,
+  channelSettingsSchema,
+  checkBody,
+} from "../schemas.ts"
 import { homeShort } from "../paths.ts"
 import { buildArgs } from "../session/args.ts"
 import { environmentPrompt } from "../session/environment-prompt.ts"
@@ -295,20 +300,21 @@ export function createServer({
   function membersChanged(conversationId: string): Conversation | undefined {
     const before = store.getConversation(conversationId)
     if (before?.kind === "group") {
-      store.renameConversation(
-        conversationId,
-        agentIdsOf(conversationId)
+      store.updateConversation(conversationId, {
+        name: agentIdsOf(conversationId)
           .flatMap((agentId) => store.getAgent(agentId)?.name ?? [])
-          .join(", ")
-      )
+          .join(", "),
+      })
     }
     const conversation = store.getConversation(conversationId)
-    if (conversation) {
-      const event = { type: "conversation", conversation }
-      publish(conversationId, event)
-      publishTo(appChannel, event)
-    }
+    if (conversation) announce(conversation)
     return conversation
+  }
+
+  function announce(conversation: Conversation) {
+    const event = { type: "conversation", conversation }
+    publish(conversation.id, event)
+    publishTo(appChannel, event)
   }
 
   function stopTurn(session: LiveSession) {
@@ -691,6 +697,29 @@ export function createServer({
       return send(response, 200, {
         agent: store.updateAgent(params.id, checked.data),
       })
+    }
+
+    if ((params = route("PATCH", "api/conversations/:id"))) {
+      const current = store.getConversation(params.id)
+      if (!current) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      if (current.kind !== "channel") {
+        return send(response, 400, { error: "Only a channel has settings." })
+      }
+      const checked = checkBody(channelSettingsSchema, {
+        ...current,
+        ...(await readJson(request)),
+      })
+      if (!checked.ok) {
+        return send(response, 400, {
+          error: checked.error,
+          fields: checked.fields,
+        })
+      }
+      const conversation = store.updateConversation(params.id, checked.data)
+      if (conversation) announce(conversation)
+      return send(response, 200, { conversation })
     }
 
     if ((params = route("GET", "api/conversations/:id"))) {

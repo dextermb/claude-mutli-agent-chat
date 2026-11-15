@@ -165,8 +165,27 @@ export function openStore(location: string) {
     )
   }
 
-  function renameConversation(id: string, name: string) {
-    db.prepare("UPDATE conversations SET name = ? WHERE id = ?").run(name, id)
+  function updateConversation(
+    id: string,
+    change: Partial<
+      Pick<Conversation, "name" | "topic" | "private" | "replyMode">
+    >
+  ): Conversation | undefined {
+    const current = getConversation(id)
+    if (!current) return undefined
+    const next = { ...current, ...change }
+    db.prepare(
+      `UPDATE conversations SET name = :name, topic = :topic, private = :private,
+         reply_mode = :replyMode
+       WHERE id = :id`
+    ).run({
+      id,
+      name: next.name,
+      topic: next.topic,
+      private: next.private ? 1 : 0,
+      replyMode: next.replyMode,
+    })
+    return getConversation(id)
   }
 
   function removeMember(conversationId: string, memberKey: string) {
@@ -592,7 +611,7 @@ export function openStore(location: string) {
     unreadCounts,
     markRead,
     addMember,
-    renameConversation,
+    updateConversation,
     removeMember,
     joinedSeq,
     findDirectMessage,

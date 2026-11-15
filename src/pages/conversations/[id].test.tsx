@@ -1030,6 +1030,118 @@ describe("the DM page", () => {
     ).not.toBeInTheDocument()
   })
 
+  test("in a channel, channel settings sends the changed fields, and the header follows the stream", async () => {
+    const user = userEvent.setup()
+    const changed = { ...releaseChannel, topic: "Ship v2.5 on Monday." }
+    openChannel([userMessage])
+    network.on("PATCH", "/api/conversations/ch1", { conversation: changed })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    const topic = dialog.getByRole("textbox", { name: "Topic" })
+    expect(topic).toHaveValue("Ship v2.4 on Friday.")
+    await user.clear(topic)
+    await user.type(topic, "Ship v2.5 on Monday.")
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([
+      {
+        method: "PATCH",
+        url: "/api/conversations/ch1",
+        body: { topic: "Ship v2.5 on Monday." },
+      },
+    ])
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    act(() =>
+      network
+        .stream("/api/conversations/ch1/events")
+        .emit(1, { type: "conversation", conversation: changed })
+    )
+    expect(header.getByText("Ship v2.5 on Monday.")).toBeInTheDocument()
+  })
+
+  test("the header of a channel says when the agents reply, and follows a change of the reply mode", async () => {
+    openChannel([userMessage])
+    const header = within(await screen.findByRole("banner"))
+
+    expect(
+      header.getByText("Agents reply when you @mention them.")
+    ).toBeInTheDocument()
+    act(() =>
+      network.stream("/api/conversations/ch1/events").emit(1, {
+        type: "conversation",
+        conversation: { ...releaseChannel, replyMode: "every" },
+      })
+    )
+    expect(
+      header.getByText("Agents reply to every message.")
+    ).toBeInTheDocument()
+  })
+
+  test("a refused save keeps the dialog open and shows the reason of the server", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on(
+      "PATCH",
+      "/api/conversations/ch1",
+      { error: "Pick a reply mode." },
+      400
+    )
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    await user.click(dialog.getByRole("radio", { name: /^Every message/ }))
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      await dialog.findByText("The server did not save the settings.")
+    ).toBeInTheDocument()
+    expect(dialog.getByText("Pick a reply mode.")).toBeInTheDocument()
+    expect(network.sent.at(-1)).toEqual({
+      method: "PATCH",
+      url: "/api/conversations/ch1",
+      body: { replyMode: "every" },
+    })
+  })
+
+  test("a group chat and a DM have no channel settings", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/g1", {
+      conversation: squadGroup,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    const dmHeader = within(await screen.findByRole("banner"))
+    expect(
+      dmHeader.queryByRole("button", { name: "Channel settings" })
+    ).not.toBeInTheDocument()
+
+    const sidebar = screen.getByRole("navigation", { name: "Conversations" })
+    await user.click(
+      within(sidebar).getByRole("link", { name: squadGroup.name })
+    )
+
+    await screen.findByRole("heading", { name: squadGroup.name })
+    const groupHeader = within(screen.getByRole("banner"))
+    expect(
+      groupHeader.queryByRole("button", { name: "Channel settings" })
+    ).not.toBeInTheDocument()
+  })
+
   test("in a channel, the divider of a new session names the agent", async () => {
     openChannel([
       userMessage,

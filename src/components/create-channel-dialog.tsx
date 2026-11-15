@@ -6,6 +6,11 @@ import {
   AVATAR_COLOURS,
   initialsOf,
 } from "@/components/conversation/agent-look"
+import {
+  PrivateField,
+  ReplyModeField,
+  TopicField,
+} from "@/components/channel-fields"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -21,7 +26,6 @@ import {
 } from "@/components/ui/dialog"
 import {
   Field,
-  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -29,7 +33,6 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import {
   InputGroup,
   InputGroupAddon,
@@ -44,8 +47,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Switch } from "@/components/ui/switch"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
 import { invalid, shown } from "@/lib/form-errors"
@@ -147,37 +148,20 @@ export function CreateChannelDialog({
             </form.Field>
             <form.Field name="topic">
               {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="channel-topic">Topic</FieldLabel>
-                  <Input
-                    id="channel-topic"
-                    value={field.state.value ?? ""}
-                    onChange={(event) =>
-                      field.handleChange(event.currentTarget.value)
-                    }
-                  />
-                </Field>
+                <TopicField
+                  value={field.state.value ?? ""}
+                  onChange={field.handleChange}
+                />
               )}
             </form.Field>
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldLabel htmlFor="channel-private">
-                  Private channel
-                </FieldLabel>
-                <FieldDescription>
-                  Only invited agents can see it.
-                </FieldDescription>
-              </FieldContent>
-              <form.Field name="private">
-                {(field) => (
-                  <Switch
-                    id="channel-private"
-                    checked={field.state.value ?? false}
-                    onCheckedChange={(checked) => field.handleChange(checked)}
-                  />
-                )}
-              </form.Field>
-            </Field>
+            <form.Field name="private">
+              {(field) => (
+                <PrivateField
+                  checked={field.state.value ?? false}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
             <FieldSet>
               <FieldLegend variant="label">Invite agents</FieldLegend>
               <ItemGroup>
@@ -222,34 +206,14 @@ export function CreateChannelDialog({
                 ))}
               </ItemGroup>
             </FieldSet>
-            <FieldSet>
-              <FieldLegend variant="label">When agents reply</FieldLegend>
-              <form.Field name="replyMode">
-                {(field) => (
-                  <RadioGroup
-                    value={field.state.value}
-                    onValueChange={(value) =>
-                      field.handleChange(
-                        value === "every" ? "every" : "mention"
-                      )
-                    }
-                  >
-                    <Field orientation="horizontal">
-                      <RadioGroupItem value="mention" id="reply-mention" />
-                      <FieldLabel htmlFor="reply-mention">
-                        Only when @mentioned
-                      </FieldLabel>
-                    </Field>
-                    <Field orientation="horizontal">
-                      <RadioGroupItem value="every" id="reply-every" />
-                      <FieldLabel htmlFor="reply-every">
-                        Every message (each agent spends tokens on each message)
-                      </FieldLabel>
-                    </Field>
-                  </RadioGroup>
-                )}
-              </form.Field>
-            </FieldSet>
+            <form.Field name="replyMode">
+              {(field) => (
+                <ReplyModeField
+                  value={field.state.value ?? "mention"}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
           </FieldGroup>
           {error && <RefusalAlert refusal={error} />}
           <DialogFooter>

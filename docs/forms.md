@@ -1,9 +1,11 @@
 # Forms
 
-Two forms take input that the server stores: the agent page
+Two forms check their input before they send it: the agent page
 (`src/pages/agents/[id].tsx`) and the Create a channel dialog
 (`src/components/create-channel-dialog.tsx`). Both use TanStack Form, and
-both check their values with the same Zod schema as the server.
+both check their values with the same Zod schema as the server. The Channel
+settings dialog sends input too, but only the server checks it (see "One
+schema").
 
 ## One schema
 
@@ -12,10 +14,19 @@ both check their values with the same Zod schema as the server.
 
 - The server checks each body with `checkBody(schema, body)`, in
   `POST /api/agents`, `PATCH /api/agents/:id` (on the stored agent with the
-  body merged in) and `POST /api/conversations` for a channel.
+  body merged in), `POST /api/conversations` for a channel, and
+  `PATCH /api/conversations/:id` with `channelSettingsSchema`, the topic,
+  `private` and `replyMode` of `channelSchema` (on the stored channel with
+  the body merged in).
 - The browser gives the same schema to `useForm()` as its `onBlur` and
   `onSubmit` validator.
 - `NewAgent` in `server/api-types.ts` is the output type of `agentSchema`.
+
+The Channel settings dialog
+(`src/components/channel-settings-dialog.tsx`) is not a TanStack Form. Its
+fields are a text, a switch and a radio, so no value that the user can give
+fails the schema. It keeps its values in state, and shows a refusal of the
+server in an alert.
 
 A rule that needs the database stays in the route. A channel name that is
 taken gives `409`, and the dialog shows it in its alert only.
