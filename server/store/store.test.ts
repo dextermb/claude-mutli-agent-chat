@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import { decodeLine } from "../protocol/decode.ts"
 import { readFixture } from "../test/fixtures.ts"
 import { emptyTimeline, reduceTimeline } from "../timeline/reduce.ts"
@@ -23,6 +23,7 @@ const stores: Store[] = []
 const folders: string[] = []
 
 afterEach(() => {
+  vi.useRealTimers()
   for (const store of stores.splice(0)) store.close()
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true })
 })
@@ -190,6 +191,32 @@ describe("Store", () => {
       },
       { authorKey: `agent:${agent.id}`, kind: "message", text: "ok" },
       { authorKey: `agent:${agent.id}`, kind: "turn", text: null },
+    ])
+  })
+
+  test("each timeline entry has the time when it was first stored", () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    const store = memoryStore()
+    const { conversation, session } = directMessage(store)
+
+    vi.setSystemTime(new Date("2026-11-15T14:03:00.000Z"))
+    store.addUserMessage(
+      conversation.id,
+      "Remember the word kiwi. Reply with the single word ok."
+    )
+    vi.setSystemTime(new Date("2026-11-15T14:04:30.000Z"))
+    playLive(store, session.id, "resume-1")
+    vi.setSystemTime(new Date("2026-11-15T15:00:00.000Z"))
+    store.rebuildTimeline(session.id)
+
+    expect(
+      store
+        .listTimeline(conversation.id)
+        .map(({ item, createdAt }) => [item.kind, createdAt])
+    ).toEqual([
+      ["message", "2026-11-15T14:03:00.000Z"],
+      ["message", "2026-11-15T14:04:30.000Z"],
+      ["turn", "2026-11-15T14:04:30.000Z"],
     ])
   })
 

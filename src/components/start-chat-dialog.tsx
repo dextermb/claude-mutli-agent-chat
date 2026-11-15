@@ -48,6 +48,7 @@ export function StartChatDialog({
 }) {
   const [search, setSearch] = useState("")
   const [picked, setPicked] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   const shown = agents.filter((agent) =>
     agent.name.toLowerCase().includes(search.trim().toLowerCase())
@@ -71,13 +72,18 @@ export function StartChatDialog({
           : { kind: "dm", agentId: picked[0] }
       ),
     })
-    if (!response.ok) return
-    const { conversation } = (await response.json()) as {
-      conversation: Conversation
+    const body = (await response.json()) as {
+      conversation?: Conversation
+      error?: string
+    }
+    if (!response.ok || !body.conversation) {
+      setError(body.error ?? "The server did not start the chat.")
+      return
     }
     setPicked([])
     setSearch("")
-    onStarted(conversation)
+    setError(null)
+    onStarted(body.conversation)
   }
 
   return (
@@ -151,6 +157,11 @@ export function StartChatDialog({
               </Item>
             ))}
           </ItemGroup>
+          {error && (
+            <p role="alert" className="m-0 text-destructive">
+              {error}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <span className="flex-1 self-center text-xs text-foreground-faint">

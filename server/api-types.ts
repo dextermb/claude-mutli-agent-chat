@@ -36,5 +36,6 @@ export type TimelineEntry = {
   id: string
   seq: number
   authorKey: string
+  createdAt: string
   item: TimelineItem
 }

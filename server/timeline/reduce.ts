@@ -77,6 +77,7 @@ export type TimelineState = {
   items: TimelineItem[]
   nextId: number
   draftId: string | null
+  costSoFar: number
 }
 
 export type TimelineStep = {
@@ -85,7 +86,7 @@ export type TimelineStep = {
 }
 
 export function emptyTimeline(): TimelineState {
-  return { items: [], nextId: 1, draftId: null }
+  return { items: [], nextId: 1, draftId: null, costSoFar: 0 }
 }
 
 export function reduceTimeline(
@@ -236,14 +237,15 @@ function reducePermissionAnswer(
 }
 
 function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
-  return add({ state, changes: [] }, (id) => ({
+  const step = add({ state, changes: [] }, (id) => ({
     kind: "turn",
     id,
     status: line.terminalReason === "aborted_streaming" ? "stopped" : "done",
     durationMs: line.durationMs,
-    costUsd: line.totalCostUsd,
+    costUsd: line.totalCostUsd - state.costSoFar,
     numTurns: line.numTurns,
   }))
+  return { ...step, state: { ...step.state, costSoFar: line.totalCostUsd } }
 }
 
 function reduceTask(state: TimelineState, line: TaskLine): TimelineStep {

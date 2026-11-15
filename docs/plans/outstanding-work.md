@@ -1,32 +1,25 @@
 # The outstanding work of the agent chat app
 
 **Status:** in progress. The user agreed the plan, the order and the seams
-on 2026-11-15. Step 1 is next. Nothing below is built. The decisions stand as
-written. Q5 is resolved. Each other open question at the end keeps the
-decision of its step as the default, until the user answers it.
+on 2026-11-15. Step 1 is built, and its result is in `docs/*.md`. Step 2 is
+next. Nothing below is built. The decisions stand as written. Each open
+question at the end keeps the decision of its step as the default, until the
+user answers it.
 
 ## The steps
 
 Do the steps in this order. Each step is one worktree and one branch, and it
 merges into `master` before the next step starts.
 
-| Step | Name                           | Items                                                                               | Schema       |
-| ---- | ------------------------------ | ----------------------------------------------------------------------------------- | ------------ |
-| 1    | Small fixes and message times  | Empty message, Start a chat reason, arrow keys, the time of each message, turn cost | none         |
-| 2    | The stream                     | Subagent lines, rate-limit notice, interrupt during a tool call, two open requests  | none         |
-| 3    | The process                    | Kill a process that does not stop, keep and show stderr                             | migration v2 |
-| 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                       | none         |
-| 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart  | migration v3 |
-| 6    | Members                        | Add and remove the members of a conversation                                        | migration v4 |
-| 7    | The Files and Session log tabs | The two tabs of the DM header                                                       | none         |
-
-**Do step 1 first.** Its five items are small and have a low risk. Two of
-them give data that later steps use:
-
-- The time of each message adds `createdAt` to `TimelineEntry`. The divider
-  of New session (step 5) and the Files tab (step 7) show that time.
-- The turn cost is wrong now (see 1.5). The session card (step 5) adds the
-  turn costs, so this fix must come first.
+| Step | Name                           | Items                                                                              | Schema       |
+| ---- | ------------------------------ | ---------------------------------------------------------------------------------- | ------------ |
+| 1    | Small fixes and message times  | Built                                                                              | none         |
+| 2    | The stream                     | Subagent lines, rate-limit notice, interrupt during a tool call, two open requests | none         |
+| 3    | The process                    | Kill a process that does not stop, keep and show stderr                            | migration v2 |
+| 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                      | none         |
+| 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart | migration v3 |
+| 6    | Members                        | Add and remove the members of a conversation                                       | migration v4 |
+| 7    | The Files and Session log tabs | The two tabs of the DM header                                                      | none         |
 
 Steps 2 and 3 make the session and the reducer correct before step 5 puts a
 card on them. Step 4 comes before step 5 because the card follows the live
@@ -36,12 +29,6 @@ state. Steps 6 and 7 are independent of each other.
 
 These facts shape the plan. They are not in the docs yet.
 
-- **F-a. The turn cost is the process total.** `reduceResult()` copies
-  `total_cost_usd` into `costUsd`. That value counts from the start of the
-  process (F18). In `background.jsonl`, the first turn shows `$0.0084` and
-  the second turn shows `$0.0091`, but the second turn cost only `$0.0007`.
-- **F-b. `timeline_items.created_at` exists.** The store writes it and keeps
-  it on an update, but `listTimeline()` does not read it.
 - **F-c. `--session-id <uuid>` is in the help of 2.1.311.** "Use a specific
   session ID for the conversation (must be a valid UUID)." So the server can
   choose the Claude session ID of a new session.
@@ -123,8 +110,7 @@ session_events     timeline_items
   New session. `notice` is a rate-limit notice or a failed process.
 
 Migration v2 also runs `rebuildTimeline()` for each session, so the stored
-turn items get the corrected cost of 1.5. Step 1 ships the reducer fix, and
-step 3 repairs the old rows. See Q1.
+turn items get the per-turn cost that step 1 added to the reducer. See Q1.
 
 ## The new routes and events
 
@@ -143,89 +129,6 @@ step 3 repairs the old rows. See Q1.
 | `{ type: "reset" }`                       | both   | 4    | The browser asks for an event that is gone   |
 | `{ type: "agent_state", agentId, state }` | app    | 4    | The state of an agent (all its sessions)     |
 | `{ type: "conversation", conversation }`  | both   | 4, 6 | A conversation is made or its members change |
-
----
-
-## Step 1: Small fixes and message times
-
-### 1.1 Refuse an empty message
-
-**Decision:** `POST /api/conversations/:id/messages` answers `400` with
-"Write a message." when `text.trim()` is empty, or when `text` is not a
-string. Nothing is stored. The composer already refuses an empty message, so
-this guards the route only.
-
-**Seam:** `createServer()`. A test sends `{ text: "  " }` and expects `400`,
-and then expects the timeline to be empty.
-
-### 1.2 Start a chat shows the reason of a refusal
-
-**Decision:** do the same as Create a channel. Read `error` from the body,
-show it in an `Alert` in the dialog, and keep the dialog open. Also show a
-reason when `fetch` fails: "The server did not answer."
-
-**Seam:** `StartChatDialog`, with the fake network. A test makes the server
-answer `400 { error: "Give one or more agentIds." }`, clicks Start, and
-expects that text in an alert and the dialog still open.
-
-### 1.3 Arrow keys in the mention list
-
-**Decision:** the composer keeps an active option.
-
-- Down and Up move the active option, and wrap at the ends.
-- Enter and Tab pick the active option. Escape closes the list until the
-  next typed character.
-- The textarea gets `aria-activedescendant`. Each option gets an `id`.
-- The active option goes back to the first one when the typed text changes.
-
-**Seam:** `Composer`, rendered alone in a new `composer.test.tsx`. A test
-types `@`, presses Down, presses Enter, and expects the text
-`@<second name> `.
-
-### 1.4 The time of each message
-
-**Decisions:**
-
-- `TimelineEntry` gets `createdAt` (ISO text) from
-  `timeline_items.created_at` (F-b). A user message and an agent item already
-  store it. An agent message keeps the time of its first piece.
-- Each block of the timeline shows the time of its first entry next to the
-  author, as 24-hour `HH:MM` ("14:03"), in a `<time dateTime>` element. This
-  follows the design and the design system.
-- A day divider goes before the first block of each day: "Today",
-  "Yesterday", or "Friday 13 November". The design shows "Today" only in the
-  channel board. The plan puts it in each kind of conversation. See Q2.
-- The format uses the local time zone of the browser.
-
-**Data flow:** `timeline_items.created_at` → `listTimeline()` and
-`saveItems()` → `TimelineEntry.createdAt` → the `item` event and
-`GET …/timeline` → `Timeline`.
-
-**Seams:**
-
-- `Store`: `listTimeline()` gives `createdAt` for a user message and for an
-  agent item. The test fixes the clock (a system boundary).
-- The DM page: a test gives two entries with fixed times and expects "14:03"
-  next to the author, and the "Today" divider. The test fixes the clock.
-
-### 1.5 The cost of each turn
-
-**Decision:** the reducer keeps the cost so far of the process in its state.
-`costUsd` of a turn becomes `total_cost_usd` minus the total of the turn
-before it in the same process (F-a, F18). The turn summary then shows what
-that turn cost. Stored turn items keep the wrong value until migration v2 of
-step 3 rebuilds them (Q1).
-
-**Seam:** `reduceTimeline()` with `background.jsonl`. The expected costs come
-from the recorded lines: the first turn is `0.00843574`, and the second turn
-is `0.0091229 - 0.00843574`. The test gives that difference as a literal
-(`0.00068716`), and compares with `toBeCloseTo`.
-
-### Docs when step 1 lands
-
-`docs/server.md` (400), `docs/timeline.md` (turn cost), `docs/web-app.md`
-(times, arrow keys, the Start a chat reason). Remove each item from the "Not
-built yet" lists.
 
 ---
 
@@ -692,6 +595,8 @@ store is.
 
 ## Resolved
 
+- **Q2 (2026-11-15).** Step 1 shipped the day headings in each kind of
+  conversation, as the plan proposed. The user can still ask for a change.
 - **Q5 (2026-11-15).** The user agreed to spend about 0.04 USD on three real
   `claude` runs with Haiku: the two fixtures of step 2 (about 0.01 USD each)
   and the live check of `--session-id` in step 5 (about 0.02 USD).
@@ -701,8 +606,6 @@ store is.
 - **Q1.** Migration v2 rebuilds each stored timeline, so old turn items get
   the correct cost. Is a rebuild of the whole database at the first start
   acceptable? The alternative: keep the old costs as they are.
-- **Q2.** Day dividers ("Today", "Yesterday", a date) in each kind of
-  conversation, or only in channels, as in the design?
 - **Q3.** Hide the text messages of a subagent, and show only its tool
   calls? Or show its text inside the card too?
 - **Q4.** The rate-limit notice uses status names from the SDK types, not

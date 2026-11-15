@@ -287,6 +287,10 @@ export function openStore(location: string) {
       )
       .get(sessionId)
     if (!session) return []
+    const line = db
+      .prepare("SELECT at FROM session_events WHERE session_id = ? AND seq = ?")
+      .get(sessionId, seq)
+    const createdAt = line ? String(line.at) : new Date().toISOString()
     const save = db.prepare(
       `INSERT INTO timeline_items (id, conversation_id, seq, session_id,
          author_key, kind, tool_use_id, status, payload, created_at)
@@ -295,7 +299,7 @@ export function openStore(location: string) {
        ON CONFLICT (id) DO UPDATE SET
          status = excluded.status,
          payload = excluded.payload
-       RETURNING id, seq, author_key`
+       RETURNING id, seq, author_key, created_at`
     )
     return items.map((item) => {
       const row = save.get({
@@ -308,12 +312,13 @@ export function openStore(location: string) {
         toolUseId: "toolUseId" in item ? item.toolUseId : null,
         status: item.status,
         payload: JSON.stringify(item),
-        createdAt: new Date().toISOString(),
+        createdAt,
       })
       return {
         id: String(row?.id),
         seq: Number(row?.seq),
         authorKey: String(row?.author_key),
+        createdAt: String(row?.created_at),
         item,
       }
     })
@@ -325,6 +330,7 @@ export function openStore(location: string) {
       id,
       seq: nextSeq(),
       authorKey: "user:me",
+      createdAt: new Date().toISOString(),
       item: { kind: "message", id, text, status: "done" },
     }
     db.prepare(
@@ -337,7 +343,7 @@ export function openStore(location: string) {
       entry.seq,
       entry.authorKey,
       JSON.stringify(entry.item),
-      new Date().toISOString()
+      entry.createdAt
     )
     return entry
   }
@@ -373,7 +379,7 @@ export function openStore(location: string) {
   function listTimeline(conversationId: string): TimelineEntry[] {
     return db
       .prepare(
-        `SELECT id, seq, author_key, payload FROM timeline_items
+        `SELECT id, seq, author_key, created_at, payload FROM timeline_items
          WHERE conversation_id = ? ORDER BY seq, rowid`
       )
       .all(conversationId)
@@ -381,6 +387,7 @@ export function openStore(location: string) {
         id: String(row.id),
         seq: Number(row.seq),
         authorKey: String(row.author_key),
+        createdAt: String(row.created_at),
         item: JSON.parse(String(row.payload)) as TimelineItem,
       }))
   }

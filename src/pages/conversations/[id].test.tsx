@@ -12,6 +12,7 @@ import {
   directMessage,
   editCall,
   finishedTurn,
+  localTime,
   pushCall,
   pushRequest,
   readCall,
@@ -51,6 +52,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe("the DM page", () => {
@@ -72,6 +74,44 @@ describe("the DM page", () => {
     expect(
       within(messages[1]).getByText("I will use a fixed clock.")
     ).toBeInTheDocument()
+  })
+
+  test("shows the time of each message next to its author, as hours and minutes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(localTime(15, 16, 0)))
+    openConversation([userMessage, agentMessage])
+
+    const messages = await screen.findAllByRole("article")
+
+    expect(within(messages[0]).getByText("14:03")).toHaveAttribute(
+      "datetime",
+      userMessage.createdAt
+    )
+    expect(within(messages[1]).getByText("14:04")).toBeInTheDocument()
+  })
+
+  test("a heading names the day before the first message of each day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(localTime(15, 16, 0)))
+    openConversation([
+      { ...userMessage, createdAt: localTime(13, 9, 30) },
+      { ...agentMessage, createdAt: localTime(13, 9, 31) },
+      { ...userMessage, id: "u2", seq: 3, createdAt: localTime(14, 11, 0) },
+      {
+        ...agentMessage,
+        id: "s1/item-9",
+        seq: 4,
+        createdAt: localTime(15, 8, 0),
+      },
+    ])
+
+    await screen.findAllByRole("article")
+
+    expect(
+      within(screen.getByRole("main"))
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent)
+    ).toEqual(["Friday 13 November", "Yesterday", "Today"])
   })
 
   test("shows a message while it arrives, and marks it busy until it is complete", async () => {

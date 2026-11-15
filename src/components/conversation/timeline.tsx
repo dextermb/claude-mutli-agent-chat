@@ -1,3 +1,5 @@
+import { Fragment } from "react"
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -12,6 +14,8 @@ import type {
   PermissionItem,
   TimelineEntry,
 } from "@/lib/agent-api"
+import { Separator } from "@/components/ui/separator"
+import { clockTime, dayKey, dayName } from "@/lib/time"
 
 type Answer = (requestId: string, answer: RequestAnswer) => void
 
@@ -32,17 +36,37 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
   )
   return (
     <div className="flex flex-col gap-1 py-3">
-      {groupByAuthor(shown).map((group) => (
-        <AuthorGroup
-          key={group.entries[0].id}
-          group={group}
-          agent={agents.find(
-            (agent) => `agent:${agent.id}` === group.authorKey
-          )}
-          requests={requests}
-          onAnswer={onAnswer}
-        />
-      ))}
+      {groupByAuthor(shown).map((group, index, groups) => {
+        const createdAt = group.entries[0].createdAt
+        const newDay =
+          index === 0 ||
+          dayKey(groups[index - 1].entries[0].createdAt) !== dayKey(createdAt)
+        return (
+          <Fragment key={group.entries[0].id}>
+            {newDay && <DayHeading createdAt={createdAt} />}
+            <AuthorGroup
+              group={group}
+              agent={agents.find(
+                (agent) => `agent:${agent.id}` === group.authorKey
+              )}
+              requests={requests}
+              onAnswer={onAnswer}
+            />
+          </Fragment>
+        )
+      })}
+    </div>
+  )
+}
+
+function DayHeading({ createdAt }: { createdAt: string }) {
+  return (
+    <div className="flex items-center gap-3 px-5 py-2">
+      <Separator className="flex-1" />
+      <h2 className="m-0 text-xs font-medium text-foreground-faint">
+        {dayName(createdAt)}
+      </h2>
+      <Separator className="flex-1" />
     </div>
   )
 }
@@ -72,6 +96,12 @@ function AuthorGroup({
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground-strong">{name}</span>
           {agent && <Badge>Agent</Badge>}
+          <time
+            dateTime={group.entries[0].createdAt}
+            className="text-xs text-foreground-faint"
+          >
+            {clockTime(group.entries[0].createdAt)}
+          </time>
         </div>
         {group.entries.map((entry) => (
           <EntryBody
@@ -156,7 +186,11 @@ function groupByAuthor(entries: TimelineEntry[]): Group[] {
   const groups: Group[] = []
   for (const entry of entries) {
     const last = groups.at(-1)
-    if (last && last.authorKey === entry.authorKey) {
+    if (
+      last &&
+      last.authorKey === entry.authorKey &&
+      dayKey(last.entries[0].createdAt) === dayKey(entry.createdAt)
+    ) {
       last.entries.push(entry)
     } else {
       groups.push({ authorKey: entry.authorKey, entries: [entry] })

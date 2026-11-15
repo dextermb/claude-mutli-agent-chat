@@ -39,6 +39,17 @@ describe("createServer", () => {
     })
   })
 
+  test("the server refuses an empty message and stores nothing", async () => {
+    const { base, started, conversation } = await startServer()
+
+    const response = await sendMessage(base, conversation.id, "  \n ")
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: "Write a message." })
+    expect((await timeline(base, conversation.id)).items).toEqual([])
+    expect(started).toHaveLength(0)
+  })
+
   test("a message starts the agent, and the reply of the agent shows in the timeline", async () => {
     const { base, agent, conversation } = await startServer()
 

@@ -209,6 +209,13 @@ describe("reduceTimeline", () => {
     )
   })
 
+  test("each turn shows its own cost, not the cost of the process so far", () => {
+    const [first, second] = ofKind(replay("background"), "turn")
+
+    expect(first.costUsd).toBeCloseTo(0.00843574, 10)
+    expect(second.costUsd).toBeCloseTo(0.00068716, 10)
+  })
+
   test("a background job shows its status on the tool call that started it", () => {
     const run = steps("background")
     const started = run.find(
