@@ -5,7 +5,7 @@ the store, starts a `claude` process for each agent, and sends the timeline to
 the browser.
 
 ```sh
-pnpm server   # http://127.0.0.1:4100
+pnpm dev:server   # http://127.0.0.1:4100
 ```
 
 | Variable          | Default           |

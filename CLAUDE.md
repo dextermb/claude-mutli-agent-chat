@@ -6,15 +6,16 @@ manager is pnpm.
 
 ## Commands
 
-| Command          | Result                                               |
-| ---------------- | ---------------------------------------------------- |
-| `pnpm dev`       | Starts the dev server.                               |
-| `pnpm test`      | Runs the Vitest tests.                               |
-| `pnpm typecheck` | Checks the types.                                    |
-| `pnpm lint`      | Runs ESLint.                                         |
-| `pnpm build`     | Checks the types and builds `dist`.                  |
-| `pnpm server`    | Starts the agent server.                             |
-| `pnpm test:live` | Runs the live check (real `claude`, about 0.02 USD). |
+| Command           | Result                                               |
+| ----------------- | ---------------------------------------------------- |
+| `pnpm dev`        | Starts the agent server and Vite together.           |
+| `pnpm dev:web`    | Starts Vite only.                                    |
+| `pnpm dev:server` | Starts the agent server only.                        |
+| `pnpm test`       | Runs the Vitest tests.                               |
+| `pnpm typecheck`  | Checks the types.                                    |
+| `pnpm lint`       | Runs ESLint.                                         |
+| `pnpm build`      | Checks the types and builds `dist`.                  |
+| `pnpm test:live`  | Runs the live check (real `claude`, about 0.02 USD). |
 
 ## Where things are
 
