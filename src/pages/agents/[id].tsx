@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
+import { FolderDialog } from "@/components/agent-form/folder-dialog"
 import {
   AgentActions,
   type ActionRefusal,
@@ -40,6 +41,7 @@ import { Input } from "@/components/ui/input"
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -95,6 +97,7 @@ export default function AgentPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionRefusal, setActionRefusal] = useState<ActionRefusal | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
   const [saved, setSaved] = useState<Draft | null>(null)
@@ -452,10 +455,27 @@ export default function AgentPage() {
                               field.handleChange(event.currentTarget.value)
                             }
                           />
+                          <InputGroupAddon align="inline-end">
+                            <InputGroupButton
+                              size="xs"
+                              onClick={() => setBrowsing(true)}
+                            >
+                              Browse
+                            </InputGroupButton>
+                          </InputGroupAddon>
                         </InputGroup>
                         <FieldError
                           id="agent-cwd-error"
                           errors={shown(field.state.meta)}
+                        />
+                        <FolderDialog
+                          open={browsing}
+                          start={field.state.value}
+                          onOpenChange={setBrowsing}
+                          onPick={(path) => {
+                            field.handleChange(path)
+                            setBrowsing(false)
+                          }}
                         />
                       </Field>
                     )}

@@ -472,4 +472,79 @@ describe("the agent configuration page", () => {
     )
     expect(turns).toHaveAttribute("aria-invalid", "true")
   })
+
+  test("browse starts at the folder of the agent, and the user can move up, open a folder and use it", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("GET", "/api/folders?path=%2Fhome%2Fuser%2Fcode%2Fweb-app", {
+      path: "/home/user/code/web-app",
+      parent: "/home/user/code",
+      folders: [{ name: "src", path: "/home/user/code/web-app/src" }],
+    })
+    network.on("GET", "/api/folders?path=%2Fhome%2Fuser%2Fcode", {
+      path: "/home/user/code",
+      parent: "/home/user",
+      folders: [
+        { name: "api", path: "/home/user/code/api" },
+        { name: "web-app", path: "/home/user/code/web-app" },
+      ],
+    })
+    network.on("GET", "/api/folders?path=%2Fhome%2Fuser%2Fcode%2Fapi", {
+      path: "/home/user/code/api",
+      parent: "/home/user/code",
+      folders: [],
+    })
+    openPage("/agents/a1")
+    const cwd = await screen.findByLabelText("Working directory")
+    await vi.waitFor(() => expect(cwd).toHaveValue("/home/user/code/web-app"))
+
+    await user.click(screen.getByRole("button", { name: "Browse" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Pick a folder" })
+    )
+    expect(
+      await dialog.findByRole("button", { name: "src" })
+    ).toBeInTheDocument()
+    await user.click(dialog.getByRole("button", { name: "Up" }))
+    await user.click(await dialog.findByRole("button", { name: "api" }))
+    expect(
+      await dialog.findByText("No folders in this folder.")
+    ).toBeInTheDocument()
+    expect(dialog.getByText("/home/user/code/api")).toBeInTheDocument()
+    await user.click(dialog.getByRole("button", { name: "Use this folder" }))
+
+    expect(cwd).toHaveValue("/home/user/code/api")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+  })
+
+  test("browse opens the home folder when the folder in the field does not exist", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "GET",
+      "/api/folders?path=%2Fnowhere",
+      { error: "The folder does not exist." },
+      404
+    )
+    network.on("GET", "/api/folders", {
+      path: "/home/user",
+      parent: "/home",
+      folders: [{ name: "code", path: "/home/user/code" }],
+    })
+    openPage("/agents/new")
+    await user.type(
+      await screen.findByLabelText("Working directory"),
+      "/nowhere"
+    )
+
+    await user.click(screen.getByRole("button", { name: "Browse" }))
+
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Pick a folder" })
+    )
+    expect(await dialog.findByText("/home/user")).toBeInTheDocument()
+    expect(dialog.getByRole("button", { name: "code" })).toBeInTheDocument()
+    expect(dialog.queryByRole("alert")).not.toBeInTheDocument()
+  })
 })
