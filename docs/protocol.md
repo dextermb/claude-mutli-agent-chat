@@ -103,6 +103,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F25 | Claude Code answers `initialize` about 1 s after the start, before any prompt and with no `system/init`. When stdin closes and no turn runs, the process exits with code 0. | Probe |
 | F26 | **Claude Code sends one permission request at a time.** Two `Write` calls in one `assistant` message give the second `can_use_tool` request only after the answer to the first. So two requests are never open at the same time. | `two-requests` |
 | F27 | **Claude Code blocks `sleep N` that a command follows.** `sleep 30 && echo finished` gives a `tool_result` with `is_error: true` and the text "Blocked: sleep 30 followed by: echo finished", with no permission request. A long test command must not use `sleep`. | Probe |
+| F28 | **An interrupt while a tool runs ends with another reason.** The running `Bash` call gets a `tool_result` with `is_error: true` ("The user doesn't want to proceed with this tool use …"), then a `user` line `[Request interrupted by user for tool use]`, then a `result` with `terminal_reason: "aborted_tools"`. | `interrupt-tool` |
 
 ## The decoder and the encoders
 
@@ -146,6 +147,7 @@ to stdout.
 | `resume-1.jsonl`, `resume-2.jsonl` | A first process, and a second process with `--resume` |
 | `background.jsonl` | A background `Bash` job, and the turn that it starts with no prompt |
 | `subagent.jsonl` | An `Agent` call and the lines of the subagent |
+| `interrupt-tool.jsonl` | A `Bash` call of `ping -c 30 127.0.0.1`, interrupted 3 s after the `tool_use` line |
 | `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
 
 To record them again:
@@ -175,5 +177,4 @@ and the names of the user's plugins before the commit.
 - `--max-turns`. The help of 2.1.311 does not list it.
 - A `rate_limit_event` with a status other than `allowed`. The names
   `allowed_warning` and `rejected` come from the types of the Agent SDK.
-- An interrupt while a tool runs. The first try hit F27.
 - Two sessions that write to the same folder at the same time.

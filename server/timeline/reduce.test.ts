@@ -250,6 +250,18 @@ describe("reduceTimeline", () => {
     expect(second.changes).toEqual([])
   })
 
+  test("an interrupt while a tool runs stops the turn and ends the tool call", () => {
+    const items = replay("interrupt-tool")
+
+    expect(ofKind(items, "turn")).toEqual([
+      expect.objectContaining({ status: "stopped" }),
+    ])
+    expect(toolCall(items, "toolu_01PFqairxqQrsUe8rD6zsBaB")).toMatchObject({
+      name: "Bash",
+      status: "error",
+    })
+  })
+
   test("each turn shows its own cost, not the cost of the process so far", () => {
     const [first, second] = ofKind(replay("background"), "turn")
 
