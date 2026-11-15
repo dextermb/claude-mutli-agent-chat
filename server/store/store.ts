@@ -74,9 +74,11 @@ export function openStore(location: string) {
     }
     db.prepare(
       `INSERT INTO agents (id, name, colour, model, permission_mode, cwd,
-         autostart, allowed_tools, disallowed_tools, system_prompt, created_at)
+         autostart, allowed_tools, disallowed_tools, system_prompt, description,
+         max_turns, created_at)
        VALUES (:id, :name, :colour, :model, :permissionMode, :cwd,
-         :autostart, :allowedTools, :disallowedTools, :systemPrompt, :createdAt)`
+         :autostart, :allowedTools, :disallowedTools, :systemPrompt, :description,
+         :maxTurns, :createdAt)`
     ).run({
       ...created,
       autostart: created.autostart ? 1 : 0,
@@ -91,7 +93,8 @@ export function openStore(location: string) {
       `UPDATE agents SET name = :name, colour = :colour, model = :model,
          permission_mode = :permissionMode, cwd = :cwd, autostart = :autostart,
          allowed_tools = :allowedTools, disallowed_tools = :disallowedTools,
-         system_prompt = :systemPrompt
+         system_prompt = :systemPrompt, description = :description,
+         max_turns = :maxTurns
        WHERE id = :id`
     ).run({
       ...agent,
@@ -331,7 +334,7 @@ export function openStore(location: string) {
       config:
         row.config === null
           ? null
-          : (JSON.parse(String(row.config)) as SessionConfig),
+          : configWithLimit(JSON.parse(String(row.config)) as SessionConfig),
       state: String(row.state),
       startedAt: String(row.started_at),
       endedAt: row.ended_at === null ? null : String(row.ended_at),
@@ -673,6 +676,12 @@ function toAgent(row: Row): Agent {
     allowedTools: JSON.parse(String(row.allowed_tools)) as string[],
     disallowedTools: JSON.parse(String(row.disallowed_tools)) as string[],
     systemPrompt: row.system_prompt === null ? null : String(row.system_prompt),
+    description: row.description === null ? null : String(row.description),
+    maxTurns: row.max_turns === null ? null : Number(row.max_turns),
     createdAt: String(row.created_at),
   }
+}
+
+function configWithLimit(config: SessionConfig): SessionConfig {
+  return { ...config, maxTurns: config.maxTurns ?? null }
 }

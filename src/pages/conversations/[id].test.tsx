@@ -14,6 +14,7 @@ import {
   editCall,
   failedNotice,
   finishedTurn,
+  limitTurn,
   localTime,
   pushCall,
   stoppedCall,
@@ -830,6 +831,16 @@ describe("the DM page", () => {
       await screen.findByText("Done in 9.2 s · $0.012 · 7 turns")
     ).toBeInTheDocument()
     expect(screen.getByText("Stopped after 24.4 s")).toBeInTheDocument()
+  })
+
+  test("a turn that reaches the turn limit says so, and how to continue", async () => {
+    openConversation([userMessage, limitTurn])
+
+    expect(
+      await screen.findByText(
+        "Stopped at the turn limit after 9.2 s · $0.012 · 7 turns. Send a message to continue."
+      )
+    ).toBeInTheDocument()
   })
 
   test("the user can stop a working agent, and the status follows the agent", async () => {

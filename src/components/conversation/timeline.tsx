@@ -197,11 +197,13 @@ function EntryBody({
   }
   if (item.kind === "turn") {
     const seconds = `${(item.durationMs / 1000).toFixed(1)} s`
+    const spent = `$${item.costUsd.toFixed(3)} · ${item.numTurns} turns`
     return (
       <p className="m-0 text-xs text-foreground-faint">
-        {item.status === "stopped"
-          ? `Stopped after ${seconds}`
-          : `Done in ${seconds} · $${item.costUsd.toFixed(3)} · ${item.numTurns} turns`}
+        {item.status === "stopped" && `Stopped after ${seconds}`}
+        {item.status === "limit" &&
+          `Stopped at the turn limit after ${seconds} · ${spent}. Send a message to continue.`}
+        {item.status === "done" && `Done in ${seconds} · ${spent}`}
       </p>
     )
   }

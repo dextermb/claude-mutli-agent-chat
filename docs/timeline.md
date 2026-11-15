@@ -38,7 +38,7 @@ Each item has an `id` (`item-1`, `item-2`, …), unique in its session, and a
 | `tool_call`  | An `assistant` `tool_use` block, then its `tool_results`      | `running`, `done`, `error`, `stopped`     |
 | `permission` | A `permission_request`, then its `permission_answer`          | `pending`, `allowed`, `denied`, `expired` |
 | `question`   | A `permission_request` for `AskUserQuestion`, then its answer | `pending`, `answered`, `expired`          |
-| `turn`       | A `result` line                                               | `done`, `stopped`                         |
+| `turn`       | A `result` line                                               | `done`, `stopped`, `limit`                |
 
 ### Messages
 
@@ -91,6 +91,10 @@ call that ran with an error `tool_result`. When the `aborted_tools` result
 comes, the reducer gives the last tool call of the turn the status
 `stopped`, if its status is `error`, and drops its result. The browser shows
 a grey dot and "Stopped".
+
+A turn that ends with `terminal_reason: "max_turns"` (the turn limit of the
+agent, F36) is `limit`. The turns of a limit come from `--max-turns`, so the
+reducer needs no other field of the `result` line.
 
 A turn does not need a prompt. A background job that ends after the turn
 starts a new turn (F11). Its message and its summary come after the summary of

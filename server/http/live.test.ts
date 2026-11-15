@@ -37,6 +37,8 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
         allowedTools: [],
         disallowedTools: [],
         systemPrompt: null,
+        description: null,
+        maxTurns: null,
       })
       const conversation = store.createConversation({
         kind: "dm",
@@ -110,6 +112,8 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
       allowedTools: [],
       disallowedTools: [],
       systemPrompt: null,
+      description: null,
+      maxTurns: null,
     })
     const conversation = store.createConversation({
       kind: "dm",
@@ -207,6 +211,8 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
         allowedTools: [],
         disallowedTools: [],
         systemPrompt: null,
+        description: null,
+        maxTurns: null,
       })
       const conversation = store.createConversation({
         kind: "channel",
@@ -279,6 +285,8 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
         allowedTools: [],
         disallowedTools: [],
         systemPrompt: null,
+        description: null,
+        maxTurns: null,
       })
       const conversation = store.createConversation({
         kind: "dm",

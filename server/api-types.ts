@@ -16,6 +16,8 @@ export type Agent = {
   allowedTools: string[]
   disallowedTools: string[]
   systemPrompt: string | null
+  description: string | null
+  maxTurns: number | null
   createdAt: string
 }
 
@@ -29,6 +31,7 @@ export type SessionConfig = Pick<
   | "allowedTools"
   | "disallowedTools"
   | "systemPrompt"
+  | "maxTurns"
 >
 
 export type SessionCard = {

@@ -319,6 +319,15 @@ export function createServer({
     publishTo(appChannel, event)
   }
 
+  async function stopAgent(agentId: string): Promise<string[]> {
+    const running = [...live.values()].filter(
+      (session) => session.agentId === agentId
+    )
+    for (const session of running) stopTurn(session)
+    await Promise.all(running.map((session) => session.handle?.stop()))
+    return running.map((session) => session.conversationId)
+  }
+
   function stopTurn(session: LiveSession) {
     session.queue = []
     if (session.state === "busy" || session.state === "waiting") {
@@ -684,6 +693,26 @@ export function createServer({
       return send(response, 200, { agent })
     }
 
+    if ((params = route("POST", "api/agents/:id/stop"))) {
+      if (!store.getAgent(params.id)) {
+        return send(response, 404, { error: "no such agent" })
+      }
+      await stopAgent(params.id)
+      return send(response, 202, {})
+    }
+
+    if ((params = route("POST", "api/agents/:id/restart"))) {
+      const agentId = params.id
+      if (!store.getAgent(agentId)) {
+        return send(response, 404, { error: "no such agent" })
+      }
+      const conversationIds = await stopAgent(agentId)
+      for (const conversationId of conversationIds) {
+        liveSessionFor(agentId, conversationId)
+      }
+      return send(response, 202, {})
+    }
+
     if ((params = route("PATCH", "api/agents/:id"))) {
       const current = store.getAgent(params.id)
       if (!current) return send(response, 404, { error: "no such agent" })
@@ -926,6 +955,7 @@ function configOf(agent: Agent): SessionConfig {
     allowedTools: agent.allowedTools,
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt,
+    maxTurns: agent.maxTurns,
   }
 }
 

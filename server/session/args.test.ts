@@ -24,6 +24,7 @@ const reviewer: AgentConfig = {
   allowedTools: [],
   disallowedTools: [],
   systemPrompt: null,
+  maxTurns: null,
 }
 
 function flagValues(args: string[], flag: string): string[] {
@@ -70,6 +71,18 @@ describe("buildArgs", () => {
       "--append-system-prompt",
       "# This session\n\nYou are reviewer-bot.",
     ])
+  })
+
+  test("an agent with a turn limit gets --max-turns, and an agent with none does not", () => {
+    const limited = buildArgs(
+      { ...reviewer, maxTurns: 30 },
+      { claudeSessionId: null },
+      CONTEXT
+    )
+    const open = buildArgs(reviewer, { claudeSessionId: null }, CONTEXT)
+
+    expect(flagValues(limited, "--max-turns")).toEqual(["30"])
+    expect(open).not.toContain("--max-turns")
   })
 
   test("a session with a Claude session id resumes that session", () => {

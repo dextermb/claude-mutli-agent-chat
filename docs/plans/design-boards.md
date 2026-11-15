@@ -33,9 +33,10 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
 - **The rail pages** Direct messages and Activity. Their buttons are
   disabled with the tooltip "Not built yet".
 - **The composer buttons** Attach a file and Run a slash command.
-- **The agent page**: Description, Maximum turns, the Command preview, Browse
-  for the working directory, and Stop agent and Restart session at the level
-  of the agent.
+- **Browse for the working directory** (the AgentConfig board): a browser
+  cannot read the path of a folder on the disk, so it needs
+  `GET /api/folders?path=` on the server and a dialog to move through the
+  folders.
 - **The Live mark of the Session log**: the hook does not expose the state
   of its stream yet.
 - **The tabs on a phone**: the MobileSession board shows no tabs in the

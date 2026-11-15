@@ -93,6 +93,8 @@ export function directMessage(store: Store): Members {
     allowedTools: [],
     disallowedTools: [],
     systemPrompt: null,
+    description: null,
+    maxTurns: null,
   })
   const conversation = store.createConversation({
     kind: "dm",
@@ -235,6 +237,8 @@ export const testRunner = {
   allowedTools: ["Read", "Bash(pnpm test:*)"],
   disallowedTools: ["WebFetch"],
   systemPrompt: "You run and fix the Vitest tests.",
+  description: null,
+  maxTurns: null,
 }
 
 export async function answerRequest(

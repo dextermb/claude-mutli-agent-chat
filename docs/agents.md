@@ -6,8 +6,13 @@ output. The browser never talks to the process.
 
 ## The command line
 
-`buildArgs(agent, session)` in `server/session/args.ts` gives the arguments
-of `claude`. The fixed part is in `docs/protocol.md`. The agent configuration
+`buildArgs(agent, session, context)` in `server/session/args.ts` gives the
+arguments of `claude`. It fills the values of the session (the plugin folder,
+the `--mcp-config` with the token, and the rule) into `claudeArgs()` in
+`server/session/claude-args.ts`. That module imports nothing from Node, so the
+Command preview of the agent page uses the same function with placeholders in
+place of these values (`docs/web-app/agent-page.md`). The token never reaches
+the browser. The fixed part is in `docs/protocol.md`. The agent configuration
 adds the rest:
 
 | Field              | Argument                                                             |
@@ -19,6 +24,7 @@ adds the rest:
 | `systemPrompt`     | `--append-system-prompt <rule>\n\n<prompt>`, or the rule only        |
 | `claudeSessionId`  | `--resume <id>`, if the session has one                              |
 | `claudeSessionNew` | With a Claude session ID: `--session-id <id>` in place of `--resume` |
+| `maxTurns`         | `--max-turns <n>`, if the agent has a limit (F36)                    |
 
 `claudeSessionNew` is true for an ID that the server chose and that has had
 no turn yet. Before the first turn, `--resume` of that ID fails (F30). After
@@ -118,8 +124,3 @@ The tests start it in place of `claude`:
 
 With `FAKE_CLAUDE_REPLY`, the fake replaces the text of each reply with that
 text, and leaves out the text pieces.
-
-## Not handled yet
-
-- `--max-turns` is not on the command line, because the help of 2.1.311 does
-  not list it.

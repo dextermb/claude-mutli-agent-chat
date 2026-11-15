@@ -3,6 +3,11 @@ import { useForm } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
+import { CommandPreview } from "@/components/agent-form/command-preview"
+import {
+  AgentActions,
+  type ActionRefusal,
+} from "@/components/agent-form/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -79,6 +84,8 @@ const EMPTY: Draft = {
   allowedTools: [],
   disallowedTools: [],
   systemPrompt: "",
+  description: "",
+  maxTurns: null,
 }
 
 export default function AgentPage() {
@@ -86,6 +93,7 @@ export default function AgentPage() {
   const [, navigate] = useLocation()
   const isNew = id === "new"
   const [error, setError] = useState<string | null>(null)
+  const [actionRefusal, setActionRefusal] = useState<ActionRefusal | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
@@ -249,6 +257,13 @@ export default function AgentPage() {
                 Cancel
               </Link>
             )}
+            {agent && agent.state !== "exited" && (
+              <AgentActions
+                agentId={agent.id}
+                agentName={agent.name}
+                onRefusal={setActionRefusal}
+              />
+            )}
             <Button type="submit">
               <CheckIcon />
               {isNew ? "Create agent" : "Save agent"}
@@ -258,6 +273,13 @@ export default function AgentPage() {
             <RefusalAlert
               title="The server refused the agent."
               refusal={error}
+            />
+          )}
+          {actionRefusal && (
+            <RefusalAlert
+              title={actionRefusal.title}
+              refusal={actionRefusal.reason}
+              onClose={() => setActionRefusal(null)}
             />
           )}
           <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-5">
@@ -335,6 +357,23 @@ export default function AgentPage() {
                           ))}
                         </RadioGroup>
                       </FieldSet>
+                    )}
+                  </form.Field>
+                  <form.Field name="description">
+                    {(field) => (
+                      <Field>
+                        <FieldLabel htmlFor="agent-description">
+                          Description
+                        </FieldLabel>
+                        <Input
+                          id="agent-description"
+                          placeholder="Runs and fixes the Vitest tests."
+                          value={field.state.value ?? ""}
+                          onChange={(event) =>
+                            field.handleChange(event.currentTarget.value)
+                          }
+                        />
+                      </Field>
                     )}
                   </form.Field>
                 </FieldGroup>
@@ -416,6 +455,47 @@ export default function AgentPage() {
                         </InputGroup>
                         <FieldError
                           id="agent-cwd-error"
+                          errors={shown(field.state.meta)}
+                        />
+                      </Field>
+                    )}
+                  </form.Field>
+                  <form.Field name="maxTurns">
+                    {(field) => (
+                      <Field data-invalid={invalid(field.state.meta)}>
+                        <FieldLabel htmlFor="agent-turns">
+                          Maximum turns
+                        </FieldLabel>
+                        <Input
+                          id="agent-turns"
+                          type="number"
+                          min={1}
+                          step={1}
+                          className="w-36 font-mono"
+                          value={field.state.value ?? ""}
+                          aria-invalid={invalid(field.state.meta)}
+                          aria-describedby={
+                            invalid(field.state.meta)
+                              ? "agent-turns-error"
+                              : "agent-turns-description"
+                          }
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(
+                              event.currentTarget.value === ""
+                                ? null
+                                : Number(event.currentTarget.value)
+                            )
+                          }
+                        />
+                        {!invalid(field.state.meta) && (
+                          <FieldDescription id="agent-turns-description">
+                            The most turns for each message. Leave it empty for
+                            no limit.
+                          </FieldDescription>
+                        )}
+                        <FieldError
+                          id="agent-turns-error"
                           errors={shown(field.state.meta)}
                         />
                       </Field>
@@ -519,6 +599,21 @@ export default function AgentPage() {
               </CardContent>
             </Card>
           </div>
+          <form.Subscribe selector={(state) => state.values}>
+            {(values) => (
+              <CommandPreview
+                agent={{
+                  model: values.model,
+                  permissionMode: values.permissionMode,
+                  allowedTools: values.allowedTools ?? [],
+                  disallowedTools: values.disallowedTools ?? [],
+                  systemPrompt: values.systemPrompt || null,
+                  maxTurns: values.maxTurns ?? null,
+                }}
+                cwd={values.cwd}
+              />
+            )}
+          </form.Subscribe>
         </form>
       </main>
     </div>
@@ -536,6 +631,8 @@ function draftOf(agent: Agent): Draft {
     allowedTools: agent.allowedTools,
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt ?? "",
+    description: agent.description ?? "",
+    maxTurns: agent.maxTurns,
   }
 }
 

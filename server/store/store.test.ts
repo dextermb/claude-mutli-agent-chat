@@ -19,6 +19,8 @@ const reviewer: NewAgent = {
   allowedTools: ["Read", "Bash(git *)"],
   disallowedTools: ["WebFetch"],
   systemPrompt: "You review pull requests.",
+  description: "Reviews each pull request.",
+  maxTurns: 30,
 }
 
 const stores: Store[] = []
@@ -137,6 +139,8 @@ describe("Store", () => {
       allowedTools: ["Read", "Bash(git *)"],
       disallowedTools: ["WebFetch"],
       systemPrompt: "You review pull requests.",
+      description: "Reviews each pull request.",
+      maxTurns: 30,
     })
   })
 
@@ -355,6 +359,36 @@ describe("Store", () => {
     ).toEqual([{ kind: "question", status: "expired" }])
   })
 
+  test("an agent of an older database has no description, and a description can be saved", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+    const older = store.getAgent("a1")
+
+    expect(older).toMatchObject({ name: "reviewer-bot", description: null })
+    const { id, createdAt, ...fields } = older!
+    store.updateAgent(id, {
+      ...fields,
+      description: "Reviews each pull request.",
+    })
+    expect(store.getAgent("a1")).toMatchObject({
+      description: "Reviews each pull request.",
+      createdAt,
+    })
+  })
+
+  test("an agent of an older database has no turn limit, and a turn limit can be saved", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+    const older = store.getAgent("a1")
+
+    expect(older).toMatchObject({ maxTurns: null })
+    const { id, createdAt, ...fields } = older!
+    store.updateAgent(id, { ...fields, maxTurns: 30 })
+    expect(store.getAgent("a1")).toMatchObject({ maxTurns: 30, createdAt })
+  })
+
   test("a database of version 1 gets the exit columns, and keeps its rows", () => {
     const { file, db } = versionOneFile()
     db.close()
@@ -410,6 +444,7 @@ describe("Store", () => {
       allowedTools: ["Read"],
       disallowedTools: [],
       systemPrompt: null,
+      maxTurns: null,
     }
 
     const created = store.createSession({
@@ -429,6 +464,34 @@ describe("Store", () => {
       claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
       claudeSessionNew: false,
       config,
+    })
+  })
+
+  test("the configuration of a session from before the turn limit reads with no limit", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    openStore(file).close()
+    const older = new DatabaseSync(file)
+    older.prepare("UPDATE agent_sessions SET config = ? WHERE id = 's1'").run(
+      JSON.stringify({
+        model: "claude-haiku-5-5",
+        permissionMode: "default",
+        cwd: "/home/user/projects/app",
+        allowedTools: [],
+        disallowedTools: [],
+        systemPrompt: null,
+      })
+    )
+    older.close()
+
+    expect(openFile(file).getSession("s1")?.config).toEqual({
+      model: "claude-haiku-5-5",
+      permissionMode: "default",
+      cwd: "/home/user/projects/app",
+      allowedTools: [],
+      disallowedTools: [],
+      systemPrompt: null,
+      maxTurns: null,
     })
   })
 

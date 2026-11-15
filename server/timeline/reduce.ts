@@ -64,7 +64,7 @@ export type QuestionItem = {
 export type TurnItem = {
   kind: "turn"
   id: string
-  status: "done" | "stopped"
+  status: "done" | "stopped" | "limit"
   durationMs: number
   costUsd: number
   numTurns: number
@@ -287,12 +287,17 @@ function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
   const step = add(start, (id) => ({
     kind: "turn",
     id,
-    status: INTERRUPTED.includes(line.terminalReason) ? "stopped" : "done",
+    status: turnStatus(line.terminalReason),
     durationMs: line.durationMs,
     costUsd: line.totalCostUsd - state.costSoFar,
     numTurns: line.numTurns,
   }))
   return { ...step, state: { ...step.state, costSoFar: line.totalCostUsd } }
+}
+
+function turnStatus(terminalReason: string): TurnItem["status"] {
+  if (INTERRUPTED.includes(terminalReason)) return "stopped"
+  return terminalReason === "max_turns" ? "limit" : "done"
 }
 
 function stopLastToolCall(step: TimelineStep): TimelineStep {
