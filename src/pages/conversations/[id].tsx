@@ -160,19 +160,20 @@ export default function ConversationPage() {
               <MenuIcon />
             </Button>
           )}
-          {isDirect && agent ? (
+          {isDirect && agent && (
             <Avatar size="sm">
               <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
                 {initialsOf(agent.name)}
               </AvatarFallback>
               {status && <AvatarBadge className={status.dot} />}
             </Avatar>
-          ) : (
-            <KindIcon conversation={conversation.conversation} />
           )}
-          <h1 className="m-0 text-base font-semibold text-foreground-strong">
-            {conversation.conversation.name}
-          </h1>
+          <div className="flex items-center gap-1.5 text-foreground-strong">
+            {!isDirect && <KindIcon conversation={conversation.conversation} />}
+            <h1 className="m-0 text-base font-semibold">
+              {conversation.conversation.name}
+            </h1>
+          </div>
           {isDirect && status && (
             <Badge variant="outline" className={status.text}>
               <span className={`size-1.5 rounded-full ${status.dot}`} />
