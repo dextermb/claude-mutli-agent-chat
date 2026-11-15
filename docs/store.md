@@ -106,7 +106,9 @@ at `item-1`, so it needs a new row, or its items replace the items of the
 earlier process.
 
 `addUserMessage(conversationId, text)` stores a message of `user:me` with a
-new UUID.
+new UUID. `addMessage(conversationId, authorKey, text)` does the same for any
+author. The `chat` tools use it for a message of an agent, so that message
+has no `session_id`, and a rebuild of the session keeps it (`docs/mcp.md`).
 
 Each entry has a `createdAt`. For a user message, it is the time of the
 message. For an agent item, it is the `at` of the stdout line that added the
@@ -135,7 +137,7 @@ in each replay.
 | `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                                                                                                                                         |
 | `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                                                                                                                                      |
 | `listAgentLines(agentId, conversationId, { limit, before })`               | The lines of each session of that agent in that conversation, the last `limit` before `before`, in order                                                              |
-| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)`          | The timeline                                                                                                                                                          |
+| `saveItems()`, `addMessage()`, `listTimeline(conversationId)`              | The timeline                                                                                                                                                          |
 | `listSessionTurns(agentId, conversationId, claudeSessionId)`               | The turn items of each row with that Claude session ID                                                                                                                |
 | `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines                                                                                                                                |
 | `markRead(id, seq)`, `unreadCounts()`                                      | Keeps the higher `seq` of the two, and counts the agent items of kind `message`, `notice`, `permission` and `question` after the `last_read_seq` of each conversation |

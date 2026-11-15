@@ -14,7 +14,7 @@ adds the rest:
 | ------------------ | -------------------------------------------------------------------- |
 | `model`            | `--model <model>`                                                    |
 | `permissionMode`   | `--permission-mode <mode>`                                           |
-| `allowedTools`     | `--allowedTools <rule> …`, if the list has one                       |
+| `allowedTools`     | `--allowedTools <rule> …`, then the read tools of the chat server    |
 | `disallowedTools`  | `--disallowedTools <rule> …`, if the list has one                    |
 | `systemPrompt`     | `--append-system-prompt <rule>\n\n<prompt>`, or the rule only        |
 | `claudeSessionId`  | `--resume <id>`, if the session has one                              |
@@ -29,7 +29,8 @@ The third argument of `buildArgs()` is the rule of the environment
 (`docs/agent-environment.md`). The rule and the system prompt of the agent go
 after the default prompt of Claude Code, so the agent keeps the guidance for
 its tools. Each session also gets `--plugin-dir` with the `agent/` folder of
-the repository.
+the repository, and `--mcp-config` with the `chat` MCP server and the token of
+the session (`docs/mcp.md`).
 
 The folder of the agent is the `cwd` of the process, not an argument.
 

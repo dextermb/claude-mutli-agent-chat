@@ -28,6 +28,7 @@ Browser (Vite + React)                  Agent server (Node 24, server/)
 | Lines to timeline items     | `docs/timeline.md`          |
 | The `claude` process        | `docs/agents.md`            |
 | What an agent knows         | `docs/agent-environment.md` |
+| The tools of an agent       | `docs/mcp.md`               |
 | The tables and queries      | `docs/store.md`             |
 | Routes and the event stream | `docs/server.md`            |
 | Who gets a turn             | `docs/conversations.md`     |
@@ -83,6 +84,14 @@ into `--append-system-prompt`, because it must be in each turn, and a skill
 loads only on demand. Rejected: a `CLAUDE.md` in the folder of the agent,
 because the folder belongs to the user (`docs/agent-environment.md`).
 
+**The agent server hosts the `chat` MCP server.** At `POST /mcp`, so a tool
+calls the store and the conversation code directly, with no second process.
+A token in the header tells which session calls. The JSON-RPC is our own
+code, for the same reason as the driver: few methods, each one measured
+(F35). The read tools need no card, and the write tools show an approval
+card (`docs/mcp.md`). Rejected: a stdio server for each process, and the
+`@modelcontextprotocol/sdk` package.
+
 **Mentions with no limit.** An agent can mention another agent, and the user
 stops a chain with Stop. The prompt of a mentioned agent holds the messages
 since its last turn (`docs/conversations.md`).
@@ -108,6 +117,9 @@ the request cannot get an answer. The next prompt resumes the session.
   each message.
 - **A chain of mentions has no limit.** Two agents that mention each other run
   until the user clicks Stop. The header shows the busy agents.
+- **A chain can cross conversations.** `send_message` with a mention starts a
+  turn in another conversation, and Stop stops one conversation only. Each
+  write tool shows an approval card, so the user sees each step.
 - **User hooks run in each agent.** A slow or failing user hook makes each
   agent slow or makes it fail.
 - **Two agents in one folder.** Two agents with the same `cwd` can edit the

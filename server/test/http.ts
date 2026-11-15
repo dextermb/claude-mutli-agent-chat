@@ -271,3 +271,50 @@ export function promptsTo(
       return message.content.map((block) => block.text).join("")
     })
 }
+
+export function chatServerOf(args: string[]) {
+  const config = JSON.parse(args[args.indexOf("--mcp-config") + 1]) as {
+    mcpServers: {
+      chat: { url: string; headers: { Authorization: string } }
+    }
+  }
+  return config.mcpServers.chat
+}
+
+export async function callChat(
+  args: string[],
+  method: string,
+  params: Record<string, unknown> = {},
+  authorization = chatServerOf(args).headers.Authorization
+) {
+  return postChat(
+    args,
+    { jsonrpc: "2.0", id: 1, method, params },
+    authorization
+  )
+}
+
+export async function postChat(
+  args: string[],
+  message: Record<string, unknown>,
+  authorization = chatServerOf(args).headers.Authorization,
+  method = "POST"
+) {
+  const response = await fetch(chatServerOf(args).url, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      authorization,
+    },
+    body: method === "POST" ? JSON.stringify(message) : undefined,
+  })
+  const text = await response.text()
+  return {
+    status: response.status,
+    body: (text === "" ? null : JSON.parse(text)) as Record<
+      string,
+      unknown
+    > | null,
+  }
+}
