@@ -973,16 +973,20 @@ describe("the DM page", () => {
 
     await user.click(members.getByRole("button", { name: "Invite agents" }))
     const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
+    expect(dialog).toHaveAccessibleDescription(
+      "A new member sees only the messages after it joins. It replies when someone @mentions it."
+    )
     await waitFor(() =>
       expect(
         within(dialog)
           .getAllByRole("checkbox")
           .map((box) => box.getAttribute("aria-label"))
-      ).toEqual(["Pick docs-writer"])
+      ).toEqual(["Invite docs-writer"])
     )
     await user.click(
-      within(dialog).getByRole("checkbox", { name: "Pick docs-writer" })
+      within(dialog).getByRole("checkbox", { name: "Invite docs-writer" })
     )
+    expect(within(dialog).getByText("1 picked")).toBeInTheDocument()
     await user.click(within(dialog).getByRole("button", { name: "Invite" }))
 
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
@@ -1321,12 +1325,14 @@ describe("a refused action", () => {
     const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
 
     await user.click(
-      await within(dialog).findByRole("checkbox", { name: "Pick docs-writer" })
+      await within(dialog).findByRole("checkbox", {
+        name: "Invite docs-writer",
+      })
     )
     await user.click(within(dialog).getByRole("button", { name: "Invite" }))
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "The server did not answer."
+      "The server did not answer. The agents were not added."
     )
   })
 

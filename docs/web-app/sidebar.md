@@ -74,9 +74,17 @@ comes, each dialog says "The server did not answer." and stays open.
 
 ## Members
 
-The header of a group chat has "Add people or agents", and the header of a
-channel has "Invite agents", as in the design. Each opens
-`src/components/add-members-dialog.tsx`: the agents that are not members,
-each with its model and its mode, and a checkbox. Add or Invite sends the
-picked agents. If the server refuses, the dialog shows the reason, or "The
-server did not answer." when no answer came.
+The members panel of a group chat has "Add people or agents", and the members
+panel of a channel has "Invite agents" (`docs/web-app/session-panel.md`).
+Each opens `src/components/add-members-dialog.tsx`. Its description depends on
+the reply mode: "A new member sees only the messages after it joins. It
+replies when someone @mentions it." Under the heading "Agents that are not
+members", each agent shows its model and its mode, and a checkbox named
+"Invite <agent>" or "Add <agent>". The footer counts the picked agents ("1
+picked"). Add or Invite sends the picked agents. If the server refuses, an
+alert over the list shows the reason and "The agents were not added.", or
+"The server did not answer." when no answer came.
+
+Start a chat lists the agents under the heading "Agents", each with a status
+dot on its avatar. A refusal in Start a chat or Create a channel shows in the
+same alert.

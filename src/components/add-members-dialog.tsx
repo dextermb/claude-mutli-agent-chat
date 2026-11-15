@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useId, useState } from "react"
 
 import {
   AVATAR_COLOURS,
   initialsOf,
 } from "@/components/conversation/agent-look"
+import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -43,6 +44,7 @@ export function AddMembersDialog({
 }) {
   const [agents, setAgents] = useState<AgentWithState[]>([])
   const [picked, setPicked] = useState<string[]>([])
+  const headingId = useId()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -88,53 +90,75 @@ export function AddMembersDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            An agent that joins sees the messages that come after it joins.
+            {conversation.replyMode === "mention"
+              ? "A new member sees only the messages after it joins. It replies when someone @mentions it."
+              : "A new member sees only the messages after it joins. It replies to every message."}
           </DialogDescription>
         </DialogHeader>
-        {outside.length === 0 ? (
-          <p className="m-0 text-muted-foreground">
-            Each agent is a member already.
-          </p>
-        ) : (
-          <ItemGroup>
-            {outside.map((agent) => (
-              <Item key={agent.id} size="sm">
-                <ItemMedia>
-                  <Avatar>
-                    <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-                      {initialsOf(agent.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{agent.name}</ItemTitle>
-                  <ItemDescription>
-                    {agent.model} · {agent.permissionMode}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Checkbox
-                    aria-label={`Pick ${agent.name}`}
-                    checked={picked.includes(agent.id)}
-                    onCheckedChange={(on) =>
-                      setPicked((current) =>
-                        on
-                          ? [...current, agent.id]
-                          : current.filter((id) => id !== agent.id)
-                      )
-                    }
-                  />
-                </ItemActions>
-              </Item>
-            ))}
-          </ItemGroup>
-        )}
-        {error && (
-          <p role="alert" className="m-0 text-destructive">
-            {error}
-          </p>
-        )}
+        <div className="flex min-w-0 flex-col gap-3">
+          {error && (
+            <RefusalAlert refusal={`${error} The agents were not added.`} />
+          )}
+          {outside.length === 0 ? (
+            <p className="m-0 text-muted-foreground">
+              Each agent is a member already.
+            </p>
+          ) : (
+            <>
+              <h3
+                id={headingId}
+                className="m-0 text-xs font-medium text-muted-foreground"
+              >
+                Agents that are not members
+              </h3>
+              <ItemGroup aria-labelledby={headingId} className="gap-2">
+                {outside.map((agent) => (
+                  <Item
+                    key={agent.id}
+                    size="sm"
+                    variant="outline"
+                    role="listitem"
+                  >
+                    <ItemMedia>
+                      <Avatar size="sm">
+                        <AvatarFallback
+                          className={AVATAR_COLOURS[agent.colour]}
+                        >
+                          {initialsOf(agent.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>{agent.name}</ItemTitle>
+                      <ItemDescription className="font-mono text-xs">
+                        {agent.model} · {agent.permissionMode}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      <Checkbox
+                        aria-label={`${submitLabel} ${agent.name}`}
+                        checked={picked.includes(agent.id)}
+                        onCheckedChange={(on) =>
+                          setPicked((current) =>
+                            on
+                              ? [...current, agent.id]
+                              : current.filter((id) => id !== agent.id)
+                          )
+                        }
+                      />
+                    </ItemActions>
+                  </Item>
+                ))}
+              </ItemGroup>
+            </>
+          )}
+        </div>
         <DialogFooter>
+          <span className="flex-1 self-center text-xs text-foreground-faint">
+            {picked.length === 0
+              ? "No agent picked"
+              : `${picked.length} picked`}
+          </span>
           <DialogClose render={<Button variant="outline" />}>
             Cancel
           </DialogClose>

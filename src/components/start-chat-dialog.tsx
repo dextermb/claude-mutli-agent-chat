@@ -1,12 +1,13 @@
 import { SearchIcon, XIcon } from "lucide-react"
-import { useState } from "react"
+import { useId, useState } from "react"
 
 import {
   AVATAR_COLOURS,
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { RefusalAlert } from "@/components/conversation/refusal-alert"
+import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -33,6 +34,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
+import { Separator } from "@/components/ui/separator"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
 
@@ -50,6 +52,7 @@ export function StartChatDialog({
   const [search, setSearch] = useState("")
   const [picked, setPicked] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const headingId = useId()
 
   const shown = agents.filter((agent) =>
     agent.name.toLowerCase().includes(search.trim().toLowerCase())
@@ -138,14 +141,22 @@ export function StartChatDialog({
               </ul>
             </div>
           )}
-          <ItemGroup>
+          <Separator />
+          <h3
+            id={headingId}
+            className="m-0 text-xs font-medium text-muted-foreground"
+          >
+            Agents
+          </h3>
+          <ItemGroup aria-labelledby={headingId}>
             {shown.map((agent) => (
-              <Item key={agent.id} size="sm">
+              <Item key={agent.id} size="sm" role="listitem">
                 <ItemMedia>
                   <Avatar>
                     <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
                       {initialsOf(agent.name)}
                     </AvatarFallback>
+                    <AvatarBadge className={statusOf(agent.state).dot} />
                   </Avatar>
                 </ItemMedia>
                 <ItemContent>
@@ -164,11 +175,7 @@ export function StartChatDialog({
               </Item>
             ))}
           </ItemGroup>
-          {error && (
-            <p role="alert" className="m-0 text-destructive">
-              {error}
-            </p>
-          )}
+          {error && <RefusalAlert refusal={error} />}
         </div>
         <DialogFooter>
           <span className="flex-1 self-center text-xs text-foreground-faint">

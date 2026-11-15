@@ -6,6 +6,7 @@ import {
   AVATAR_COLOURS,
   initialsOf,
 } from "@/components/conversation/agent-look"
+import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -250,11 +251,7 @@ export function CreateChannelDialog({
               </form.Field>
             </FieldSet>
           </FieldGroup>
-          {error && (
-            <p role="alert" className="m-0 text-destructive">
-              {error}
-            </p>
-          )}
+          {error && <RefusalAlert refusal={error} />}
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
