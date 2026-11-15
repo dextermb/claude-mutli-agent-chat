@@ -79,6 +79,31 @@ function openChannel(entries: TimelineEntry[]) {
   return render(<App />)
 }
 
+type Shown = "complementary" | "dialog"
+
+async function openMembers(
+  user: ReturnType<typeof userEvent.setup>,
+  shown: Shown = "complementary"
+) {
+  const header = within(await screen.findByRole("banner"))
+  await user.click(header.getByRole("button", { name: /^Members:/ }))
+  return within(await screen.findByRole(shown, { name: "Members" }))
+}
+
+async function openMember(
+  user: ReturnType<typeof userEvent.setup>,
+  row: string,
+  shown: Shown = "complementary"
+) {
+  const members = await openMembers(user, shown)
+  await user.click(members.getByRole("button", { name: row }))
+  return within(
+    await members.findByRole("region", {
+      name: `Session of ${row.split(" ")[0]}`,
+    })
+  )
+}
+
 beforeEach(() => {
   network = fakeNetwork()
 })
@@ -905,26 +930,32 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
-  test("in a channel, a click on an agent in the header opens the session panel of that agent", async () => {
+  test("in a channel, the members button opens the members, and a click on an agent opens its session", async () => {
     const user = userEvent.setup()
     openChannel([userMessage])
     network.on("GET", "/api/conversations/ch1/agents/a2/session", {
-      session: { ...testRunnerSession, model: "claude-opus-5-5" },
+      session: { ...testRunnerSession, permissionMode: "plan" },
     })
     const header = within(await screen.findByRole("banner"))
-    expect(
-      screen.queryByRole("complementary", { name: "Session" })
-    ).not.toBeInTheDocument()
-
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of reviewer-bot",
+    const button = header.getByRole("button", {
+      name: "Members: 1 person, 2 agents",
     })
+    expect(button).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+
+    const members = await openMembers(user)
+    expect(button).toHaveAttribute("aria-expanded", "true")
+    expect(members.getByText("1 person · 2 agents")).toBeInTheDocument()
+    await user.click(members.getByRole("button", { name: "reviewer-bot Idle" }))
+
+    const session = within(
+      await members.findByRole("region", { name: "Session of reviewer-bot" })
+    )
+    expect(await session.findByText("plan")).toBeInTheDocument()
     expect(
-      await within(panel).findByText("claude-opus-5-5")
-    ).toBeInTheDocument()
-    await user.click(within(panel).getByRole("button", { name: "Close" }))
+      members.getByRole("button", { name: "reviewer-bot Idle" })
+    ).toHaveAttribute("aria-expanded", "true")
+    await user.click(members.getByRole("button", { name: "Close" }))
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
   })
 
@@ -938,9 +969,9 @@ describe("the DM page", () => {
     network.on("POST", "/api/conversations/ch1/members", {
       conversation: releaseChannel,
     })
-    const header = within(await screen.findByRole("banner"))
+    const members = await openMembers(user)
 
-    await user.click(header.getByRole("button", { name: "Invite agents" }))
+    await user.click(members.getByRole("button", { name: "Invite agents" }))
     const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
     await waitFor(() =>
       expect(
@@ -977,15 +1008,9 @@ describe("the DM page", () => {
     network.on("DELETE", "/api/conversations/ch1/members/a2", {
       conversation: releaseChannel,
     })
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of reviewer-bot",
-    })
+    const session = await openMember(user, "reviewer-bot Idle")
 
-    await user.click(
-      within(panel).getByRole("button", { name: "Remove from conversation" })
-    )
+    await user.click(session.getByRole("button", { name: "Remove" }))
 
     expect(
       network.sent.filter((request) => request.method === "DELETE")
@@ -996,7 +1021,9 @@ describe("the DM page", () => {
         body: undefined,
       },
     ])
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("region", { name: "Session of reviewer-bot" })
+    ).not.toBeInTheDocument()
   })
 
   test("in a channel, the divider of a new session names the agent", async () => {
@@ -1043,14 +1070,13 @@ describe("the DM page", () => {
       header.getByRole("heading", { name: "release-train" })
     ).toBeInTheDocument()
     expect(header.getByText("Ship v2.4 on Friday.")).toBeInTheDocument()
-    const members = header.getByRole("list", {
-      name: "Agents in this conversation",
-    })
     expect(
-      within(members)
-        .getAllByRole("listitem")
-        .map((item) => item.textContent)
-    ).toEqual(["test-runner Working", "reviewer-bot Idle"])
+      header.getByRole("button", { name: "Members: 1 person, 2 agents" })
+    ).toBeInTheDocument()
+    expect(header.getByRole("button", { name: "Stop all" })).toBeInTheDocument()
+    expect(
+      screen.getByText("test-runner is working. reviewer-bot is idle.")
+    ).toBeInTheDocument()
     const messages = screen.getAllByRole("article")
     expect(within(messages[1]).getByText("reviewer-bot")).toBeInTheDocument()
     expect(within(messages[2]).getByText("test-runner")).toBeInTheDocument()
@@ -1123,19 +1149,13 @@ describe("a refused action", () => {
       400
     )
     openGroupOfOne()
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "test-runner Idle" }))
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of test-runner",
-    })
+    const session = await openMember(user, "test-runner Idle")
 
-    await user.click(
-      within(panel).getByRole("button", { name: "Remove from conversation" })
-    )
+    await user.click(session.getByRole("button", { name: "Remove" }))
 
-    expect(await within(panel).findByRole("alert")).toHaveTextContent(
-      "A group chat needs one agent or more."
-    )
+    const alert = await session.findByRole("alert")
+    expect(alert).toHaveTextContent("Remove did not work.")
+    expect(alert).toHaveTextContent("A group chat needs one agent or more.")
   })
   test("a refused stop turn shows the reason of the server in the session panel", async () => {
     const user = userEvent.setup()
@@ -1221,23 +1241,17 @@ describe("a refused action", () => {
       session: testRunnerSession,
     })
     network.fail("DELETE", "/api/conversations/ch1/members/a2")
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-    const panel = await screen.findByRole("complementary", {
-      name: "Session of reviewer-bot",
-    })
-    await user.click(
-      within(panel).getByRole("button", { name: "Remove from conversation" })
-    )
-    await within(panel).findByRole("alert")
+    const session = await openMember(user, "reviewer-bot Idle")
+    await user.click(session.getByRole("button", { name: "Remove" }))
+    await session.findByRole("alert")
 
     await user.click(
-      header.getByRole("button", { name: "test-runner Working" })
+      screen.getByRole("button", { name: "test-runner Working" })
     )
 
     expect(
       within(
-        screen.getByRole("complementary", { name: "Session of test-runner" })
+        await screen.findByRole("region", { name: "Session of test-runner" })
       ).queryByRole("alert")
     ).not.toBeInTheDocument()
   })
@@ -1302,8 +1316,8 @@ describe("a refused action", () => {
       agents: [docsWriter, reviewerBot, testRunner],
     })
     network.fail("POST", "/api/conversations/ch1/members")
-    const header = within(await screen.findByRole("banner"))
-    await user.click(header.getByRole("button", { name: "Invite agents" }))
+    const members = await openMembers(user)
+    await user.click(members.getByRole("button", { name: "Invite agents" }))
     const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
 
     await user.click(
@@ -1445,7 +1459,7 @@ describe("a narrow screen", () => {
     ).toBeInTheDocument()
   })
 
-  test("in a channel, a click on an agent opens its session panel as a sheet, and Close closes it", async () => {
+  test("in a channel, the members open as a sheet, and Close closes it", async () => {
     const user = userEvent.setup()
     screenWidth(375)
     openChannel([userMessage])
@@ -1454,19 +1468,23 @@ describe("a narrow screen", () => {
     })
     const header = within(await screen.findByRole("banner"))
 
-    await user.click(header.getByRole("button", { name: "reviewer-bot Idle" }))
-    const sheet = await screen.findByRole("dialog", {
-      name: "Session of reviewer-bot",
-    })
+    const session = await openMember(user, "reviewer-bot Idle", "dialog")
+    expect(await session.findByText("acceptEdits")).toBeInTheDocument()
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
-    await user.click(within(sheet).getByRole("button", { name: "Close" }))
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Members" })).getByRole(
+        "button",
+        { name: "Close" }
+      )
+    )
 
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     )
-    expect(
-      header.getByRole("button", { name: "reviewer-bot Idle" })
-    ).toHaveAttribute("aria-pressed", "false")
+    expect(header.getByRole("button", { name: /^Members:/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    )
   })
 
   test("a wide screen shows the session panel at the side, with no session button", async () => {

@@ -50,6 +50,6 @@ type check of the app does not need the Node types.
 | Page                            | Open it for                                                                                          |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `docs/web-app/conversation.md`  | `useConversation()`, the parts of the timeline, the status words, a refused action, and the `@` list |
-| `docs/web-app/session-panel.md` | The session panel, Stop turn, New session, Remove, and the Files and Session log tabs                |
+| `docs/web-app/session-panel.md` | The session panel, the members of a channel, Stop turn, New session, Remove, and the DM tabs         |
 | `docs/web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs Start a chat, Create a channel and Members            |
 | `docs/web-app/agent-page.md`    | The form for a new or a saved agent                                                                  |

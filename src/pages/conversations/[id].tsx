@@ -1,17 +1,22 @@
 import {
   HashIcon,
+  InfoIcon,
   LockIcon,
   MenuIcon,
   SettingsIcon,
   CpuIcon,
   SquareIcon,
-  UserPlusIcon,
   UsersIcon,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Link, useLocation, useParams, useSearch } from "wouter"
 
-import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Avatar,
+  AvatarBadge,
+  AvatarFallback,
+  AvatarGroup,
+} from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,6 +32,7 @@ import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
 import {
+  MembersPanel,
   SessionPanel,
   SessionSheet,
 } from "@/components/conversation/session-panel"
@@ -48,6 +54,7 @@ export default function ConversationPage() {
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [showingSheet, setShowingSheet] = useState(false)
+  const [showingMembers, setShowingMembers] = useState(false)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   useMarkRead(params.id, conversation.entries.at(-1)?.seq)
@@ -103,7 +110,6 @@ export default function ConversationPage() {
   const status = agent ? statusOf(agent.state) : null
   const panel = panelAgent && {
     agentId: panelAgent.id,
-    label: isDirect ? "Session" : `Session of ${panelAgent.name}`,
     card,
     working: panelAgent.state === "busy" || panelAgent.state === "waiting",
     agentName: panelAgent.name,
@@ -120,6 +126,10 @@ export default function ConversationPage() {
   const working = conversation.agents.filter(
     (member) => member.state === "busy" || member.state === "waiting"
   )
+  const people = conversation.conversation.members.filter((member) =>
+    member.startsWith("user:")
+  ).length
+  const agentCount = conversation.agents.length
   return (
     <div className="flex h-svh bg-background text-sm text-foreground">
       <AppSidebar
@@ -174,37 +184,6 @@ export default function ConversationPage() {
               {conversation.conversation.topic}
             </span>
           )}
-          {!isDirect && (
-            <ul
-              aria-label="Agents in this conversation"
-              className="m-0 flex list-none flex-wrap gap-3 p-0"
-            >
-              {conversation.agents.map((member) => (
-                <li key={member.id}>
-                  <button
-                    type="button"
-                    aria-pressed={member.id === pickedId}
-                    className="flex items-center gap-1.5 rounded px-1 text-xs text-muted-foreground hover:bg-accent aria-pressed:text-foreground"
-                    onClick={() =>
-                      setPickedId(member.id === pickedId ? null : member.id)
-                    }
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`size-2 rounded-full ${statusOf(member.state).dot}`}
-                    />
-                    {`${member.name} ${statusOf(member.state).label}`}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!isDirect && (
-            <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-              <UserPlusIcon />
-              {addLabel}
-            </Button>
-          )}
           <div className="min-w-4 flex-1" />
           {working.length > 0 && (
             <Button
@@ -213,7 +192,29 @@ export default function ConversationPage() {
               onClick={async () => showRefusal(await conversation.stop())}
             >
               <SquareIcon />
-              Stop
+              {isDirect ? "Stop" : "Stop all"}
+            </Button>
+          )}
+          {!isDirect && (
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-expanded={showingMembers}
+              aria-label={`Members: ${people} ${
+                people === 1 ? "person" : "people"
+              }, ${agentCount} ${agentCount === 1 ? "agent" : "agents"}`}
+              onClick={() => setShowingMembers(!showingMembers)}
+            >
+              <AvatarGroup>
+                {conversation.agents.slice(0, 3).map((member) => (
+                  <Avatar key={member.id} size="sm">
+                    <AvatarFallback className={AVATAR_COLOURS[member.colour]}>
+                      {initialsOf(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </AvatarGroup>
+              {people + agentCount}
             </Button>
           )}
           {isDirect && (
@@ -292,25 +293,44 @@ export default function ConversationPage() {
                 showRefusal(await conversation.answer(requestId, answer))
               }
             />
+            {!isDirect && working.length > 0 && (
+              <p className="m-0 flex items-center gap-2 py-1 pr-5 pl-[72px] text-xs text-foreground-faint">
+                <span
+                  aria-hidden="true"
+                  className={`size-2 flex-none rounded-full ${
+                    statusOf(working[0].state).dot
+                  }`}
+                />
+                {threadLine(conversation.agents, conversation.entries)}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5 px-5 pb-4">
-            {conversation.agents.map((member) => {
-              const line = statusLine(member, conversation.entries)
-              return (
-                line && (
-                  <p
-                    key={member.id}
-                    className="m-0 flex items-center gap-2 text-xs text-foreground-faint"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`size-2 flex-none rounded-full ${statusOf(member.state).dot}`}
-                    />
-                    {line}
-                  </p>
+            {!isDirect && (
+              <p className="m-0 flex items-center gap-2 text-xs text-foreground-faint">
+                <InfoIcon aria-hidden="true" className="size-4 flex-none" />
+                Agents reply to each other in this thread when they @mention
+                each other. Stop all ends the chain.
+              </p>
+            )}
+            {isDirect &&
+              conversation.agents.map((member) => {
+                const line = statusLine(member, conversation.entries)
+                return (
+                  line && (
+                    <p
+                      key={member.id}
+                      className="m-0 flex items-center gap-2 text-xs text-foreground-faint"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`size-2 flex-none rounded-full ${statusOf(member.state).dot}`}
+                      />
+                      {line}
+                    </p>
+                  )
                 )
-              )
-            })}
+              })}
             {shownRefusal && (
               <RefusalAlert
                 refusal={shownRefusal}
@@ -340,24 +360,31 @@ export default function ConversationPage() {
           onOpenChange={setAdding}
         />
       )}
-      {panel &&
-        (isMobile ? (
-          <SessionSheet
-            key={panel.agentId}
-            {...panel}
-            open={isDirect ? showingSheet : true}
-            onOpenChange={(open) => {
-              if (isDirect) setShowingSheet(open)
-              else if (!open) setPickedId(null)
-            }}
-          />
-        ) : (
-          <SessionPanel
-            key={panel.agentId}
-            {...panel}
-            onClose={isDirect ? undefined : () => setPickedId(null)}
-          />
-        ))}
+      {isDirect && panel && isMobile && (
+        <SessionSheet
+          key={panel.agentId}
+          {...panel}
+          open={showingSheet}
+          onOpenChange={setShowingSheet}
+        />
+      )}
+      {isDirect && panel && !isMobile && (
+        <SessionPanel key={panel.agentId} {...panel} />
+      )}
+      {!isDirect && (
+        <MembersPanel
+          asSheet={isMobile}
+          open={showingMembers}
+          onClose={() => setShowingMembers(false)}
+          people={people}
+          agents={conversation.agents}
+          pickedId={pickedId}
+          onPick={setPickedId}
+          details={panel ?? null}
+          addLabel={addLabel}
+          onAdd={() => setAdding(true)}
+        />
+      )}
     </div>
   )
 }
@@ -383,13 +410,54 @@ function statusLine(
     return `${member.name} stopped. Your next message starts it again and resumes the session.`
   }
   if (member.state !== "waiting") return null
-  const asks = entries.some(
+  return asksQuestion(member, entries)
+    ? `${member.name} waits for your answer. ${next}`
+    : `${member.name} needs your approval. ${next}`
+}
+
+function threadLine(
+  agents: AgentWithState[],
+  entries: TimelineEntry[]
+): string {
+  const states: [string, string, (agent: AgentWithState) => boolean][] = [
+    ["is working", "are working", (agent) => agent.state === "busy"],
+    [
+      "needs your approval",
+      "need your approval",
+      (agent) => agent.state === "waiting" && !asksQuestion(agent, entries),
+    ],
+    [
+      "waits for your answer",
+      "wait for your answer",
+      (agent) => agent.state === "waiting" && asksQuestion(agent, entries),
+    ],
+    ["stopped", "stopped", (agent) => agent.state === "failed"],
+    [
+      "is idle",
+      "are idle",
+      (agent) => agent.state === "idle" || agent.state === "starting",
+    ],
+    ["is stopped", "are stopped", (agent) => agent.state === "exited"],
+  ]
+  return states
+    .map(([one, many, matches]) => {
+      const names = agents.filter(matches).map((agent) => agent.name)
+      if (names.length === 0) return null
+      const list =
+        names.length === 1
+          ? names[0]
+          : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
+      return `${list} ${names.length === 1 ? one : many}.`
+    })
+    .filter(Boolean)
+    .join(" ")
+}
+
+function asksQuestion(agent: AgentWithState, entries: TimelineEntry[]) {
+  return entries.some(
     (entry) =>
-      entry.authorKey === `agent:${member.id}` &&
+      entry.authorKey === `agent:${agent.id}` &&
       entry.item.kind === "question" &&
       entry.item.status === "pending"
   )
-  return asks
-    ? `${member.name} waits for your answer. ${next}`
-    : `${member.name} needs your approval. ${next}`
 }

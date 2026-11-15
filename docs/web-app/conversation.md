@@ -128,8 +128,14 @@ alert (`docs/web-app/session-panel.md`).
 
 ## A group chat or a channel
 
-The header shows the name, the topic, and each agent with its status. Each
-message shows its author. The message box of a channel is "Message #<name>".
+The header shows the name, the topic, "Stop all" while an agent works, and
+the members button (`docs/web-app/session-panel.md`). Each message shows its
+author. The message box of a channel is "Message #<name>".
+
+While an agent works or waits, one line at the end of the thread gives the
+state of each agent: "test-runner is working. reviewer-bot is idle." Over
+the message box, a note says that agents reply to each other in this thread
+when they @mention each other, and that Stop all ends the chain.
 
 After `@`, the message box shows the agents of the conversation whose names
 start with the typed text. Down and Up move the active name, and wrap at
