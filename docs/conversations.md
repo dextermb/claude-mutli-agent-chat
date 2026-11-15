@@ -48,9 +48,11 @@ For a message of the user:
 
 A message of an agent is a question to the user when both are true:
 
-- It holds a `?` with no letter or digit straight after it. `Which branch?`
-  and `Which branch? The tests need it.` are questions. The `?` in
-  `https://ci.dev/runs?id=212` is a query string, not a question.
+- It holds a `?` before a space or the end of the text. Markdown emphasis
+  (`*`, `_` or `~`) can come between them. `Which branch?`,
+  `Which branch? The tests need it.` and `**Which branch?**` are questions.
+  The `?` in the query string `https://ci.dev/runs?id=212` and in the code
+  `user?.name` is not a question.
 - It mentions no other agent. `@test-runner which branch is it?` asks
   `test-runner`, not the user.
 

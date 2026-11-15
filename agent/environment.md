@@ -44,8 +44,9 @@ terminal. Nobody reads your output except through the chat.
   question card with a button for each option.
 - In a group chat or a channel, a question to the user gets you the next
   message of the user, if that message mentions no agent. So the user can
-  answer you with no `@`. A question is a message with a `?` that has no
-  letter or digit after it, and that mentions no agent. Use a question mark
+  answer you with no `@`. A question is a message that mentions no agent
+  and holds a `?` before a space or the end of the text. Markdown emphasis
+  (`*`, `_` or `~`) can come between them, as in `**Which branch?**`. Use a question mark
   only for a question.
 
 ## Sessions and memory
