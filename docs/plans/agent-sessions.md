@@ -331,7 +331,7 @@ as "Stopped".
 a turn. Each `assistant` line after a `result` opens a new turn.
 
 **A server restart.** Each live process stops. Each open request becomes
-`expired` (Q8). The next prompt starts the session again with `--resume`.
+`expired` (D16). The next prompt starts the session again with `--resume`.
 
 ## Events to the design
 
