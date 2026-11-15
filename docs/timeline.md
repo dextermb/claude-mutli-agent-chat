@@ -119,3 +119,10 @@ the browser knows the local time zone.
 The server adds the other kind of notice, `reason: "failed"`, when a process
 fails (`docs/server.md`). It holds the `exitCode` and the `stderr`. The
 reducer never adds it.
+
+## Not handled yet
+
+- The text of a subagent. Only a tool call gets `parentToolUseId`. If a
+  subagent writes text, the reducer adds it as a message at the top level,
+  as if the main agent wrote it. No fixture holds such text, so this is not
+  measured.

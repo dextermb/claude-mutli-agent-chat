@@ -1,9 +1,10 @@
 # TanStack Form with one shared Zod schema
 
-**Status:** awaiting go-ahead. This is step 8 of
-`docs/plans/outstanding-work.md`. The user decided two things on
-2026-11-15: Zod, and one schema that the browser and the server share.
-Nothing below is built. The open questions are at the end (T1 to T4).
+**Status:** awaiting go-ahead. The user asked on 2026-11-15 to move the
+agent page and the Create a channel dialog to TanStack Form, with checks in
+the browser and on the server. The user decided two things on 2026-11-15:
+Zod, and one schema that the browser and the server share. Nothing below is
+built. The open questions are at the end (T1 to T4).
 
 ## Scope
 
