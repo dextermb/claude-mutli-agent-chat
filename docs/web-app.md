@@ -88,7 +88,8 @@ the message box says that the next message waits.
 
 ## The sidebar
 
-`src/components/app-sidebar.tsx` shows on the conversation page. It lists:
+`src/components/app-sidebar.tsx` shows on the home page and on the
+conversation page. It lists:
 
 - the channels, with `#` or a lock,
 - the group chats,
@@ -96,7 +97,23 @@ the message box says that the next message waits.
   An agent with a DM links to it. An agent with no DM is a button that opens
   one.
 
-The current conversation has `aria-current="page"`.
+The current conversation has `aria-current="page"`. The sidebar loads the
+lists again each time the page moves to another conversation.
+
+## Start a chat and Create a channel
+
+Two dialogs that the sidebar opens:
+
+- **Start a chat** (`src/components/start-chat-dialog.tsx`), from the pen
+  button. The search filters the agents by name. Each picked agent shows in
+  "To:". One agent opens its DM, and two or more agents start a group chat.
+  The footer says which one.
+- **Create a channel** (`src/components/create-channel-dialog.tsx`), from the
+  `+` of Channels. It sends the name, the topic, Private, the invited agents
+  and the reply mode. If the server refuses the channel, the dialog shows the
+  reason and stays open.
+
+After each one, the page moves to the new conversation.
 
 ## A group chat or a channel
 
@@ -121,7 +138,7 @@ uses the new configuration.
 
 ## Not built yet
 
-- A page to create a group chat or a channel.
+- The Start a chat dialog does not show the reason when the server refuses.
 - Arrow keys in the mention list.
 - The session card of the design: model, folder, session ID, turns and cost.
 - New session, and the Files and Session log tabs.

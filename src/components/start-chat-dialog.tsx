@@ -1,0 +1,171 @@
+import { SearchIcon, XIcon } from "lucide-react"
+import { useState } from "react"
+
+import {
+  AVATAR_COLOURS,
+  initialsOf,
+  statusOf,
+} from "@/components/conversation/agent-look"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
+import type { AgentWithState, Conversation } from "@/lib/agent-api"
+
+export function StartChatDialog({
+  open,
+  agents,
+  onOpenChange,
+  onStarted,
+}: {
+  open: boolean
+  agents: AgentWithState[]
+  onOpenChange: (open: boolean) => void
+  onStarted: (conversation: Conversation) => void
+}) {
+  const [search, setSearch] = useState("")
+  const [picked, setPicked] = useState<string[]>([])
+
+  const shown = agents.filter((agent) =>
+    agent.name.toLowerCase().includes(search.trim().toLowerCase())
+  )
+  const pickedAgents = agents.filter((agent) => picked.includes(agent.id))
+  const isGroup = picked.length > 1
+
+  function toggle(agentId: string, on: boolean) {
+    setPicked((current) =>
+      on ? [...current, agentId] : current.filter((id) => id !== agentId)
+    )
+  }
+
+  async function start() {
+    const response = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(
+        isGroup
+          ? { kind: "group", agentIds: picked }
+          : { kind: "dm", agentId: picked[0] }
+      ),
+    })
+    if (!response.ok) return
+    const { conversation } = (await response.json()) as {
+      conversation: Conversation
+    }
+    setPicked([])
+    setSearch("")
+    onStarted(conversation)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Start a chat</DialogTitle>
+          <DialogDescription>
+            Pick one agent for a DM. Pick two or more agents for a group chat.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex min-w-0 flex-col gap-3">
+          <InputGroup>
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-label="Search agents"
+              placeholder="Search agents"
+              value={search}
+              onChange={(event) => setSearch(event.currentTarget.value)}
+            />
+          </InputGroup>
+          {pickedAgents.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
+              <span className="text-muted-foreground">To:</span>
+              <ul
+                aria-label="To"
+                className="m-0 flex list-none flex-wrap gap-1.5 p-0"
+              >
+                {pickedAgents.map((agent) => (
+                  <li key={agent.id}>
+                    <Badge variant="secondary">
+                      {agent.name}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${agent.name}`}
+                        onClick={() => toggle(agent.id, false)}
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <ItemGroup>
+            {shown.map((agent) => (
+              <Item key={agent.id} size="sm">
+                <ItemMedia>
+                  <Avatar>
+                    <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
+                      {initialsOf(agent.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle>{agent.name}</ItemTitle>
+                  <ItemDescription>
+                    {agent.model} · {statusOf(agent.state).label}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Checkbox
+                    aria-label={`Pick ${agent.name}`}
+                    checked={picked.includes(agent.id)}
+                    onCheckedChange={(on) => toggle(agent.id, on)}
+                  />
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        </div>
+        <DialogFooter>
+          <span className="flex-1 self-center text-xs text-foreground-faint">
+            {picked.length === 0
+              ? "No agent picked"
+              : `${picked.length} picked: ${isGroup ? "a group chat" : "a DM"}`}
+          </span>
+          <DialogClose render={<Button variant="outline" />}>
+            Cancel
+          </DialogClose>
+          <Button disabled={picked.length === 0} onClick={() => void start()}>
+            {isGroup ? "Start group chat" : "Open DM"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

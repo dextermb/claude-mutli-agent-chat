@@ -439,6 +439,20 @@ export function createServer({ store, startSession }: ServerOptions) {
         if (name === "") {
           return send(response, 400, { error: "Give the channel a name." })
         }
+        if (!/^[a-z0-9-]+$/.test(name)) {
+          return send(response, 400, {
+            error:
+              "Use only lowercase letters, numbers and hyphens in a channel name.",
+          })
+        }
+        const taken = store
+          .listConversations()
+          .some((item) => item.kind === "channel" && item.name === name)
+        if (taken) {
+          return send(response, 409, {
+            error: `A channel with the name ${name} exists.`,
+          })
+        }
         const conversation = store.createConversation({
           kind: "channel",
           name,
