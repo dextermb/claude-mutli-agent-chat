@@ -149,11 +149,13 @@ export function openStore(location: string) {
   function createSession(session: {
     agentId: string
     conversationId: string
+    claudeSessionId?: string | null
   }): SessionRow {
     const created: SessionRow = {
-      ...session,
+      agentId: session.agentId,
+      conversationId: session.conversationId,
       id: randomUUID(),
-      claudeSessionId: null,
+      claudeSessionId: session.claudeSessionId ?? null,
       state: "starting",
       startedAt: new Date().toISOString(),
     }
@@ -168,7 +170,24 @@ export function openStore(location: string) {
 
   function getSession(id: string): SessionRow | undefined {
     const row = db.prepare("SELECT * FROM agent_sessions WHERE id = ?").get(id)
-    if (!row) return undefined
+    return row ? toSession(row as Row) : undefined
+  }
+
+  function latestSession(
+    agentId: string,
+    conversationId: string
+  ): SessionRow | undefined {
+    const row = db
+      .prepare(
+        `SELECT * FROM agent_sessions
+         WHERE agent_id = ? AND conversation_id = ?
+         ORDER BY rowid DESC LIMIT 1`
+      )
+      .get(agentId, conversationId)
+    return row ? toSession(row as Row) : undefined
+  }
+
+  function toSession(row: Row): SessionRow {
     return {
       id: String(row.id),
       agentId: String(row.agent_id),
@@ -234,13 +253,17 @@ export function openStore(location: string) {
       }))
   }
 
-  function saveItems(sessionId: string, items: TimelineItem[], seq: number) {
+  function saveItems(
+    sessionId: string,
+    items: TimelineItem[],
+    seq: number
+  ): TimelineEntry[] {
     const session = db
       .prepare(
         "SELECT agent_id, conversation_id FROM agent_sessions WHERE id = ?"
       )
       .get(sessionId)
-    if (!session) return
+    if (!session) return []
     const save = db.prepare(
       `INSERT INTO timeline_items (id, conversation_id, seq, session_id,
          author_key, kind, tool_use_id, status, payload, created_at)
@@ -248,10 +271,11 @@ export function openStore(location: string) {
          :toolUseId, :status, :payload, :createdAt)
        ON CONFLICT (id) DO UPDATE SET
          status = excluded.status,
-         payload = excluded.payload`
+         payload = excluded.payload
+       RETURNING id, seq, author_key`
     )
-    for (const item of items) {
-      save.run({
+    return items.map((item) => {
+      const row = save.get({
         id: `${sessionId}/${item.id}`,
         conversationId: String(session.conversation_id),
         seq,
@@ -263,7 +287,13 @@ export function openStore(location: string) {
         payload: JSON.stringify(item),
         createdAt: new Date().toISOString(),
       })
-    }
+      return {
+        id: String(row?.id),
+        seq: Number(row?.seq),
+        authorKey: String(row?.author_key),
+        item,
+      }
+    })
   }
 
   function addUserMessage(conversationId: string, text: string): TimelineEntry {
@@ -339,6 +369,7 @@ export function openStore(location: string) {
     getConversation,
     createSession,
     getSession,
+    latestSession,
     updateSession,
     recordLine,
     listLines,

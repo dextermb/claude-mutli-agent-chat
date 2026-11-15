@@ -13,6 +13,7 @@ manager is pnpm.
 | `pnpm typecheck` | Checks the types.                   |
 | `pnpm lint`      | Runs ESLint.                        |
 | `pnpm build`     | Checks the types and builds `dist`. |
+| `pnpm server`    | Starts the agent server.            |
 
 ## Where things are
 
@@ -27,6 +28,7 @@ manager is pnpm.
 - `docs/timeline.md`: how the server turns the stream into timeline items.
 - `docs/agents.md`: the `claude` process of each agent session.
 - `docs/store.md`: the SQLite tables and the queries.
+- `docs/server.md`: the routes and the event stream of the agent server.
 
 ## Rules
 
