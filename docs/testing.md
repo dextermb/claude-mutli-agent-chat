@@ -30,6 +30,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `buildArgs()`, the command line  | `server/session/args.test.ts`    |
 | `AgentSession`, a fake `claude`  | `server/session/session.test.ts` |
 | `Store`, an in-memory database   | `server/store/store.test.ts`     |
+| `createServer()`, HTTP and SSE   | `server/http/server.test.ts`     |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code
@@ -37,6 +38,10 @@ really sent or accepted. See `docs/protocol.md`.
 
 The `AgentSession` tests start `server/test/fake-claude.ts`, which plays a
 fixture as a `claude` process. See `docs/agents.md`.
+
+The `createServer()` tests listen on a free port and send real requests with
+`fetch`. Their `startSession` starts the fake `claude` and keeps each line
+that goes to it, so a test can check the answers that reach Claude Code.
 
 The `Store` tests use `:memory:`. A test of a server start uses a database
 file in a temporary folder, and opens the store a second time.

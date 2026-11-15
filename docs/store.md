@@ -69,7 +69,12 @@ For each `line` event of an `AgentSession` (see `docs/agents.md`):
 
 The ID of an agent item is `<session id>/<item id>`. A second change to the
 same item replaces its status and its payload. The author is the agent of the
-session.
+session. `saveItems()` gives back the stored entries, with the `seq` that each
+item kept.
+
+Use one session row for each process. A new process starts its reducer again
+at `item-1`, so it needs a new row, or its items replace the items of the
+earlier process.
 
 `addUserMessage(conversationId, text)` stores a message of `user:me` with a
 new UUID.

@@ -1,9 +1,10 @@
 # Headless agent sessions in the web app
 
-**Status:** in progress. Steps 1 to 5 are done: the fixtures, the findings,
+**Status:** in progress. Steps 1 to 6 are done: the fixtures, the findings,
 the decoder and the encoders are in `docs/protocol.md`, the timeline reducer
-is in `docs/timeline.md`, the session is in `docs/agents.md`, and the store
-is in `docs/store.md`. Steps 6 to 8 are still ahead. Each decision
+is in `docs/timeline.md`, the session is in `docs/agents.md`, the store is in
+`docs/store.md`, and the routes are in `docs/server.md`. Steps 7 and 8 are
+still ahead. Each decision
 below is final.
 
 ## The goal
@@ -286,7 +287,7 @@ The order:
 3. Done. `server/timeline`: the reducer.
 4. Done. `server/session`: `AgentSession` and the fake `claude`.
 5. Done. The store and the schema.
-6. The routes and the SSE stream.
+6. Done. The routes and the SSE stream.
 7. The DM screen and the agent configuration screen.
 8. Group chats, then channels and mentions.
 
