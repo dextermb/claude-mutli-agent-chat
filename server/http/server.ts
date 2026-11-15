@@ -8,16 +8,11 @@ import type { AddressInfo } from "node:net"
 import { homedir } from "node:os"
 import type { PermissionAnswer } from "../protocol/encode.ts"
 import { parseMentions } from "../conversation/mentions.ts"
+import { agentSchema, channelSchema, checkBody } from "../schemas.ts"
 import { buildArgs } from "../session/args.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
-import type {
-  Agent,
-  Conversation,
-  NewAgent,
-  SessionRow,
-  Store,
-} from "../store/store.ts"
+import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
 import type { SessionCard, SessionConfig } from "../api-types.ts"
 
 export type SessionHandle = {
@@ -597,10 +592,14 @@ export function createServer({
     }
 
     if (route("POST", "api/agents")) {
-      const agent = toNewAgent(await readJson(request))
-      const empty = emptyFields(agent)
-      if (empty) return send(response, 400, { error: empty })
-      return send(response, 201, { agent: store.createAgent(agent) })
+      const checked = checkBody(agentSchema, await readJson(request))
+      if (!checked.ok) {
+        return send(response, 400, {
+          error: checked.error,
+          fields: checked.fields,
+        })
+      }
+      return send(response, 201, { agent: store.createAgent(checked.data) })
     }
 
     if ((params = route("GET", "api/agents/:id"))) {
@@ -612,10 +611,19 @@ export function createServer({
     if ((params = route("PATCH", "api/agents/:id"))) {
       const current = store.getAgent(params.id)
       if (!current) return send(response, 404, { error: "no such agent" })
-      const agent = toNewAgent({ ...current, ...(await readJson(request)) })
-      const empty = emptyFields(agent)
-      if (empty) return send(response, 400, { error: empty })
-      return send(response, 200, { agent: store.updateAgent(params.id, agent) })
+      const checked = checkBody(agentSchema, {
+        ...current,
+        ...(await readJson(request)),
+      })
+      if (!checked.ok) {
+        return send(response, 400, {
+          error: checked.error,
+          fields: checked.fields,
+        })
+      }
+      return send(response, 200, {
+        agent: store.updateAgent(params.id, checked.data),
+      })
     }
 
     if ((params = route("GET", "api/conversations/:id"))) {
@@ -659,16 +667,14 @@ export function createServer({
           })
           return created(response, conversation)
         }
-        const name = text(body.name).trim()
-        if (name === "") {
-          return send(response, 400, { error: "Give the channel a name." })
-        }
-        if (!/^[a-z0-9-]+$/.test(name)) {
+        const checked = checkBody(channelSchema, body)
+        if (!checked.ok) {
           return send(response, 400, {
-            error:
-              "Use only lowercase letters, numbers and hyphens in a channel name.",
+            error: checked.error,
+            fields: checked.fields,
           })
         }
+        const { name, topic, replyMode } = checked.data
         const taken = store
           .listConversations()
           .some((item) => item.kind === "channel" && item.name === name)
@@ -680,9 +686,9 @@ export function createServer({
         const conversation = store.createConversation({
           kind: "channel",
           name,
-          topic: text(body.topic).trim() || null,
-          private: body.private === true,
-          replyMode: body.replyMode === "every" ? "every" : "mention",
+          topic,
+          private: checked.data.private,
+          replyMode,
           members,
         })
         return created(response, conversation)
@@ -751,32 +757,6 @@ function homeShort(folder: string): string {
   return folder === home || folder.startsWith(`${home}/`)
     ? `~${folder.slice(home.length)}`
     : folder
-}
-
-function toNewAgent(body: Record<string, unknown>): NewAgent {
-  return {
-    name: text(body.name),
-    colour: text(body.colour),
-    model: text(body.model),
-    permissionMode: text(body.permissionMode),
-    cwd: text(body.cwd),
-    autostart: body.autostart === true,
-    allowedTools: texts(body.allowedTools),
-    disallowedTools: texts(body.disallowedTools),
-    systemPrompt:
-      typeof body.systemPrompt === "string" && body.systemPrompt !== ""
-        ? body.systemPrompt
-        : null,
-  }
-}
-
-function emptyFields(agent: NewAgent): string | null {
-  const empty = (["name", "cwd", "model", "permissionMode"] as const).filter(
-    (field) => agent[field].trim() === ""
-  )
-  return empty.length > 0
-    ? `These fields are empty: ${empty.join(", ")}.`
-    : null
 }
 
 function text(value: unknown): string {

@@ -89,6 +89,28 @@ describe("the Create a channel dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
+  test("a channel name with capitals shows the rule after the field, and sends nothing", async () => {
+    const user = userEvent.setup()
+    const dialog = await openDialog(user)
+    const name = within(dialog).getByLabelText("Name")
+
+    await user.type(name, "Release Train")
+    await user.tab()
+
+    expect(
+      await within(dialog).findByText(
+        "Use only lowercase letters, numbers and hyphens in a channel name."
+      )
+    ).toBeInTheDocument()
+    expect(name).toHaveAttribute("aria-invalid", "true")
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create channel" })
+    )
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      []
+    )
+  })
+
   test("the dialog shows why the server refused the channel, and stays open", async () => {
     const user = userEvent.setup()
     network.on(

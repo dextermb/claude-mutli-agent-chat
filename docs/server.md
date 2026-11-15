@@ -46,7 +46,9 @@ in `server/http/server.ts` does the work, so a test can give it a
 
 An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
 `cwd` would start `claude` in the folder of the server, so the server refuses
-it. An empty `systemPrompt` is stored as `null`.
+it. An empty `systemPrompt` is stored as `null`. The server checks an agent
+and a channel with the schemas in `server/schemas.ts`, and a refused body
+gets `400 { error, fields }` (`docs/forms.md`).
 
 The state of an agent with no live process is `exited`.
 

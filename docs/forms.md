@@ -1,0 +1,79 @@
+# Forms
+
+Two forms take input that the server stores: the agent page
+(`src/pages/agents/[id].tsx`) and the Create a channel dialog
+(`src/components/create-channel-dialog.tsx`). Both use TanStack Form, and
+both check their values with the same Zod schema as the server.
+
+## One schema
+
+`server/schemas.ts` holds `agentSchema` and `channelSchema`. It imports only
+`zod`, so the app can import it and still needs no Node types.
+
+- The server checks each body with `checkBody(schema, body)`, in
+  `POST /api/agents`, `PATCH /api/agents/:id` (on the stored agent with the
+  body merged in) and `POST /api/conversations` for a channel.
+- The browser gives the same schema to `useForm()` as its `onBlur` and
+  `onSubmit` validator.
+- `NewAgent` in `server/api-types.ts` is the output type of `agentSchema`.
+
+A rule that needs the database stays in the route. A channel name that is
+taken gives `409`, and the dialog shows it in its alert only.
+
+| Field                  | Rule                   | Message                                                            |
+| ---------------------- | ---------------------- | ------------------------------------------------------------------ |
+| agent `name`           | not empty after a trim | Give the agent a name.                                             |
+| agent `cwd`            | not empty after a trim | Give the folder of the agent.                                      |
+| agent `model`          | not empty              | Pick a model.                                                      |
+| agent `permissionMode` | not empty              | Pick a permission mode.                                            |
+| channel `name`         | not empty after a trim | Give the channel a name.                                           |
+| channel `name`         | `^[a-z0-9-]+$`         | Use only lowercase letters, numbers and hyphens in a channel name. |
+| channel `replyMode`    | `mention` or `every`   | Pick a reply mode.                                                 |
+
+The model and the permission mode are free strings, because new models come
+out. The schema gives a default to the fields that an older client can leave
+out (the colour, the lists, `autostart`, `private`, `replyMode`), and turns
+an empty system prompt or topic into `null`.
+
+## A refused body
+
+The server answers `400` with a summary and one message for each field:
+
+```json
+{
+  "error": "Give the agent a name. Give the folder of the agent.",
+  "fields": {
+    "name": "Give the agent a name.",
+    "cwd": "Give the folder of the agent."
+  }
+}
+```
+
+The summary is the field messages in the order of the schema.
+
+## When a field shows an error
+
+- After the user leaves the field, and for each field after a submit. Not on
+  each key.
+- A form with an error sends no request.
+- The agent page puts each message of `fields` under its field, as an
+  `onServer` error. A change to the field clears it (a form-level
+  `onChange` listener), else the field stays invalid and no later submit
+  would send.
+- `src/lib/form-errors.ts` decides what a field shows. A schema error is an
+  object with a `message`, and a server error is a string.
+
+## The type of the form values
+
+TanStack Form takes a Standard Schema only when the input type of the schema
+fits the type of the form values. The defaults and the `null` values of the
+schemas make some input fields optional, so each form types its values from
+the schema: `AgentDraft` and `ChannelDraft` (`z.input`). A form field that can
+be `undefined` gives a fallback, for example `field.state.value ?? []`.
+
+## Bundle size
+
+Measured with `pnpm build` on 2026-11-15. Zod and TanStack Form load only
+with the agent page and the channel dialog. The agent page chunk grew from
+7.38 kB (2.73 kB gzip) to 151.75 kB (41.26 kB gzip). The main chunk did not
+change. `zod/mini` is smaller, but it has another API.

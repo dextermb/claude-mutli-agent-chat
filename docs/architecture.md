@@ -31,6 +31,7 @@ Browser (Vite + React)                  Agent server (Node 24, server/)
 | Routes and the event stream | `docs/server.md`        |
 | Who gets a turn             | `docs/conversations.md` |
 | Pages and the browser hook  | `docs/web-app.md`       |
+| Forms and their schema      | `docs/forms.md`         |
 
 ## Decisions
 
@@ -81,6 +82,10 @@ since its last turn (`docs/conversations.md`).
 **New session keeps the configuration and chooses the Claude session ID.**
 The server passes `--session-id` with a new UUID, so the card shows the ID at
 once. The old timeline stays, above a divider.
+
+**One Zod schema for a form and its route.** `server/schemas.ts` holds the
+rules, and both the browser (TanStack Form) and the server use them. So the
+two never disagree on what a field accepts.
 
 **An open request expires when the server stops.** Its process stops too, so
 the request cannot get an answer. The next prompt resumes the session.

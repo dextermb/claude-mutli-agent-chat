@@ -451,6 +451,9 @@ describe("group chats and channels", () => {
     expect(await response.json()).toEqual({
       error:
         "Use only lowercase letters, numbers and hyphens in a channel name.",
+      fields: {
+        name: "Use only lowercase letters, numbers and hyphens in a channel name.",
+      },
     })
   })
 

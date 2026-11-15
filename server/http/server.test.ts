@@ -625,14 +625,20 @@ describe("createServer", () => {
 
     const response = await postJson(base, "/api/agents", {
       ...testRunner,
-      name: "",
+      name: "  ",
       cwd: "",
       model: "",
     })
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: "These fields are empty: name, cwd, model.",
+      error:
+        "Give the agent a name. Pick a model. Give the folder of the agent.",
+      fields: {
+        name: "Give the agent a name.",
+        model: "Pick a model.",
+        cwd: "Give the folder of the agent.",
+      },
     })
   })
 

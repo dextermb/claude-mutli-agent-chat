@@ -141,8 +141,9 @@ Two dialogs that the sidebar opens:
   shows the reason and stays open.
 - **Create a channel** (`src/components/create-channel-dialog.tsx`), from the
   `+` of Channels. It sends the name, the topic, Private, the invited agents
-  and the reply mode. If the server refuses the channel, the dialog shows the
-  reason and stays open.
+  and the reply mode. It checks the name before it sends (`docs/forms.md`).
+  If the server refuses the channel, the dialog shows the reason and stays
+  open.
 
 After each one, the page moves to the new conversation.
 
@@ -218,7 +219,10 @@ picked agents. If the server refuses, the dialog shows the reason.
 
 The form sends every field. A new agent goes to `POST /api/agents`, then the
 page moves to `/agents/<id>`. A saved agent goes to `PATCH /api/agents/:id`.
-If the server refuses the agent, the page shows the reason in an alert.
+The form checks each field with the schema of the server, and shows each
+message under its field. If the server refuses the agent, the page shows the
+reason in an alert, and each message of the server under its field. See
+`docs/forms.md`.
 
 The model and the permission mode use a native `<select>`
 (`native-select`), because it is accessible and easy to test.
