@@ -6,14 +6,15 @@ manager is pnpm.
 
 ## Commands
 
-| Command          | Result                              |
-| ---------------- | ----------------------------------- |
-| `pnpm dev`       | Starts the dev server.              |
-| `pnpm test`      | Runs the Vitest tests.              |
-| `pnpm typecheck` | Checks the types.                   |
-| `pnpm lint`      | Runs ESLint.                        |
-| `pnpm build`     | Checks the types and builds `dist`. |
-| `pnpm server`    | Starts the agent server.            |
+| Command          | Result                                               |
+| ---------------- | ---------------------------------------------------- |
+| `pnpm dev`       | Starts the dev server.                               |
+| `pnpm test`      | Runs the Vitest tests.                               |
+| `pnpm typecheck` | Checks the types.                                    |
+| `pnpm lint`      | Runs ESLint.                                         |
+| `pnpm build`     | Checks the types and builds `dist`.                  |
+| `pnpm server`    | Starts the agent server.                             |
+| `pnpm test:live` | Runs the live check (real `claude`, about 0.01 USD). |
 
 ## Where things are
 
@@ -29,6 +30,7 @@ manager is pnpm.
 - `docs/agents.md`: the `claude` process of each agent session.
 - `docs/store.md`: the SQLite tables and the queries.
 - `docs/server.md`: the routes and the event stream of the agent server.
+- `docs/web-app.md`: the pages, the conversation hook and the DM parts.
 
 ## Rules
 

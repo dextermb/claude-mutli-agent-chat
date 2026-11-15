@@ -1,62 +1,105 @@
-import { useState } from "react"
-import { MinusIcon, PlusIcon } from "lucide-react"
+import { MessageSquareIcon, PlusIcon, SettingsIcon } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link, useLocation } from "wouter"
 
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+  AVATAR_COLOURS,
+  initialsOf,
+} from "@/components/conversation/agent-look"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import type { Agent, Conversation } from "@/lib/agent-api"
 
-export default function LandingPage() {
-  const [count, setCount] = useState(0)
+export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[] | null>(null)
+  const [, navigate] = useLocation()
+
+  useEffect(() => {
+    let current = true
+    fetch("/api/agents")
+      .then((response) => response.json() as Promise<{ agents: Agent[] }>)
+      .then((body) => {
+        if (current) setAgents(body.agents)
+      })
+      .catch(() => {
+        if (current) setAgents([])
+      })
+    return () => {
+      current = false
+    }
+  }, [])
+
+  async function message(agent: Agent) {
+    const response = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "dm", agentId: agent.id }),
+    })
+    if (!response.ok) return
+    const { conversation } = (await response.json()) as {
+      conversation: Conversation
+    }
+    navigate(`/conversations/${conversation.id}`)
+  }
 
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Counter</CardTitle>
-          <CardDescription>Use the buttons, or type a number.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Field>
-            <FieldLabel htmlFor="count">Count</FieldLabel>
-            <ButtonGroup className="w-full">
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Decrease"
-                onClick={() => setCount((current) => current - 1)}
-              >
-                <MinusIcon />
-              </Button>
-              <Input
-                id="count"
-                type="number"
-                className="text-center tabular-nums"
-                value={count}
-                onChange={(event) => {
-                  const typed = event.currentTarget.valueAsNumber
-                  setCount(Number.isNaN(typed) ? 0 : typed)
-                }}
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Increase"
-                onClick={() => setCount((current) => current + 1)}
-              >
-                <PlusIcon />
-              </Button>
-            </ButtonGroup>
-          </Field>
-        </CardContent>
-      </Card>
+    <main className="mx-auto flex min-h-svh max-w-3xl flex-col gap-6 bg-background px-6 py-8 text-sm text-foreground">
+      <header className="flex items-center gap-4">
+        <h1 className="m-0 flex-1 text-xl font-semibold text-foreground-strong">
+          Agents
+        </h1>
+        <Button nativeButton={false} render={<Link href="/agents/new" />}>
+          <PlusIcon />
+          New agent
+        </Button>
+      </header>
+      {agents === null && (
+        <p className="text-muted-foreground">Loading the agents.</p>
+      )}
+      {agents?.length === 0 && (
+        <p className="text-muted-foreground">
+          There are no agents. Make one with New agent.
+        </p>
+      )}
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+        {agents?.map((agent) => (
+          <li
+            key={agent.id}
+            className="flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3"
+          >
+            <Avatar>
+              <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
+                {initialsOf(agent.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="font-semibold text-foreground-strong">
+                {agent.name}
+              </span>
+              <span className="truncate font-mono text-xs text-foreground-faint">
+                {agent.model} · {agent.cwd}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void message(agent)}
+            >
+              <MessageSquareIcon />
+              Message
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/agents/${agent.id}`} />}
+            >
+              <SettingsIcon />
+              Configure
+            </Button>
+          </li>
+        ))}
+      </ul>
     </main>
   )
 }

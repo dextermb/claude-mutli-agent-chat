@@ -108,13 +108,20 @@ type StreamEvent = { id: number; data: Record<string, unknown> }
 function openEvents(
   base: string,
   conversationId: string,
-  lastEventId?: number
+  lastEventId?: number,
+  sendIdIn: "header" | "query" = "header"
 ) {
   const events: StreamEvent[] = []
   const abort = new AbortController()
   const headers: Record<string, string> = {}
-  if (lastEventId !== undefined) headers["last-event-id"] = String(lastEventId)
-  const response = fetch(`${base}/api/conversations/${conversationId}/events`, {
+  let address = `${base}/api/conversations/${conversationId}/events`
+  if (lastEventId !== undefined && sendIdIn === "header") {
+    headers["last-event-id"] = String(lastEventId)
+  }
+  if (lastEventId !== undefined && sendIdIn === "query") {
+    address += `?lastEventId=${lastEventId}`
+  }
+  const response = fetch(address, {
     headers,
     signal: abort.signal,
   })
@@ -165,6 +172,26 @@ function streamedItems(events: StreamEvent[]) {
     const entry = data.entry as { item: Record<string, unknown> }
     return [[entry.item.kind, entry.item.status, entry.item.text]]
   })
+}
+
+async function postJson(base: string, route: string, body: unknown) {
+  return fetch(`${base}${route}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+const testRunner = {
+  name: "test-runner",
+  colour: "aqua",
+  model: "claude-sonnet-5-5",
+  permissionMode: "acceptEdits",
+  cwd: "/home/user/code/web-app",
+  autostart: true,
+  allowedTools: ["Read", "Bash(pnpm test:*)"],
+  disallowedTools: ["WebFetch"],
+  systemPrompt: "You run and fix the Vitest tests.",
 }
 
 async function answerRequest(
@@ -463,5 +490,156 @@ describe("createServer", () => {
     const response = await sendMessage(base, "no-such-conversation", "Hello?")
 
     expect(response.status).toBe(404)
+  })
+
+  test("an agent can be created and then shows in the list of agents", async () => {
+    const { base } = await startServer()
+
+    const response = await postJson(base, "/api/agents", testRunner)
+    const created = (await response.json()) as { agent: { id: string } }
+
+    expect(response.status).toBe(201)
+    const listed = (await (await fetch(`${base}/api/agents`)).json()) as {
+      agents: unknown[]
+    }
+    expect(listed.agents).toContainEqual(
+      expect.objectContaining({ id: created.agent.id, ...testRunner })
+    )
+  })
+
+  test("an agent with no name, folder or model is refused", async () => {
+    const { base } = await startServer()
+
+    const response = await postJson(base, "/api/agents", {
+      ...testRunner,
+      name: "",
+      cwd: "",
+      model: "",
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: "These fields are empty: name, cwd, model.",
+    })
+  })
+
+  test("a change to an agent keeps the fields that it does not name", async () => {
+    const { base } = await startServer()
+    const created = (await (
+      await postJson(base, "/api/agents", testRunner)
+    ).json()) as { agent: { id: string } }
+
+    const response = await fetch(`${base}/api/agents/${created.agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-5-5",
+        allowedTools: ["Read"],
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    const listed = (await (await fetch(`${base}/api/agents`)).json()) as {
+      agents: { id: string }[]
+    }
+    expect(
+      listed.agents.find((agent) => agent.id === created.agent.id)
+    ).toMatchObject({
+      ...testRunner,
+      model: "claude-haiku-5-5",
+      allowedTools: ["Read"],
+    })
+  })
+
+  test("a DM with an agent opens once, and the list of conversations shows it", async () => {
+    const { base } = await startServer()
+    const created = (await (
+      await postJson(base, "/api/agents", testRunner)
+    ).json()) as { agent: { id: string } }
+
+    const first = await postJson(base, "/api/conversations", {
+      kind: "dm",
+      agentId: created.agent.id,
+    })
+    const again = await postJson(base, "/api/conversations", {
+      kind: "dm",
+      agentId: created.agent.id,
+    })
+
+    const opened = (await first.json()) as { conversation: { id: string } }
+    expect(first.status).toBe(201)
+    expect(again.status).toBe(200)
+    expect(await again.json()).toEqual({ conversation: opened.conversation })
+    const listed = (await (
+      await fetch(`${base}/api/conversations`)
+    ).json()) as {
+      conversations: unknown[]
+    }
+    expect(listed.conversations).toContainEqual(
+      expect.objectContaining({
+        id: opened.conversation.id,
+        kind: "dm",
+        name: "test-runner",
+        members: ["user:me", `agent:${created.agent.id}`],
+      })
+    )
+  })
+
+  test("a conversation gives its agents and the state of each agent", async () => {
+    const { base, agent, conversation } = await startServer()
+    const stream = openEvents(base, conversation.id)
+    await stream.ready
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(() => expect(agentStates(stream.events)).toHaveLength(4))
+
+    const response = await fetch(`${base}/api/conversations/${conversation.id}`)
+
+    expect(await response.json()).toEqual({
+      conversation,
+      agents: [{ ...agent, state: "idle" }],
+    })
+  })
+
+  test("a first stream with lastEventId in its address gets each event after that id", async () => {
+    const { base, conversation } = await startServer()
+    const watcher = openEvents(base, conversation.id)
+    await watcher.ready
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(() => expect(agentStates(watcher.events)).toHaveLength(4))
+
+    const fromQuery = openEvents(base, conversation.id, 5, "query")
+
+    await vi.waitFor(() =>
+      expect(fromQuery.events).toEqual(
+        watcher.events.filter((event) => event.id > 5)
+      )
+    )
+  })
+
+  test("a stream with no event id gets only the events that come after it opens", async () => {
+    const { base, conversation } = await startServer()
+    const watcher = openEvents(base, conversation.id)
+    await watcher.ready
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(() => expect(agentStates(watcher.events)).toHaveLength(4))
+
+    const late = openEvents(base, conversation.id)
+    await late.ready
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    expect(late.events).toEqual([])
+  })
+
+  test("an agent can be read by its id, and an unknown id gives not found", async () => {
+    const { base } = await startServer()
+    const created = (await (
+      await postJson(base, "/api/agents", testRunner)
+    ).json()) as { agent: { id: string } }
+
+    const found = await fetch(`${base}/api/agents/${created.agent.id}`)
+    const missing = await fetch(`${base}/api/agents/no-such-agent`)
+
+    expect(await found.json()).toEqual({ agent: created.agent })
+    expect(missing.status).toBe(404)
   })
 })
