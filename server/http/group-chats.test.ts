@@ -476,6 +476,48 @@ describe("group chats and channels", () => {
     expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(1)
   })
 
+  test("a question mark with punctuation after it, as in optional chaining, is not a question", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ reply: "I changed it to user?.name in the header." })
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot fix the header.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "Thank you, both.")
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+  })
+
+  test("a question mark inside Markdown emphasis is a question", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ reply: "**Which branch?** The tests _need it?_" })
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot run the tests.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "The release branch.")
+
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
+        "[User] @reviewer-bot run the tests.",
+        "[User] The release branch.",
+      ])
+    )
+  })
+
   test("a question mark with a space after it is a question", async () => {
     const { base, sentTo } = await startServer(
       "resume-1",

@@ -72,7 +72,7 @@ const URGENCY: SessionState[] = [
   "exited",
 ]
 
-const QUESTION_MARK = /\?(?![\p{L}\p{N}])/u
+const QUESTION_MARK = /\?[*_~]*(?=\s|$)/u
 
 const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 1_000_000
