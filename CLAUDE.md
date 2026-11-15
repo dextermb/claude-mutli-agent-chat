@@ -26,6 +26,7 @@ manager is pnpm.
   `pnpm fixtures:record`.
 - `docs/timeline.md`: how the server turns the stream into timeline items.
 - `docs/agents.md`: the `claude` process of each agent session.
+- `docs/store.md`: the SQLite tables and the queries.
 
 ## Rules
 

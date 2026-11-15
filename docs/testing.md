@@ -29,6 +29,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `reduceTimeline()`, a fixture    | `server/timeline/reduce.test.ts` |
 | `buildArgs()`, the command line  | `server/session/args.test.ts`    |
 | `AgentSession`, a fake `claude`  | `server/session/session.test.ts` |
+| `Store`, an in-memory database   | `server/store/store.test.ts`     |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code
@@ -36,6 +37,9 @@ really sent or accepted. See `docs/protocol.md`.
 
 The `AgentSession` tests start `server/test/fake-claude.ts`, which plays a
 fixture as a `claude` process. See `docs/agents.md`.
+
+The `Store` tests use `:memory:`. A test of a server start uses a database
+file in a temporary folder, and opens the store a second time.
 
 To render the app at a URL, the `App` tests call
 `window.history.pushState()` before `render(<App />)`. The pages load lazily,

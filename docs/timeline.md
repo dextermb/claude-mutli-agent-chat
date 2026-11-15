@@ -32,13 +32,13 @@ the line that the server sent, it would apply each answer two times.
 Each item has an `id` (`item-1`, `item-2`, …), unique in its session, and a
 `kind`.
 
-| `kind`       | From                                                          | Statuses                       |
-| ------------ | ------------------------------------------------------------- | ------------------------------ |
-| `message`    | `text_delta` pieces, then the `assistant` text block          | `streaming`, `done`            |
-| `tool_call`  | An `assistant` `tool_use` block, then its `tool_results`      | `running`, `done`, `error`     |
-| `permission` | A `permission_request`, then its `permission_answer`          | `pending`, `allowed`, `denied` |
-| `question`   | A `permission_request` for `AskUserQuestion`, then its answer | `pending`, `answered`          |
-| `turn`       | A `result` line                                               | `done`, `stopped`              |
+| `kind`       | From                                                          | Statuses                                  |
+| ------------ | ------------------------------------------------------------- | ----------------------------------------- |
+| `message`    | `text_delta` pieces, then the `assistant` text block          | `streaming`, `done`                       |
+| `tool_call`  | An `assistant` `tool_use` block, then its `tool_results`      | `running`, `done`, `error`                |
+| `permission` | A `permission_request`, then its `permission_answer`          | `pending`, `allowed`, `denied`, `expired` |
+| `question`   | A `permission_request` for `AskUserQuestion`, then its answer | `pending`, `answered`, `expired`          |
+| `turn`       | A `result` line                                               | `done`, `stopped`                         |
 
 ### Messages
 
@@ -69,7 +69,9 @@ status of the last `task` line, for example `completed`.
 ### Approval cards and question cards
 
 A `permission_request` adds an approval card with the tool, its input and the
-suggestions of Claude Code. The answer moves it to `allowed` or `denied`.
+suggestions of Claude Code. The answer moves it to `allowed` or `denied`. The
+store sets `expired` on a card that is still open when the server starts again
+(`docs/store.md`).
 
 `AskUserQuestion` is different. Its `tool_use` block does not add a tool
 call. Its `permission_request` adds a question card with the `questions`, and
@@ -92,4 +94,3 @@ the first turn.
   `result` is `null`.
 - A `rate_limit` line with a status other than `allowed` does not add a
   notice.
-- A request that is open when the server stops does not become `expired`.

@@ -46,7 +46,7 @@ export type PermissionItem = {
   description: string
   input: Json
   suggestions: Json[]
-  status: "pending" | "allowed" | "denied"
+  status: "pending" | "allowed" | "denied" | "expired"
 }
 
 export type QuestionItem = {
@@ -55,7 +55,7 @@ export type QuestionItem = {
   requestId: string
   toolUseId: string
   questions: Json[]
-  status: "pending" | "answered"
+  status: "pending" | "answered" | "expired"
   answers: Record<string, string> | null
 }
 
