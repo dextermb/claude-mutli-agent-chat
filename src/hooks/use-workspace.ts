@@ -10,6 +10,7 @@ type Workspace = {
   conversations: Conversation[]
   agents: AgentWithState[]
   unread: Record<string, number>
+  loaded: boolean
 }
 
 export function useWorkspace() {
@@ -17,6 +18,7 @@ export function useWorkspace() {
     conversations: [],
     agents: [],
     unread: {},
+    loaded: false,
   })
 
   useEffect(() => {
@@ -61,6 +63,7 @@ async function load(): Promise<Workspace> {
     conversations: listed.conversations,
     agents: team.agents,
     unread: listed.unread ?? {},
+    loaded: true,
   }
 }
 
