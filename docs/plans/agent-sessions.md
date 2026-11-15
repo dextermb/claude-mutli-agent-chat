@@ -1,8 +1,7 @@
 # Headless agent sessions in the web app
 
-**Status:** draft, awaiting go-ahead. The measurements are complete. The
-decisions below are proposals. The open questions need an answer before the
-build starts.
+**Status:** awaiting go-ahead to build. The measurements are complete. The
+user answered each open question, so each decision below is final.
 
 ## The goal
 
@@ -21,9 +20,9 @@ The screens are the seven artboards of the "Agent Chat" design canvas.
 The multiplexer docs (`~/projects/go/claude-multiplexer/docs`) describe Claude
 Code 2.1.176 to 2.1.231, as seen from Go. This machine runs Claude Code
 **2.1.311**, and the latest TypeScript Agent SDK is **0.3.325** (it bundles
-Claude Code 2.1.325). So I did not copy the multiplexer findings. I ran five
+Claude Code 2.1.325). So I did not copy the multiplexer findings. I ran six
 probes from Node 24 against the installed `claude`, with the Haiku model. The
-probes cost 0.012 USD in total.
+probes cost less than 0.02 USD in total.
 
 The probe script and the recorded lines are in the session scratchpad, not in
 the repository. The build records new, cleaned fixtures (see "The build").
@@ -37,6 +36,9 @@ claude -p --input-format stream-json --output-format stream-json --verbose
   --strict-mcp-config --setting-sources project
   --model haiku --permission-mode default [--resume <session_id>]
 ```
+
+The probes did not load the user settings. The app loads them (D13), so
+step 1 of the build records the fixtures again with the user settings.
 
 ### Findings
 
@@ -61,16 +63,15 @@ claude -p --input-format stream-json --output-format stream-json --verbose
 | F17 | The stream has many line types that the multiplexer does not list: `system/status`, `system/thinking_tokens`, `system/background_tasks_changed`, `rate_limit_event`. The SDK type `SDKMessage` is a union of 40 shapes. | All probes, `sdk.d.ts` |
 | F18 | `total_cost_usd` on a `result` counts from the start of the process. A resumed process starts again from zero. | Probes "ask" and "resume" |
 | F19 | The Agent SDK package is 5.4 MB, and its macOS binary package is 347 MB. It can run the installed `claude` with `pathToClaudeCodeExecutable`. | `npm view` |
+| F20 | **A `can_use_tool` request has no time limit.** The probe answered after 12 minutes. The turn then continued and completed. | Probe "wait" |
 
 ### Not measured
 
-- How long a `can_use_tool` request waits for an answer. A human can take
-  hours. This needs a probe before the build.
 - The turns of a subagent (`parent_tool_use_id`). The multiplexer describes
   them. I did not measure them again.
 - Two sessions that write to the same folder at the same time.
 
-## Decisions (proposed)
+## Decisions
 
 **D1. A Node server in the repository.** The browser cannot start a process.
 So a TypeScript server in `server/` starts and holds the `claude` processes.
@@ -79,14 +80,16 @@ Node 24 runs `.ts` files with no build step. In development, Vite sends
 Rejected: a Vite plugin (it runs only in development), and a move to Next.js
 (a rewrite).
 
-**D2. Our own small driver, not the Agent SDK.** The driver writes 5 kinds of
-input line, and each one is measured: a prompt, `initialize`, the answer to
-`can_use_tool`, `interrupt`, and `set_model` or `set_permission_mode`. It runs
-the `claude` that the user installed, which is the same binary that the
-agent configuration names. A fake `claude` script then makes the tests easy.
+**D2. Our own small driver, not the Agent SDK.** Decided by the user. The
+driver writes 5 kinds of input line, and each one is measured: a prompt,
+`initialize`, the answer to `can_use_tool`, `interrupt`, and `set_model` or
+`set_permission_mode`. It runs the `claude` that the user installed, which is
+the same binary that the agent configuration names. A fake `claude` script
+then makes the tests easy. The types of the lines are our own. They name only
+the fields that we read.
 Rejected, but close: the Agent SDK. It gives typed messages and a
 `canUseTool` callback, but it adds a 347 MB binary and hides the raw lines
-that we store. **This is open question Q1.**
+that we store.
 
 **D3. The decoder never fails on an unknown line.** It keeps the raw line and
 ignores it (F17). This is the same rule as in the multiplexer.
@@ -124,39 +127,77 @@ ends". If there is no suggestion, the button does not show.
 at most every 50 ms (F14). The `assistant` line then replaces the text with
 the final text.
 
-**D10. Live updates use Server-Sent Events, and commands use POST.** Each
-event has a sequence number. After a lost connection, the browser sends
-`Last-Event-ID` and gets the events that it did not see. Rejected: a
-WebSocket. It needs its own reconnect and replay code. **This is open
-question Q3.**
+**D10. Live updates use Server-Sent Events, and commands use POST.** Decided
+by the user. Each event has a sequence number. After a lost connection, the
+browser sends `Last-Event-ID` and gets the events that it did not see.
+Rejected: a WebSocket. It needs its own reconnect and replay code.
+
+**D11. One local user, with no sign-in.** Decided by the user. The server
+listens only on `127.0.0.1`, because an agent can run shell commands. Each
+conversation has one human member, `user:me`. The other people in the design
+("Sam Okafor") are out of scope. A group chat is the user and two or more
+agents.
+
+**D12. Storage is `node:sqlite`.** Decided by the user. It is in Node 24 and
+needs no package. It works on Node 24.7 (measured), but it prints an
+`ExperimentalWarning` at start. One `Store` module holds every query, so a
+change to `better-sqlite3` later touches one module. Rejected:
+`better-sqlite3`, because it is a native package to build.
+
+**D13. An agent loads the user and project settings.** Decided by the user.
+The command line has `--setting-sources user,project`, and no
+`--strict-mcp-config`. So an agent gets the user's MCP servers, rules, memory
+files and hooks, the same as a `claude` session in a terminal. The stream then
+carries hook lines (`system/hook_started`, `system/hook_response`), and the
+decoder stores them and ignores them.
+Rejected: project settings only. The agents would behave the same on each
+machine, but they would not have the user's tools.
+
+**D14. A mentioned agent gets the messages since its last turn.** Decided by
+the user. When a message @mentions an agent, the prompt holds each message of
+the conversation after that agent's last turn, each with its author:
+
+```
+[Dexter] @reviewer-bot @test-runner the router logs a key warning.
+[test-runner] I wrote a test that fails while the warning is there.
+```
+
+In a channel with the "Every message" mode, each message starts a turn for
+each agent, with the same prompt shape.
+
+**D15. An agent can @mention another agent, with no limit.** Decided by the
+user. A mention from an agent starts a turn for the other agent, the same as a
+mention from the user. The user stops a chain with a "Stop" button in the
+conversation header. It interrupts each busy agent in the conversation, and it
+removes each prompt that an agent mention put in a queue.
+
+**D16. An open request expires when the server stops.** Decided by the user.
+The child process stops too, so the request cannot get an answer. The item
+shows "Expired", and the next prompt resumes the session with `--resume`.
+
+**D17. "New session" keeps the configuration and the timeline.** Decided by the
+user. The agent gets a new Claude session ID and the same configuration. The
+old timeline stays visible above a divider.
 
 ## Open questions
 
-- **Q1.** Our own driver (D2) or the Agent SDK?
-- **Q2.** Is there one human user on one machine, or many users? The design
-  shows "Sam Okafor" and "Dexter". Many users need sign-in. An agent can run
-  shell commands, so the server must listen only on `127.0.0.1` until sign-in
-  exists.
-- **Q3.** Server-Sent Events and POST (D10), or a WebSocket?
-- **Q4.** Storage. `node:sqlite` is in Node 24 and needs no package, but it
-  is still marked as experimental. The alternative is `better-sqlite3`.
-- **Q5.** Which settings does an agent load? The probes used
-  `--setting-sources project` and `--strict-mcp-config`, so that the user's
-  hooks, MCP servers and memory files did not apply. An agent that loads the
-  user settings gets the user's tools and rules, but it also gets the user's
-  hooks.
-- **Q6.** In a channel, does an agent see each message, or only the messages
-  since its last turn? The proposal: when a user @mentions an agent, the prompt
-  holds the channel messages since that agent's last turn, each with its
-  author.
-- **Q7.** Can an agent @mention another agent? If yes, the server needs a
-  limit on the chain, so that two agents do not talk for ever.
-- **Q8.** What happens to an open permission request when the server
-  stops? The child process stops too, so the request cannot get an answer. The
-  proposal: mark it "Expired", and resume the session on the next prompt.
-- **Q9.** What does "New session" keep? The proposal: a new Claude session ID,
-  the same agent configuration, and the old timeline stays visible above a
-  divider.
+None.
+
+### Resolved
+
+- **Q1.** Our own driver or the Agent SDK? Our own driver. See D2.
+- **Q2.** One user or many? One local user. See D11.
+- **Q3.** Server-Sent Events and POST, or a WebSocket? SSE and POST. See D10.
+- **Q4.** `node:sqlite` or `better-sqlite3`? `node:sqlite`. See D12.
+- **Q5.** Which settings does an agent load? User and project. See D13.
+- **Q6.** What does a mentioned agent see? The messages since its last turn.
+  See D14.
+- **Q7.** Can an agent @mention another agent? Yes, with no limit. The user
+  stops a chain. See D15.
+- **Q8.** What happens to an open request when the server stops? It expires.
+  See D16.
+- **Q9.** What does "New session" keep? The configuration and the timeline.
+  See D17.
 
 ## The parts
 
@@ -204,7 +245,7 @@ agents                              conversations
 |    created_at  text    |          conversation_members
 +-----------+------------+          +------------------------+
             | 1                     | PK,FK conversation_id  |  ON DELETE CASCADE
-            |                       | PK    member_key  text |  "agent:<id>" | "user:<id>"
+            |                       | PK    member_key  text |  "agent:<id>" | "user:me"
             | N                     |    FK agent_id  text   |  nullable, ON DELETE CASCADE
 agent_sessions                      +------------------------+
 +------------------------------+
@@ -355,6 +396,14 @@ runs only when a flag is set, because it costs money (about 0.01 USD).
   F17). The decoder ignores what it does not know. The session card shows
   `claude_code_version` from `init`.
 - **Shell access.** An agent runs commands on this machine. The server
-  listens only on `127.0.0.1` (Q2).
+  listens only on `127.0.0.1` (D11).
 - **Cost.** Each agent in a channel with the "Every message" mode pays for
   each message. The design already says this.
+- **An agent chain has no limit (D15).** Two agents that mention each other
+  run until the user clicks "Stop". The conversation header shows the busy
+  agents, so the user can see a chain.
+- **User hooks run in each agent (D13).** A slow or failing user hook makes
+  each agent slow or makes it fail. The session card shows the stderr lines.
+- **The prompt cache (F20).** A request that waits for more than one hour
+  loses the cache, so the next call costs more. This is the cost of a slow
+  answer, and the app does not try to prevent it.
