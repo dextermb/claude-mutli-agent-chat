@@ -1,0 +1,39 @@
+# The documentation
+
+These pages tell what the app does today. Start with `architecture.md`. It
+gives the parts of the app, the main decisions, and the risks.
+
+## The agent server
+
+| Page                   | Open it for                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `architecture.md`      | The parts of the app, the decisions with their reasons, and the risks        |
+| `protocol.md`          | The Claude Code stream that the server reads, and how to record its fixtures |
+| `timeline.md`          | How the server turns the stream into timeline items                          |
+| `agents.md`            | The `claude` process of each agent session, and its command line             |
+| `agent-environment.md` | The rule that tells each agent about the chat app, and the `chat` plugin     |
+| `mcp.md`               | The `chat` MCP server that each agent gets, and its tools                    |
+| `store.md`             | The SQLite tables and the queries                                            |
+| `server.md`            | The routes and the event stream                                              |
+| `conversations.md`     | Who gets a turn, mentions, and the shape of a prompt                         |
+
+## The web app
+
+| Page                       | Open it for                                                      |
+| -------------------------- | ---------------------------------------------------------------- |
+| `web-app.md`               | The pages, how to run the app, and the shared types              |
+| `web-app/conversation.md`  | `useConversation()`, the parts of the timeline, and the `@` list |
+| `web-app/session-panel.md` | The session panel, the members of a channel, and the DM tabs     |
+| `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar    |
+| `web-app/agent-page.md`    | The form for a new or a saved agent                              |
+| `forms.md`                 | The two forms, the shared Zod schema, and the shape of a refusal |
+| `routing.md`               | The file-based router: from a file in `src/pages` to a URL       |
+
+## The project
+
+| Page         | Open it for                                      |
+| ------------ | ------------------------------------------------ |
+| `testing.md` | The test set-up, the two projects, and the seams |
+
+The folder `plans/` holds work that is not built yet. It is not part of the
+specification.
