@@ -6,8 +6,13 @@ output. The browser never talks to the process.
 
 ## The command line
 
-`buildArgs(agent, session)` in `server/session/args.ts` gives the arguments
-of `claude`. The fixed part is in `docs/protocol.md`. The agent configuration
+`buildArgs(agent, session, context)` in `server/session/args.ts` gives the
+arguments of `claude`. It fills the values of the session (the plugin folder,
+the `--mcp-config` with the token, and the rule) into `claudeArgs()` in
+`server/session/claude-args.ts`. That module imports nothing from Node, so the
+Command preview of the agent page uses the same function with placeholders in
+place of these values (`docs/web-app/agent-page.md`). The token never reaches
+the browser. The fixed part is in `docs/protocol.md`. The agent configuration
 adds the rest:
 
 | Field              | Argument                                                             |

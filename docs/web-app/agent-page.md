@@ -38,6 +38,16 @@ trigger, as the design shows. The description under the permission mode
 changes with the mode. The working directory has a folder icon. A tool goes
 into the allowed or the blocked list with Enter or with Add.
 
+Under the cards, the Command section shows the `claude` command of the agent,
+with one flag on each line and shell quoting. It follows the form before
+Save. It uses `claudeArgs()`, the function that starts the real process
+(`docs/agents.md`), with `'<chat plugin>'`, `'<chat server>'`, `'<rule>'` (or
+`'<rule> + <system prompt>'`) and `--resume '<session id>'` in place of the
+values that the server makes for each session. The line over it says "The app
+starts this in <folder> for each conversation.", because the app starts one
+process for each conversation of the agent, not one for each turn. Copy puts
+the text on the clipboard.
+
 A change to an agent does not change a process that runs. The next process
 uses the new configuration.
 

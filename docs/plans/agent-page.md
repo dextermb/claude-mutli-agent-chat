@@ -1,8 +1,8 @@
 # The agent page
 
-**Status:** in progress. The user asked to plan and begin. Slices 1 and 2
-have no open question, so they start now. Slices 3, 4 and 5 wait for the
-answers to the open questions.
+**Status:** in progress. Slices 1 (Description) and 2 (Command preview) are
+built on the branch `agent-page`. Slice 3 (Stop agent) has no open question
+and is next. Slices 4 and 5 wait for the answers to the open questions.
 
 This is one Tier 3 item of `docs/plans/design-boards.md`: Description,
 Maximum turns, the Command preview, Browse for the working directory, and
@@ -49,11 +49,13 @@ except that it gets the two new fields, because both boards share the cards.
    in the Identity card of both screens. It is not in `configOf()`, and it
    does not go into a prompt.
 2. **The Command preview is built in the browser, from the form values.** So
-   it follows each change before Save. `server/session/agent-args.ts` holds
-   `agentArgs(agent)`, the part of the arguments that comes from the agent
-   (model, mode, tools, Maximum turns). It imports nothing from Node, as
-   `server/schemas.ts` does. `buildArgs()` uses it, so the preview and the
-   process cannot differ.
+   it follows each change before Save. `server/session/claude-args.ts` holds
+   `claudeArgs(agent, session, values)`, the whole argument list, with the
+   values of each session (plugin folder, MCP config, rule) as parameters.
+   It imports nothing from Node, as `server/schemas.ts` does. `buildArgs()`
+   fills the real values, and the preview fills placeholders, so the two
+   cannot differ. `CHAT_SERVER` and `READ_TOOLS` moved to
+   `server/mcp/names.ts` for the same reason.
 3. **The preview puts a placeholder in place of each value that the server
    makes for each session:** `--mcp-config '<chat server>'`,
    `--append-system-prompt '<rule>'` (plus `<system prompt>` when the agent
@@ -63,7 +65,8 @@ except that it gets the two new fields, because both boards share the cards.
    each conversation." The board says "for each turn", but the app starts
    one process for each agent in each conversation, and that process takes
    many turns.
-5. **Copy** copies the text of the preview, placeholders included.
+5. **Copy** copies the text of the preview, placeholders included. It has
+   no "Copied" state, as Copy session ID in the session panel.
 6. **Stop agent** (`POST /api/agents/:id/stop`) does Stop turn in each
    conversation of the agent, then stops each live process. The state of
    the agent becomes `exited`. The next message starts it again with
@@ -93,14 +96,14 @@ except that it gets the two new fields, because both boards share the cards.
 
 ```
 Agent page (form values, live)
-  ├─ agentArgs(values)            server/session/agent-args.ts (no Node imports)
-  │    └─ CommandPreview          fixed part + agentArgs + placeholders
+  ├─ claudeArgs(values, placeholders)   server/session/claude-args.ts (no Node imports)
+  │    └─ CommandPreview ─ commandText()   one flag on each line, shell quoting
   └─ Save ─▶ PATCH /api/agents/:id { …, description, maxTurns }
                └─ agents.description, agents.max_turns
 
 start(row)                         server/http/server.ts
   └─ buildArgs(agent, row, context)
-       └─ fixed part + agentArgs(agent) + --mcp-config (token) + rule + resume
+       └─ claudeArgs(agent, row, { plugin folder, --mcp-config with token, rule })
 
 Stop agent ─▶ POST /api/agents/:id/stop
   └─ for each live session of the agent: stopTurn(), handle.stop()
@@ -122,8 +125,8 @@ Stop agent ─▶ POST /api/agents/:id/stop
 
 ## The build
 
-Test-first, one slice at a time. The seams: `buildArgs()` and
-`agentArgs()` (exported functions), `createServer()`, `openStore()` for the
+Test-first, one slice at a time. The seams: `buildArgs()` (an exported
+function), `createServer()`, `openStore()` for the
 migration, and the agent page.
 
 | Slice              | Tests                                                                                                                                              |
@@ -135,6 +138,6 @@ migration, and the agent page.
 | 5. Maximum turns   | After question 2: the argument, the stored value, the end of turn in the timeline                                                                  |
 
 Docs in the same change: `docs/store.md` (migration 6), `docs/agents.md`
-(`agentArgs()`, and `--max-turns` when it lands), `docs/server.md` (the
+(`claudeArgs()`, and `--max-turns` when it lands), `docs/server.md` (the
 routes), `docs/web-app/agent-page.md`, `docs/forms.md` (the new fields), and
 `docs/plans/design-boards.md`.

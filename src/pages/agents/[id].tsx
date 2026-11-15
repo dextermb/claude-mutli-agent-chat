@@ -3,6 +3,7 @@ import { useForm } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
+import { CommandPreview } from "@/components/agent-form/command-preview"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -537,6 +538,20 @@ export default function AgentPage() {
               </CardContent>
             </Card>
           </div>
+          <form.Subscribe selector={(state) => state.values}>
+            {(values) => (
+              <CommandPreview
+                agent={{
+                  model: values.model,
+                  permissionMode: values.permissionMode,
+                  allowedTools: values.allowedTools ?? [],
+                  disallowedTools: values.disallowedTools ?? [],
+                  systemPrompt: values.systemPrompt || null,
+                }}
+                cwd={values.cwd}
+              />
+            )}
+          </form.Subscribe>
         </form>
       </main>
     </div>

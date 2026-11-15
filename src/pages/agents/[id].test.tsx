@@ -299,4 +299,55 @@ describe("the agent configuration page", () => {
       )
     ).toBeInTheDocument()
   })
+
+  test("the command shows how Claude Code starts the agent, follows the form, and can be copied", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText("Working directory")).toHaveValue(
+        "/home/user/code/web-app"
+      )
+    )
+    const command = within(screen.getByRole("region", { name: "Command" }))
+
+    expect(
+      command.getByText(
+        "The app starts this in /home/user/code/web-app for each conversation."
+      )
+    ).toBeInTheDocument()
+    expect(command.getByRole("code").textContent).toBe(
+      [
+        "claude -p \\",
+        "  --input-format stream-json \\",
+        "  --output-format stream-json \\",
+        "  --verbose \\",
+        "  --include-partial-messages \\",
+        "  --replay-user-messages \\",
+        "  --permission-prompt-tool stdio \\",
+        "  --setting-sources user,project \\",
+        "  --plugin-dir '<chat plugin>' \\",
+        "  --mcp-config '<chat server>' \\",
+        "  --model claude-sonnet-5-5 \\",
+        "  --permission-mode acceptEdits \\",
+        "  --allowedTools Read 'Bash(pnpm test:*)' mcp__chat__get_conversation mcp__chat__list_conversations mcp__chat__list_agents mcp__chat__read_messages \\",
+        "  --append-system-prompt '<rule>' \\",
+        "  --resume '<session id>'",
+      ].join("\n")
+    )
+
+    await pick("Model", "claude-haiku-5-5")
+    await user.type(screen.getByLabelText("System prompt"), "Run the tests.")
+
+    expect(command.getByRole("code")).toHaveTextContent(
+      "--model claude-haiku-5-5"
+    )
+    expect(command.getByRole("code")).toHaveTextContent(
+      "--append-system-prompt '<rule> + <system prompt>'"
+    )
+    await user.click(command.getByRole("button", { name: "Copy" }))
+    expect(await navigator.clipboard.readText()).toBe(
+      command.getByRole("code").textContent
+    )
+  })
 })

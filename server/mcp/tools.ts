@@ -4,15 +4,6 @@ import { homeShort } from "../paths.ts"
 import { tool, ToolError, type Tool } from "./rpc.ts"
 import type { Conversation, Store, TimelineEntry } from "../store/store.ts"
 
-export const CHAT_SERVER = "chat"
-
-export const READ_TOOLS = [
-  "get_conversation",
-  "list_conversations",
-  "list_agents",
-  "read_messages",
-]
-
 export type ChatServer = {
   store: Store
   liveState(agentId: string, conversationId: string): SessionState
