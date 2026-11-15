@@ -258,6 +258,25 @@ export function createServer({
     }
   }
 
+  function membersChanged(conversationId: string): Conversation | undefined {
+    const before = store.getConversation(conversationId)
+    if (before?.kind === "group") {
+      store.renameConversation(
+        conversationId,
+        agentIdsOf(conversationId)
+          .flatMap((agentId) => store.getAgent(agentId)?.name ?? [])
+          .join(", ")
+      )
+    }
+    const conversation = store.getConversation(conversationId)
+    if (conversation) {
+      const event = { type: "conversation", conversation }
+      publish(conversationId, event)
+      publishTo(appChannel, event)
+    }
+    return conversation
+  }
+
   function stopTurn(session: LiveSession) {
     session.queue = []
     if (session.state === "busy" || session.state === "waiting") {
@@ -317,7 +336,7 @@ export function createServer({
     const cursor =
       promptCursors.get(key) ??
       Math.max(
-        0,
+        store.joinedSeq(conversationId, author),
         ...entries
           .filter((entry) => entry.authorKey === author)
           .map((entry) => entry.seq)
@@ -474,6 +493,50 @@ export function createServer({
       return send(response, 201, {
         session: sessionCard(agent, conversationId),
       })
+    }
+
+    if ((params = route("POST", "api/conversations/:id/members"))) {
+      const conversation = store.getConversation(params.id)
+      if (!conversation) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      if (conversation.kind === "dm") {
+        return send(response, 400, { error: "A DM has one agent." })
+      }
+      const body = await readJson(request)
+      for (const agentId of texts(body.agentIds)) {
+        const memberKey = `agent:${agentId}`
+        if (!store.getAgent(agentId)) continue
+        if (conversation.members.includes(memberKey)) continue
+        store.addMember(conversation.id, memberKey)
+      }
+      return send(response, 200, {
+        conversation: membersChanged(conversation.id),
+      })
+    }
+
+    if ((params = route("DELETE", "api/conversations/:id/members/:agentId"))) {
+      const conversation = store.getConversation(params.id)
+      const memberKey = `agent:${params.agentId}`
+      if (!conversation || !conversation.members.includes(memberKey)) {
+        return send(response, 404, { error: "no such member" })
+      }
+      if (conversation.kind === "dm") {
+        return send(response, 400, { error: "A DM has one agent." })
+      }
+      if (conversation.kind === "group" && agentIdsOf(params.id).length === 1) {
+        return send(response, 400, {
+          error: "A group chat needs one agent or more.",
+        })
+      }
+      const running = findLive(params.agentId, params.id)
+      if (running) {
+        stopTurn(running)
+        await running.handle?.stop()
+      }
+      store.removeMember(params.id, memberKey)
+      promptCursors.delete(`${params.agentId} ${params.id}`)
+      return send(response, 200, { conversation: membersChanged(params.id) })
     }
 
     if ((params = route("POST", "api/conversations/:id/stop"))) {

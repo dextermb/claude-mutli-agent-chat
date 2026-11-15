@@ -64,7 +64,10 @@ the last prompt of that agent, one line for each, with its author:
 - The user is `User`. An agent is its name.
 - The server keeps the place of the last prompt of each agent in memory.
   After a server start, it uses the last item of that agent in the
-  conversation instead.
+  conversation, or the place where the agent joined if that is later. So the
+  first prompt of a new member holds only the messages after it joined. A
+  removed agent loses its place in memory, so an agent that joins again
+  starts at its new join.
 - New session moves that place to its divider, because the agent forgot the
   conversation (`docs/server.md`).
 
@@ -74,6 +77,19 @@ the last prompt of that agent, one line for each, with its author:
 most urgent state of its live sessions, in this order: `waiting`, `busy`,
 `starting`, `failed`, `idle`. An agent with no live session is `exited`.
 
-## Not built yet
+## Members
 
-- Add or remove the members of a conversation.
+`POST /api/conversations/:id/members` with `{ agentIds }` adds agents to a
+group chat or a channel, and `DELETE /api/conversations/:id/members/:agentId`
+removes one (`docs/server.md`).
+
+- A DM refuses both with `400`, because a DM has one agent.
+- A group chat keeps its last agent: `400` "A group chat needs one agent or
+  more." A channel can have no agents.
+- A group chat has the names of its agents as its name, so a change of
+  members changes its name. A channel keeps its name.
+- A new member goes to the end of the list. The store keeps the `seq` when
+  it joined, in `conversation_members.joined_seq`.
+- A removed agent stops its process in that conversation, and its queue
+  empties. Its items stay in the timeline. Its old session rows stay too, so
+  if it joins again, its next process resumes its old Claude session.

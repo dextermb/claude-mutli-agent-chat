@@ -667,6 +667,79 @@ describe("the DM page", () => {
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
   })
 
+  test("in a channel, invite agents adds the picked agents that are not members", async () => {
+    const user = userEvent.setup()
+    const docsWriter = { ...reviewerBot, id: "a3", name: "docs-writer" }
+    openChannel([userMessage])
+    network.on("GET", "/api/agents", {
+      agents: [docsWriter, reviewerBot, testRunner],
+    })
+    network.on("POST", "/api/conversations/ch1/members", {
+      conversation: releaseChannel,
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Invite agents" }))
+    const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
+    await waitFor(() =>
+      expect(
+        within(dialog)
+          .getAllByRole("checkbox")
+          .map((box) => box.getAttribute("aria-label"))
+      ).toEqual(["Pick docs-writer"])
+    )
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick docs-writer" })
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Invite" }))
+
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      [
+        {
+          method: "POST",
+          url: "/api/conversations/ch1/members",
+          body: { agentIds: ["a3"] },
+        },
+      ]
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+  })
+
+  test("in a channel, the panel of an agent can remove that agent from the channel", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("GET", "/api/conversations/ch1/agents/a2/session", {
+      session: testRunnerSession,
+    })
+    network.on("DELETE", "/api/conversations/ch1/members/a2", {
+      conversation: releaseChannel,
+    })
+    const header = within(await screen.findByRole("banner"))
+    await user.click(
+      header.getByRole("button", { name: "reviewer-bot Online" })
+    )
+    const panel = await screen.findByRole("complementary", {
+      name: "Session of reviewer-bot",
+    })
+
+    await user.click(
+      within(panel).getByRole("button", { name: "Remove from conversation" })
+    )
+
+    expect(
+      network.sent.filter((request) => request.method === "DELETE")
+    ).toEqual([
+      {
+        method: "DELETE",
+        url: "/api/conversations/ch1/members/a2",
+        body: undefined,
+      },
+    ])
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+  })
+
   test("in a channel, the divider of a new session names the agent", async () => {
     openChannel([
       userMessage,

@@ -84,4 +84,11 @@ export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
         ADD COLUMN claude_session_new INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 4,
+    sql: `
+      ALTER TABLE conversation_members
+        ADD COLUMN joined_seq INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ]

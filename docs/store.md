@@ -36,6 +36,7 @@ runs in one transaction with its SQL, its rebuild and the new
 | ------- | ---------------------------------------------------------------------------------------- |
 | 2       | `agent_sessions` gets `ended_at`, `exit_code` and `stderr`. Each timeline is built again |
 | 3       | `agent_sessions` gets `config` (JSON, null for older rows) and `claude_session_new`      |
+| 4       | `conversation_members` gets `joined_seq`, 0 for older rows                               |
 
 A migration with `rebuild: true` builds the timeline of each session again
 from its stored lines. Use it when a change to the reducer must reach the
@@ -59,7 +60,7 @@ conversations ──1:N── conversation_members
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `agents`               | The configuration of each agent. The tool lists are JSON arrays                                                                                                                                                                                             |
 | `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                             |
-| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order                                                                                                                                                                                           |
+| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                              |
 | `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`) |
 | `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                   |
 | `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                                                                                                                |
@@ -121,17 +122,19 @@ in each replay.
 
 ## Queries
 
-| Function                                                                   | Result                                                 |
-| -------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `createAgent(agent)`, `getAgent(id)`                                       | An agent                                               |
-| `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order               |
-| `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first                         |
-| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                          |
-| `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                       |
-| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)`          | The timeline                                           |
-| `listSessionTurns(agentId, conversationId, claudeSessionId)`               | The turn items of each row with that Claude session ID |
-| `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines                 |
-| `close()`                                                                  | Closes the database                                    |
+| Function                                                                   | Result                                                               |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `createAgent(agent)`, `getAgent(id)`                                       | An agent                                                             |
+| `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order                             |
+| `addMember(id, memberKey)`, `removeMember(id, memberKey)`                  | Adds a member at the end with the `joined_seq` of now, or removes it |
+| `joinedSeq(id, memberKey)`, `renameConversation(id, name)`                 | The place where a member joined, and a new name                      |
+| `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first                                       |
+| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                                        |
+| `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                                     |
+| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)`          | The timeline                                                         |
+| `listSessionTurns(agentId, conversationId, claudeSessionId)`               | The turn items of each row with that Claude session ID               |
+| `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines                               |
+| `close()`                                                                  | Closes the database                                                  |
 
 ## Not stored yet
 
