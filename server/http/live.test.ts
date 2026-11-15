@@ -248,4 +248,93 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
       rmSync(folder, { recursive: true })
     }
   }, 120_000)
+
+  test("an agent calls a read tool of the chat server with no card, and has the skills of the chat plugin", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "live-check-"))
+    const store = openStore(":memory:")
+    const server = createServer({
+      store,
+      startSession: ({ args, cwd, onEvent }) => {
+        const session = new AgentSession({
+          command: "claude",
+          args,
+          cwd,
+          env: process.env,
+          onEvent,
+        })
+        session.start()
+        return session
+      },
+    })
+    const address = await server.listen(0)
+    const base = `http://${address.host}:${address.port}`
+    try {
+      const agent = store.createAgent({
+        name: "live-check",
+        colour: "aqua",
+        model: "claude-haiku-5-5",
+        permissionMode: "default",
+        cwd: folder,
+        autostart: false,
+        allowedTools: [],
+        disallowedTools: [],
+        systemPrompt: null,
+      })
+      const conversation = store.createConversation({
+        kind: "dm",
+        name: agent.name,
+        topic: null,
+        private: true,
+        replyMode: "every",
+        members: ["user:me", `agent:${agent.id}`],
+      })
+
+      await fetch(`${base}/api/conversations/${conversation.id}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "Call the get_conversation tool of the chat server one time. Then reply with the value of its replyMode field only.",
+        }),
+      })
+
+      await vi.waitFor(
+        async () => {
+          const response = await fetch(
+            `${base}/api/conversations/${conversation.id}/timeline`
+          )
+          const { items } = (await response.json()) as {
+            items: { item: Record<string, unknown> }[]
+          }
+          const call = items.find(
+            ({ item }) => item.name === "mcp__chat__get_conversation"
+          )
+          expect(call?.item).toMatchObject({
+            name: "mcp__chat__get_conversation",
+            status: "done",
+          })
+          expect(items.some(({ item }) => item.kind === "permission")).toBe(
+            false
+          )
+          expect(items.at(-1)?.item.kind).toBe("turn")
+          expect(String(items.at(-2)?.item.text)).toContain("every")
+        },
+        { timeout: 90_000, interval: 500 }
+      )
+      const session = store.latestSession(agent.id, conversation.id)
+      const init = store
+        .listLines(String(session?.id))
+        .map((line) => JSON.parse(line.text) as Record<string, unknown>)
+        .find((line) => line.subtype === "init")
+      expect(init?.mcp_servers).toContainEqual(
+        expect.objectContaining({ name: "chat" })
+      )
+      expect(JSON.stringify(init?.skills)).toContain("chat:ask-an-agent")
+      expect(JSON.stringify(init?.skills)).toContain("chat:hand-off")
+      expect(JSON.stringify(init?.skills)).toContain("chat:catch-up")
+    } finally {
+      await server.close()
+      store.close()
+      rmSync(folder, { recursive: true })
+    }
+  }, 120_000)
 })

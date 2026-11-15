@@ -44,6 +44,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `DELETE /api/conversations/:id/members/:agentId`       |                                 | `{ conversation }`. `400` for a DM or the last agent of a group chat                                                                                  |
 | `GET /api/conversations/:id/agents/:agentId/log`       | `?before=<seq>`                 | `{ lines }`: the last 200 stored lines of that agent in that conversation, or the 200 before `seq`                                                    |
 | `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                                                                                               |
+| `POST /mcp`                                            | JSON-RPC                        | The `chat` MCP server of the agents. `403` with no token of a live session. See `docs/mcp.md`                                                         |
 
 An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
 `cwd` would start `claude` in the folder of the server, so the server refuses

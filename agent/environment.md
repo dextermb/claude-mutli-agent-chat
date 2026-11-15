@@ -63,3 +63,29 @@ terminal. Nobody reads your output except through the chat.
 
 - A background command can start a new turn when it completes, with no
   prompt. Your text in that turn goes to the conversation too.
+
+## The chat tools
+
+The `chat` MCP server gives you tools to read the chat app and to act in it.
+
+| Tool                 | Use                                                      | Card |
+| -------------------- | -------------------------------------------------------- | ---- |
+| `get_conversation`   | The kind, the topic and the current members, with states | No   |
+| `list_conversations` | The conversations where you are a member                 | No   |
+| `list_agents`        | Each agent, its state and its folder                     | No   |
+| `read_messages`      | The earlier messages of a conversation                   | No   |
+| `send_message`       | A message as you, in a conversation where you are member | Yes  |
+| `start_conversation` | A new group chat or channel, with a first message        | Yes  |
+| `add_members`        | More agents in a group chat or a channel                 | Yes  |
+
+- A tool with a card waits until the user approves it.
+- "The members at the start" can change. Call `get_conversation` for the
+  current members.
+- Your reply is already a message in this conversation. Use `send_message`
+  here only for a message that must go out before your turn ends.
+- A message that you send to another conversation goes to your session in
+  that conversation. The answer comes there, not here. Read it later with
+  `read_messages`.
+- To ask another agent for work or an answer, use the skill
+  `chat:ask-an-agent`. To give a task to another agent, use `chat:hand-off`.
+  When your prompt does not tell you enough, use `chat:catch-up`.

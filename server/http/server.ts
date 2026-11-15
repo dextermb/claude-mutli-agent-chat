@@ -5,12 +5,14 @@ import {
 } from "node:http"
 import { randomUUID } from "node:crypto"
 import type { AddressInfo } from "node:net"
-import { homedir } from "node:os"
 import type { PermissionAnswer } from "../protocol/encode.ts"
 import { parseMentions } from "../conversation/mentions.ts"
 import { agentSchema, channelSchema, checkBody } from "../schemas.ts"
+import { homeShort } from "../paths.ts"
 import { buildArgs } from "../session/args.ts"
 import { environmentPrompt } from "../session/environment-prompt.ts"
+import { answerRpc } from "../mcp/rpc.ts"
+import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
@@ -41,6 +43,7 @@ type LiveSession = {
   agentId: string
   conversationId: string
   handle: SessionHandle | null
+  token: string
   state: SessionState
   queue: string[]
   lastOutSeq: number
@@ -80,6 +83,8 @@ export function createServer({
   const sentAgentStates = new Map<string, SessionState>()
   const sentUnread = new Map<string, number>()
   const promptCursors = new Map<string, number>()
+  const tokens = new Map<string, LiveSession>()
+  let chatUrl = ""
   const openRequests = new Map<
     string,
     { session: LiveSession; card: PermissionItem | QuestionItem }
@@ -156,23 +161,24 @@ export function createServer({
       agentId: row.agentId,
       conversationId: row.conversationId,
       handle: null,
+      token: randomUUID(),
       state: "starting",
       queue: [],
       lastOutSeq: 0,
       exit: null,
     }
     live.set(session.id, session)
+    tokens.set(session.token, session)
     session.handle = startSession({
       agent,
-      args: buildArgs(
-        agent,
-        row,
-        environmentPrompt({
+      args: buildArgs(agent, row, {
+        rule: environmentPrompt({
           agentName: agent.name,
           conversation,
           memberNames: conversation.members.map(authorName),
-        })
-      ),
+        }),
+        chat: { url: chatUrl, token: session.token },
+      }),
       cwd: agent.cwd,
       onEvent: (event) => onSessionEvent(session, event),
     })
@@ -247,6 +253,7 @@ export function createServer({
       })
       if (event.state === "exited" || event.state === "failed") {
         live.delete(session.id)
+        tokens.delete(session.token)
       }
       publishAgentState(session.agentId)
       if (event.state === "idle") deliverNext(session)
@@ -442,6 +449,8 @@ export function createServer({
       matchRoute(request.method, parts, method, pattern)
     let params: Record<string, string> | null
 
+    if (url.pathname === "/mcp") return answerChat(request, response)
+
     if ((params = route("POST", "api/conversations/:id/read"))) {
       const conversationId = params.id
       if (!store.getConversation(conversationId)) {
@@ -545,19 +554,10 @@ export function createServer({
       if (!conversation) {
         return send(response, 404, { error: "no such conversation" })
       }
-      if (conversation.kind === "dm") {
-        return send(response, 400, { error: "A DM has one agent." })
-      }
       const body = await readJson(request)
-      for (const agentId of texts(body.agentIds)) {
-        const memberKey = `agent:${agentId}`
-        if (!store.getAgent(agentId)) continue
-        if (conversation.members.includes(memberKey)) continue
-        store.addMember(conversation.id, memberKey)
-      }
-      return send(response, 200, {
-        conversation: membersChanged(conversation.id),
-      })
+      const added = addMembers(conversation, texts(body.agentIds))
+      if (!added.ok) return send(response, 400, { error: added.error })
+      return send(response, 200, { conversation: added.conversation })
     }
 
     if ((params = route("DELETE", "api/conversations/:id/members/:agentId"))) {
@@ -682,52 +682,9 @@ export function createServer({
     if (route("POST", "api/conversations")) {
       const body = await readJson(request)
       if (body.kind === "group" || body.kind === "channel") {
-        const agents = texts(body.agentIds).flatMap(
-          (agentId) => store.getAgent(agentId) ?? []
-        )
-        const members = [
-          "user:me",
-          ...agents.map((agent) => `agent:${agent.id}`),
-        ]
-        if (body.kind === "group") {
-          if (agents.length === 0) {
-            return send(response, 400, { error: "Give one or more agentIds." })
-          }
-          const conversation = store.createConversation({
-            kind: "group",
-            name: agents.map((agent) => agent.name).join(", "),
-            topic: null,
-            private: true,
-            replyMode: "mention",
-            members,
-          })
-          return created(response, conversation)
-        }
-        const checked = checkBody(channelSchema, body)
-        if (!checked.ok) {
-          return send(response, 400, {
-            error: checked.error,
-            fields: checked.fields,
-          })
-        }
-        const { name, topic, replyMode } = checked.data
-        const taken = store
-          .listConversations()
-          .some((item) => item.kind === "channel" && item.name === name)
-        if (taken) {
-          return send(response, 409, {
-            error: `A channel with the name ${name} exists.`,
-          })
-        }
-        const conversation = store.createConversation({
-          kind: "channel",
-          name,
-          topic,
-          private: checked.data.private,
-          replyMode,
-          members,
-        })
-        return created(response, conversation)
+        const made = createGroupOrChannel(body)
+        if (!made.ok) return send(response, made.status, made.body)
+        return send(response, 201, { conversation: made.conversation })
       }
       const agent = store.getAgent(text(body.agentId))
       if (body.kind !== "dm" || !agent) {
@@ -749,6 +706,123 @@ export function createServer({
     send(response, 404, { error: "not found" })
   }
 
+  function createGroupOrChannel(
+    body: Record<string, unknown>
+  ):
+    | { ok: true; conversation: Conversation }
+    | { ok: false; status: number; body: Record<string, unknown> } {
+    const agents = texts(body.agentIds).flatMap(
+      (agentId) => store.getAgent(agentId) ?? []
+    )
+    const members = ["user:me", ...agents.map((agent) => `agent:${agent.id}`)]
+    let conversation: Conversation
+    if (body.kind === "group") {
+      if (agents.length === 0) {
+        return {
+          ok: false,
+          status: 400,
+          body: { error: "Give one or more agentIds." },
+        }
+      }
+      conversation = store.createConversation({
+        kind: "group",
+        name: agents.map((agent) => agent.name).join(", "),
+        topic: null,
+        private: true,
+        replyMode: "mention",
+        members,
+      })
+    } else {
+      const checked = checkBody(channelSchema, body)
+      if (!checked.ok) {
+        return {
+          ok: false,
+          status: 400,
+          body: { error: checked.error, fields: checked.fields },
+        }
+      }
+      const { name, topic, replyMode } = checked.data
+      const taken = store
+        .listConversations()
+        .some((item) => item.kind === "channel" && item.name === name)
+      if (taken) {
+        return {
+          ok: false,
+          status: 409,
+          body: { error: `A channel with the name ${name} exists.` },
+        }
+      }
+      conversation = store.createConversation({
+        kind: "channel",
+        name,
+        topic,
+        private: checked.data.private,
+        replyMode,
+        members,
+      })
+    }
+    publishTo(appChannel, { type: "conversation", conversation })
+    return { ok: true, conversation }
+  }
+
+  function addMembers(
+    conversation: Conversation,
+    agentIds: string[]
+  ):
+    | { ok: true; conversation: Conversation | undefined }
+    | { ok: false; error: string } {
+    if (conversation.kind === "dm") {
+      return { ok: false, error: "A DM has one agent." }
+    }
+    for (const agentId of agentIds) {
+      const memberKey = `agent:${agentId}`
+      if (!store.getAgent(agentId)) continue
+      if (conversation.members.includes(memberKey)) continue
+      store.addMember(conversation.id, memberKey)
+    }
+    return { ok: true, conversation: membersChanged(conversation.id) }
+  }
+
+  function postMessage(conversationId: string, agentId: string, text: string) {
+    const entry = store.addMessage(conversationId, `agent:${agentId}`, text)
+    publish(conversationId, { type: "item", entry })
+    publishUnread(conversationId)
+    for (const mentioned of mentionedAgents(conversationId, text, agentId)) {
+      prompt(mentioned, conversationId, text)
+    }
+    return entry
+  }
+
+  const chat: ChatServer = {
+    store,
+    liveState,
+    agentState,
+    authorName,
+    postMessage,
+    createGroupOrChannel,
+    addMembers,
+  }
+
+  async function answerChat(
+    request: IncomingMessage,
+    response: ServerResponse
+  ) {
+    const session = tokens.get(
+      (request.headers.authorization ?? "").replace(/^Bearer /, "")
+    )
+    if (!session) return send(response, 403, { error: "no such session" })
+    if (request.method !== "POST") {
+      response.writeHead(405, { allow: "POST" }).end()
+      return
+    }
+    const answer = answerRpc(await readJson(request), chatTools(chat, session))
+    if (answer === null) {
+      response.writeHead(202).end()
+      return
+    }
+    send(response, 200, answer)
+  }
+
   return {
     autostart() {
       for (const agent of store.listAgents()) {
@@ -761,6 +835,7 @@ export function createServer({
       return new Promise((resolve) => {
         http.listen(port, HOST, () => {
           const address = http.address() as AddressInfo
+          chatUrl = `http://${address.address}:${address.port}/mcp`
           resolve({ host: address.address, port: address.port })
         })
       })
@@ -786,13 +861,6 @@ function configOf(agent: Agent): SessionConfig {
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt,
   }
-}
-
-function homeShort(folder: string): string {
-  const home = homedir()
-  return folder === home || folder.startsWith(`${home}/`)
-    ? `~${folder.slice(home.length)}`
-    : folder
 }
 
 function text(value: unknown): string {

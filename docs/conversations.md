@@ -33,6 +33,11 @@ apply, so two agents in `every` mode do not answer each other with no end.
 There is no limit on a chain of mentions. The user stops it with Stop, which
 interrupts each busy agent and empties each queue in the conversation.
 
+A message that an agent sends with the `send_message` or `start_conversation`
+tool follows the same rule as a complete message of that agent
+(`docs/mcp.md`). Stop stops only its own conversation, so a chain that
+crosses two conversations needs Stop in each.
+
 A message that comes while an agent works waits in the queue of that agent.
 
 ## Mentions

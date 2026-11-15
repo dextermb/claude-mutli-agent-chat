@@ -19,8 +19,10 @@ claude -p
   --permission-prompt-tool stdio
   --setting-sources user,project
   --plugin-dir <repository>/agent
+  --mcp-config <the chat MCP server, with the token of the session>
   --model <model>
   --permission-mode <mode>
+  --allowedTools <rules of the agent> <the read tools of the chat server>
   --append-system-prompt <rule of the environment + system prompt of the agent>
   [--resume <session_id> | --session-id <uuid>]
 ```
@@ -33,6 +35,7 @@ claude -p
   servers, memory files and hooks, the same as a terminal session.
 - `--plugin-dir` loads the `chat` plugin of the repository (F33). See
   `docs/agent-environment.md`.
+- `--mcp-config` adds the `chat` MCP server (F34, F35). See `docs/mcp.md`.
 
 `buildArgs()` in `server/session/args.ts` makes this command line. See
 `docs/agents.md`.
@@ -113,6 +116,8 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F31 | **`--session-id` refuses an ID that has a transcript.** It prints "Error: Session ID … is already in use." and exits with code 1 before `initialize`. `--resume` of that ID works. | Probe |
 | F32 | **Claude Code sends only the tool calls of a subagent.** A subagent that writes text, and then a `Read` call, gives one `assistant` line with `parent_tool_use_id` that holds the `tool_use` block only. Its text and its last answer are in its transcript, but not on stdout, and it sends no `stream_event` line. Its last answer reaches the main agent in the `tool_result` of the `Agent` call. Measured with 2.1.311. | `subagent-text` |
 | F33 | **`--plugin-dir <dir>` loads a plugin in `-p` mode.** The `initialize` answer lists a skill of the plugin with the plugin name before it: the skill `chat-probe` of the plugin `chat-app` is `chat-app:chat-probe`. | Probe |
+| F34 | **An `http` MCP server in `--mcp-config` that does not answer does not stop the process.** The process answers `initialize` as before. | Probe |
+| F35 | **Claude Code connects to an `http` MCP server when the process starts, before the first prompt.** It sends `server/discover` with `MCP-Protocol-Version: 2026-07-28`. After the error `-32601` (or an empty result), it sends `initialize` with `2025-11-25`, then `notifications/initialized`, a `GET` for an event stream, and `tools/list`. Each request carries the headers of `--mcp-config`. | Probe |
 
 ## The decoder and the encoders
 

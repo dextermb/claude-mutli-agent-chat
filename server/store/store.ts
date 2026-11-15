@@ -442,11 +442,19 @@ export function openStore(location: string) {
   }
 
   function addUserMessage(conversationId: string, text: string): TimelineEntry {
+    return addMessage(conversationId, "user:me", text)
+  }
+
+  function addMessage(
+    conversationId: string,
+    authorKey: string,
+    text: string
+  ): TimelineEntry {
     const id = randomUUID()
     const entry: TimelineEntry = {
       id,
       seq: nextSeq(),
-      authorKey: "user:me",
+      authorKey,
       createdAt: new Date().toISOString(),
       item: { kind: "message", id, text, status: "done" },
     }
@@ -579,6 +587,7 @@ export function openStore(location: string) {
     updateAgent,
     createConversation,
     getConversation,
+    addMessage,
     listConversations,
     unreadCounts,
     markRead,

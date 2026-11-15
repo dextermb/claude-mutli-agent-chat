@@ -41,6 +41,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `AgentSession`, a fake `claude`   | `server/session/session.test.ts`                |
 | `Store`, an in-memory database    | `server/store/store.test.ts`                    |
 | `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
+| `POST /mcp`, the chat tools       | `server/http/mcp.test.ts`                       |
 | `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`            |
 | `useWorkspace()`, fake network    | `src/hooks/use-workspace.test.ts`               |
 | `filesOf()`, the Files tab rows   | `src/lib/files.test.ts`                         |
@@ -60,7 +61,9 @@ fixture as a `claude` process. See `docs/agents.md`.
 The `createServer()` tests listen on a free port and send real requests with
 `fetch`. `server/test/http.ts` holds their helpers. Its `startSession` starts
 the fake `claude` and keeps each line that goes to each agent, so a test can
-check the answers and the prompts that reach Claude Code. A test can give
+check the answers and the prompts that reach Claude Code. `callChat(args,
+method, params)` calls the `chat` MCP server with the address and the token
+from the `--mcp-config` of a started process. A test can give
 each agent its own fixture, and its own reply text with `FAKE_CLAUDE_REPLY`.
 
 The browser tests use `src/test/fake-network.ts`. It replaces `fetch` and
@@ -75,8 +78,13 @@ agent and the timeline entries that the tests show.
 `server/http/live.test.ts` runs the real `claude` with Haiku. It runs only
 with `pnpm test:live` (`CLAUDE_LIVE=1`), because each run costs money: about
 0.005 USD for the DM test, about 0.013 USD for the test of New session and
-`--resume`, and about 0.005 USD for the test of the rule of the environment
-(four turns in all, about 0.025 USD).
+`--resume`, about 0.005 USD for the test of the rule of the environment, and
+about 0.01 USD for the test of a chat tool (five turns in all, about
+0.035 USD).
+
+The test of a chat tool finds the tool call by its name, not as the first
+tool call. In one full run on 2026-11-15, it failed at the first tool call,
+and it then passed in three runs. The cause is not known.
 
 The `Store` tests use `:memory:`. A test of a server start uses a database
 file in a temporary folder, and opens the store a second time.

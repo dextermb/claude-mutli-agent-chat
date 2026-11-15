@@ -73,3 +73,14 @@ The server makes the rule only when a process starts. So:
 `docs/protocol.md`). A skill in `agent/skills/<name>/SKILL.md` shows as
 `chat:<name>`. The plugin does not hold the rule, because a plugin cannot
 give a `CLAUDE.md`, and a skill loads only on demand.
+
+| Skill               | When the agent uses it                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| `chat:ask-an-agent` | It needs work or an answer from another agent: where to ask, and where the answer comes |
+| `chat:hand-off`     | Another agent must continue a task: the shape of a complete brief                       |
+| `chat:catch-up`     | Its prompt does not tell it enough: read the earlier messages first                     |
+
+The skills use the tools of the `chat` MCP server (`docs/mcp.md`). The
+section "The chat tools" of `agent/environment.md` lists those tools, so the
+agent knows them in each turn. When a tool changes, change that section and
+the skills too.

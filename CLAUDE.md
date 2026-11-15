@@ -15,7 +15,7 @@ manager is pnpm.
 | `pnpm typecheck`  | Checks the types.                                     |
 | `pnpm lint`       | Runs ESLint.                                          |
 | `pnpm build`      | Checks the types and builds `dist`.                   |
-| `pnpm test:live`  | Runs the live check (real `claude`, about 0.025 USD). |
+| `pnpm test:live`  | Runs the live check (real `claude`, about 0.035 USD). |
 
 ## Where things are
 
@@ -32,6 +32,7 @@ manager is pnpm.
 - `docs/agents.md`: the `claude` process of each agent session.
 - `docs/agent-environment.md`: the rule that tells each agent about the chat
   app, and the `chat` plugin in `agent/`.
+- `docs/mcp.md`: the `chat` MCP server that each agent gets, and its tools.
 - `docs/store.md`: the SQLite tables and the queries.
 - `docs/server.md`: the routes and the event stream of the agent server.
 - `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.

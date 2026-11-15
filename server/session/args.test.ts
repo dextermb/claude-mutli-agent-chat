@@ -6,7 +6,17 @@ import { buildArgs, type AgentConfig } from "./args.ts"
 
 const AGENT_FOLDER = fileURLToPath(new URL("../../agent", import.meta.url))
 
-const RULE = "# This session\n\nYou are reviewer-bot."
+const CONTEXT = {
+  rule: "# This session\n\nYou are reviewer-bot.",
+  chat: { url: "http://127.0.0.1:4100/mcp", token: "token-of-the-session" },
+}
+
+const CHAT_READ_TOOLS = [
+  "mcp__chat__get_conversation",
+  "mcp__chat__list_conversations",
+  "mcp__chat__list_agents",
+  "mcp__chat__read_messages",
+]
 
 const reviewer: AgentConfig = {
   model: "claude-haiku-5-5",
@@ -26,7 +36,7 @@ function flagValues(args: string[], flag: string): string[] {
 
 describe("buildArgs", () => {
   test("a new session gets the stream-json command line with the model and the mode", () => {
-    expect(buildArgs(reviewer, { claudeSessionId: null }, RULE)).toEqual([
+    expect(buildArgs(reviewer, { claudeSessionId: null }, CONTEXT)).toEqual([
       "-p",
       "--input-format",
       "stream-json",
@@ -41,10 +51,22 @@ describe("buildArgs", () => {
       "user,project",
       "--plugin-dir",
       AGENT_FOLDER,
+      "--mcp-config",
+      JSON.stringify({
+        mcpServers: {
+          chat: {
+            type: "http",
+            url: "http://127.0.0.1:4100/mcp",
+            headers: { Authorization: "Bearer token-of-the-session" },
+          },
+        },
+      }),
       "--model",
       "claude-haiku-5-5",
       "--permission-mode",
       "default",
+      "--allowedTools",
+      ...CHAT_READ_TOOLS,
       "--append-system-prompt",
       "# This session\n\nYou are reviewer-bot.",
     ])
@@ -56,7 +78,7 @@ describe("buildArgs", () => {
       {
         claudeSessionId: "074f7c64-3c94-4c49-8714-412f5e85ada2",
       },
-      RULE
+      CONTEXT
     )
 
     expect(args.slice(-2)).toEqual([
@@ -72,7 +94,7 @@ describe("buildArgs", () => {
         claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
         claudeSessionNew: true,
       },
-      RULE
+      CONTEXT
     )
 
     expect(args.slice(-2)).toEqual([
@@ -82,7 +104,7 @@ describe("buildArgs", () => {
     expect(args).not.toContain("--resume")
   })
 
-  test("the allowed and the disallowed tool rules of the agent each get a flag", () => {
+  test("the allowed and the disallowed tool rules of the agent each get a flag, and the read tools of the chat server need no permission", () => {
     const args = buildArgs(
       {
         ...reviewer,
@@ -90,10 +112,14 @@ describe("buildArgs", () => {
         disallowedTools: ["WebFetch"],
       },
       { claudeSessionId: null },
-      RULE
+      CONTEXT
     )
 
-    expect(flagValues(args, "--allowedTools")).toEqual(["Read", "Bash(git *)"])
+    expect(flagValues(args, "--allowedTools")).toEqual([
+      "Read",
+      "Bash(git *)",
+      ...CHAT_READ_TOOLS,
+    ])
     expect(flagValues(args, "--disallowedTools")).toEqual(["WebFetch"])
   })
 
@@ -101,7 +127,7 @@ describe("buildArgs", () => {
     const args = buildArgs(
       { ...reviewer, systemPrompt: "You review pull requests." },
       { claudeSessionId: null },
-      RULE
+      CONTEXT
     )
 
     expect(flagValues(args, "--append-system-prompt")).toEqual([
@@ -111,7 +137,7 @@ describe("buildArgs", () => {
 
   test("each session loads the chat plugin of the repository", () => {
     const [folder] = flagValues(
-      buildArgs(reviewer, { claudeSessionId: null }, RULE),
+      buildArgs(reviewer, { claudeSessionId: null }, CONTEXT),
       "--plugin-dir"
     )
 
