@@ -231,11 +231,26 @@ function EntryBody({
         aria-busy={item.status === "streaming"}
         className="m-0 leading-[22px] whitespace-pre-wrap"
       >
-        {item.text}
+        {withInlineCode(item.text)}
       </p>
     )
   }
   return null
+}
+
+function withInlineCode(text: string) {
+  return text.split(/`([^`\n]+)`/).map((part, index) =>
+    index % 2 === 1 ? (
+      <code
+        key={index}
+        className="rounded-sm bg-muted px-[5px] py-px font-mono text-[13px] text-agent-yellow"
+      >
+        {part}
+      </code>
+    ) : (
+      part
+    )
+  )
 }
 
 function FailedNotice({

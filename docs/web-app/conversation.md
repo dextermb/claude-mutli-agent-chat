@@ -71,7 +71,9 @@ before the first block of each day: "Today", "Yesterday", or "Friday 13
 November". A block ends at a change of day, so that the heading sits between
 two blocks. `src/lib/time.ts` holds the formats.
 
-A message that is still arriving has `aria-busy="true"`. A turn summary shows
+A message that is still arriving has `aria-busy="true"`. Text between two
+backticks on one line shows as `code`, in mono on the `muted` ground. The
+timeline renders no other markdown. A turn summary shows
 `Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`.
 
 The status of an agent:

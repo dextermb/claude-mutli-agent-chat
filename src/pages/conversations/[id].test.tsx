@@ -499,6 +499,30 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("text between backticks in a message shows as code", async () => {
+    openConversation([
+      userMessage,
+      {
+        ...agentMessage,
+        item: {
+          kind: "message",
+          id: "item-1",
+          text: "The test reads `Date.now()` twice. Use a `fixed clock`, not a `.",
+          status: "done",
+        },
+      },
+    ])
+
+    expect(
+      await screen.findByText("Date.now()", { selector: "code" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("fixed clock", { selector: "code" })
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/twice\. Use a/)).toHaveLength(1)
+    expect(screen.getByText(/, not a `\.$/)).toBeInTheDocument()
+  })
+
   test("a tool call that a stop ended says Stopped", async () => {
     openConversation([userMessage, stoppedCall])
 
