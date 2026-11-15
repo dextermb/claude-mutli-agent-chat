@@ -42,9 +42,17 @@ For a message of the user:
 - Else, each agent that the message mentions gets it.
 - If the message mentions no agent, each agent with an open question gets
   it. An agent has an open question when one of its complete messages since
-  the last message of the user holds `?`. So the user can answer a question
-  with no mention. A message with a mention does not go to an agent with an
-  open question, unless it mentions that agent too.
+  the last message of the user is a question. So the user can answer a
+  question with no mention. A message with a mention does not go to an agent
+  with an open question, unless it mentions that agent too.
+
+A message of an agent is a question to the user when both are true:
+
+- It holds a `?` with no letter or digit straight after it. `Which branch?`
+  and `Which branch? The tests need it.` are questions. The `?` in
+  `https://ci.dev/runs?id=212` is a query string, not a question.
+- It mentions no other agent. `@test-runner which branch is it?` asks
+  `test-runner`, not the user.
 
 For a complete message of an agent, in a group chat or a channel, each other
 agent that the message mentions gets a turn. The reply mode does not

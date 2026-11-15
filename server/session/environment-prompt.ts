@@ -54,5 +54,5 @@ function turns({
   if (replyMode === "every") {
     return "- Each agent gets each message of the user. A message of an agent gives a turn only to the agents that it mentions with @name."
   }
-  return "- An agent gets a turn when a message mentions it with @name. If your message holds a question mark, the next message of the user with no mention also comes to you."
+  return "- An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you."
 }
