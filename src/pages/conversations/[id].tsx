@@ -2,17 +2,18 @@ import {
   HashIcon,
   LockIcon,
   MenuIcon,
-  PanelRightIcon,
+  SettingsIcon,
+  CpuIcon,
   SquareIcon,
   UserPlusIcon,
   UsersIcon,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useLocation, useParams, useSearch } from "wouter"
+import { Link, useLocation, useParams, useSearch } from "wouter"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AVATAR_COLOURS,
@@ -138,7 +139,7 @@ export default function ConversationPage() {
           {isMobile && (
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Open the sidebar"
               onClick={() => setShowingSidebar(true)}
             >
@@ -150,6 +151,7 @@ export default function ConversationPage() {
               <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
                 {initialsOf(agent.name)}
               </AvatarFallback>
+              {status && <AvatarBadge className={status.dot} />}
             </Avatar>
           ) : (
             <KindIcon conversation={conversation.conversation} />
@@ -158,7 +160,7 @@ export default function ConversationPage() {
             {conversation.conversation.name}
           </h1>
           {isDirect && status && (
-            <Badge variant="outline">
+            <Badge variant="outline" className={status.text}>
               <span className={`size-1.5 rounded-full ${status.dot}`} />
               {status.label}
             </Badge>
@@ -200,23 +202,6 @@ export default function ConversationPage() {
             </Button>
           )}
           <div className="min-w-4 flex-1" />
-          {isDirect && (
-            <TabsList>
-              <TabsTrigger value="messages">Messages</TabsTrigger>
-              <TabsTrigger value="files">Files</TabsTrigger>
-              <TabsTrigger value="log">Session log</TabsTrigger>
-            </TabsList>
-          )}
-          {isDirect && isMobile && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowingSheet(true)}
-            >
-              <PanelRightIcon />
-              Session
-            </Button>
-          )}
           {working.length > 0 && (
             <Button
               variant="destructive"
@@ -225,6 +210,33 @@ export default function ConversationPage() {
             >
               <SquareIcon />
               Stop
+            </Button>
+          )}
+          {isDirect && (
+            <TabsList>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
+              <TabsTrigger value="files">Files</TabsTrigger>
+              <TabsTrigger value="log">Session log</TabsTrigger>
+            </TabsList>
+          )}
+          {isDirect && agent && (
+            <Link
+              href={`/agents/${agent.id}`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <SettingsIcon />
+              Configure
+            </Link>
+          )}
+          {isDirect && isMobile && (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-expanded={showingSheet}
+              onClick={() => setShowingSheet(true)}
+            >
+              <CpuIcon />
+              Session
             </Button>
           )}
         </header>

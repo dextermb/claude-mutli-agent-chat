@@ -108,6 +108,16 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("Configure in the header of a DM opens the agent page", async () => {
+    openConversation([userMessage])
+
+    const header = within(await screen.findByRole("banner"))
+    expect(header.getByRole("link", { name: "Configure" })).toHaveAttribute(
+      "href",
+      "/agents/a1"
+    )
+  })
+
   test("an agent whose process has exited shows Stopped, as in the design", async () => {
     openConversation([userMessage], "exited")
 
