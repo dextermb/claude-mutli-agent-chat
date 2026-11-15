@@ -2,7 +2,8 @@
 
 **Status:** Tier 1 and Tier 2 are done and merged (2026-11-15). This plan
 holds only the boards that need a feature of their own (Tier 3). Each one
-needs its own plan before it is built.
+needs its own plan before it is built. Done from Tier 3 on 2026-11-15:
+Channel settings, the agent page, and Browse for the working directory.
 
 Sources:
 
@@ -33,10 +34,6 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
 - **The rail pages** Direct messages and Activity. Their buttons are
   disabled with the tooltip "Not built yet".
 - **The composer buttons** Attach a file and Run a slash command.
-- **Browse for the working directory** (the AgentConfig board): a browser
-  cannot read the path of a folder on the disk, so it needs
-  `GET /api/folders?path=` on the server and a dialog to move through the
-  folders.
 - **The Live mark of the Session log**: the hook does not expose the state
   of its stream yet.
 - **The tabs on a phone**: the MobileSession board shows no tabs in the

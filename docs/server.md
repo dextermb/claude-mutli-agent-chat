@@ -30,6 +30,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `PATCH /api/agents/:id`                                | Some fields of the agent                | `{ agent }`. The other fields stay                                                                                                                    |
 | `POST /api/agents/:id/stop`                            |                                         | `202`. Stops the agent in each conversation. `404` for an unknown agent                                                                               |
 | `POST /api/agents/:id/restart`                         |                                         | `202`. Starts each live process of the agent again, with `--resume`. `404` for an unknown agent                                                       |
+| `GET /api/folders`                                     | `?path=<absolute path>`                 | `{ path, parent, folders }`: the subfolders of that folder, or of the home folder with no `path`. See "Folders"                                       |
 | `GET /api/conversations`                               |                                         | `{ conversations, unread }`. `unread` gives the unread count of each conversation that has one                                                        |
 | `POST /api/conversations`                              | A DM, a group chat or a channel         | `201 { conversation }`, or `200` with the DM that exists                                                                                              |
 | `GET /api/conversations/:id`                           |                                         | `{ conversation, agents }`, each agent with its `state`                                                                                               |
@@ -192,6 +193,24 @@ the agent had one. Each new process has a new session row with the Claude
 session ID of the row before it, so it uses `--resume`, and it gets the
 configuration of now. So a change to the agent applies at once, and the agent
 keeps its memory. New session is the way to forget (see "Sessions").
+
+## Folders
+
+`GET /api/folders` serves Browse on the agent page. `listFolders()` in
+`server/http/folders.ts` reads one folder:
+
+- `folders` holds each subfolder as `{ name, path }`, in alphabetical order.
+  A symbolic link to a folder counts. Files and names that start with `.`
+  are left out.
+- `path` is the folder that was read, and `parent` the folder above it, or
+  `null` at `/`.
+- A path that is not absolute gets `400` "Give an absolute path.", a missing
+  path `404` "The folder does not exist.", a file `400` "The path is not a
+  folder.", and a folder that the operating system refuses `400` "The server
+  cannot read this folder.".
+
+The route has no root folder. The server listens only on `127.0.0.1`, and an
+agent can already run shell commands in each folder that it can reach.
 
 ## Sessions
 

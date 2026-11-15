@@ -18,6 +18,7 @@ import { buildArgs } from "../session/args.ts"
 import { environmentPrompt } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
+import { listFolders } from "./folders.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
@@ -691,6 +692,11 @@ export function createServer({
       const agent = store.getAgent(params.id)
       if (!agent) return send(response, 404, { error: "no such agent" })
       return send(response, 200, { agent })
+    }
+
+    if (route("GET", "api/folders")) {
+      const answer = await listFolders(url.searchParams.get("path"))
+      return send(response, answer.status, answer.body)
     }
 
     if ((params = route("POST", "api/agents/:id/stop"))) {

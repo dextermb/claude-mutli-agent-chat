@@ -48,6 +48,15 @@ The Identity card has the name, the colour and a one-line Description. The
 description is for the people who read the page. It does not go into a
 prompt, and a change to it does not mark a running session as changed.
 
+The Working directory input has Browse at its end. It opens
+`src/components/agent-form/folder-dialog.tsx`, "Pick a folder", at the folder
+in the field when that is an absolute path that exists, else at the home
+folder (`GET /api/folders`, `docs/server.md`). The dialog shows the path in
+mono, Up (disabled at `/`), one button for each subfolder, or "No folders in
+this folder.", and Cancel and "Use this folder". Browse always puts an
+absolute path in the field, because the server does not expand `~` in the
+working directory.
+
 The model and the permission mode use the Base UI `Select`, with a mono
 trigger, as the design shows. The description under the permission mode
 changes with the mode. The working directory has a folder icon. A tool goes
