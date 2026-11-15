@@ -192,7 +192,7 @@ describe("group chats and channels", () => {
       [
         '- You are the agent "test-runner".',
         `- This conversation is the channel "#release-train" (ID "${conversation.id}"). Its topic: "Ship v2.4 on Friday.".`,
-        "- An agent gets a turn only when a message mentions it with @name.",
+        "- An agent gets a turn when a message mentions it with @name. If your message holds a question mark, the next message of the user with no mention also comes to you.",
         "- The members at the start: User, reviewer-bot, test-runner (you).",
       ].join("\n")
     )
@@ -405,6 +405,81 @@ describe("group chats and channels", () => {
         "[reviewer-bot] @test-runner please add a test for the 404 page.",
       ].join("\n"),
     ])
+  })
+
+  test("an agent that asks a question gets the next message of the user with no mention", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      (name) =>
+        name === "reviewer-bot"
+          ? { reply: "Which branch do you want me to review?" }
+          : { reply: "I ran the tests." }
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "The release branch.")
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(2)
+    )
+
+    expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
+      "[User] @reviewer-bot review PR 212.",
+      "[User] The release branch.",
+    ])
+    expect(promptsTo(sentTo, "test-runner")).toEqual([])
+  })
+
+  test("a message that mentions another agent does not go to the agent that asked a question", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      (name) =>
+        name === "reviewer-bot"
+          ? { reply: "Which branch do you want me to review?" }
+          : { reply: "I ran the tests." }
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "@test-runner which branch is it?")
+    await untilTurns(base, group.id, 2)
+
+    expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
+      "[User] @reviewer-bot review PR 212.",
+    ])
+  })
+
+  test("an agent gets no turn for a second message after the user answered its question", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ reply: "Which branch do you want me to review?" })
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "The release branch.")
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(2)
+    )
+    await sendMessage(base, group.id, "Thank you, both.")
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(2)
   })
 
   test("stop removes a prompt that the mention of an agent put in the queue of a busy agent", async () => {

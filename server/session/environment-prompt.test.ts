@@ -31,7 +31,7 @@ describe("environmentPrompt", () => {
     )
   })
 
-  test("an agent in a channel learns the topic and that only a mention gives it a turn", () => {
+  test("an agent in a channel learns the topic, and that a mention or its own question gives it a turn", () => {
     const prompt = environmentPrompt({
       agentName: "test-runner",
       conversation: {
@@ -50,7 +50,7 @@ describe("environmentPrompt", () => {
         "",
         '- You are the agent "test-runner".',
         '- This conversation is the channel "#frontend" (ID "c-frontend"). Its topic: "The web app".',
-        "- An agent gets a turn only when a message mentions it with @name.",
+        "- An agent gets a turn when a message mentions it with @name. If your message holds a question mark, the next message of the user with no mention also comes to you.",
         "- The members at the start: User, reviewer-bot, test-runner (you).",
       ].join("\n")
     )

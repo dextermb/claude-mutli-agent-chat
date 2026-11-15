@@ -16,7 +16,7 @@ import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
-import type { SessionCard, SessionConfig } from "../api-types.ts"
+import type { SessionCard, SessionConfig, TimelineEntry } from "../api-types.ts"
 
 export type SessionHandle = {
   prompt(text: string): void
@@ -405,13 +405,47 @@ export function createServer({
     if (session) deliver(session, promptFor(agentId, conversationId, text))
   }
 
-  function addressedAgents(conversationId: string, text: string): string[] {
+  function addressedAgents(
+    conversationId: string,
+    message: TimelineEntry
+  ): string[] {
     const conversation = store.getConversation(conversationId)
     if (!conversation) return []
     if (conversation.kind === "dm" || conversation.replyMode === "every") {
       return agentIdsOf(conversationId)
     }
-    return mentionedAgents(conversationId, text, null)
+    const text = message.item.kind === "message" ? message.item.text : ""
+    const mentioned = mentionedAgents(conversationId, text, null)
+    return mentioned.length > 0
+      ? mentioned
+      : agentsWithQuestions(conversationId, message.seq)
+  }
+
+  function agentsWithQuestions(
+    conversationId: string,
+    beforeSeq: number
+  ): string[] {
+    const messages = store
+      .listTimeline(conversationId)
+      .filter((entry) => entry.seq < beforeSeq && entry.item.kind === "message")
+    const lastUserSeq = Math.max(
+      0,
+      ...messages
+        .filter((entry) => entry.authorKey === "user:me")
+        .map((entry) => entry.seq)
+    )
+    const members = agentIdsOf(conversationId)
+    const askers = messages
+      .filter(
+        (entry) =>
+          entry.seq > lastUserSeq &&
+          entry.item.kind === "message" &&
+          entry.item.status === "done" &&
+          entry.item.text.includes("?")
+      )
+      .map((entry) => entry.authorKey.slice("agent:".length))
+      .filter((agentId) => members.includes(agentId))
+    return [...new Set(askers)]
   }
 
   function mentionedAgents(
@@ -480,7 +514,7 @@ export function createServer({
       }
       const entry = store.addUserMessage(conversationId, text)
       publish(conversationId, { type: "item", entry })
-      for (const agentId of addressedAgents(conversationId, text)) {
+      for (const agentId of addressedAgents(conversationId, entry)) {
         prompt(agentId, conversationId, text)
       }
       return send(response, 202, { entry })

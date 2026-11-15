@@ -26,6 +26,11 @@ For a message of the user:
 - In a DM, the agent gets each message.
 - In a conversation with the reply mode `every`, each agent gets each message.
 - Else, each agent that the message mentions gets it.
+- If the message mentions no agent, each agent with an open question gets
+  it. An agent has an open question when one of its complete messages since
+  the last message of the user holds `?`. So the user can answer a question
+  with no mention. A message with a mention does not go to an agent with an
+  open question, unless it mentions that agent too.
 
 For a complete message of an agent, in a group chat or a channel, each other
 agent that the message mentions gets a turn. The reply mode does not
