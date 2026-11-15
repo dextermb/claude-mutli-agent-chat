@@ -15,6 +15,9 @@ import {
   pushCall,
   pushRequest,
   readCall,
+  releaseChannel,
+  reviewerBot,
+  squadGroup,
   stoppedTurn,
   testRunner,
   userMessage,
@@ -24,6 +27,12 @@ import { fakeNetwork } from "@/test/fake-network"
 let network: ReturnType<typeof fakeNetwork>
 
 function openConversation(entries: TimelineEntry[], state = testRunner.state) {
+  network.on("GET", "/api/conversations", {
+    conversations: [releaseChannel, squadGroup, directMessage],
+  })
+  network.on("GET", "/api/agents", {
+    agents: [reviewerBot, { ...testRunner, state }],
+  })
   network.on("GET", "/api/conversations/c1", {
     conversation: directMessage,
     agents: [{ ...testRunner, state }],
@@ -51,7 +60,9 @@ describe("the DM page", () => {
     expect(
       await screen.findByRole("heading", { name: "test-runner" })
     ).toBeInTheDocument()
-    expect(screen.getByText("Online")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("banner")).getByText("Online")
+    ).toBeInTheDocument()
     const messages = screen.getAllByRole("article")
     expect(within(messages[0]).getByText("You")).toBeInTheDocument()
     expect(
@@ -228,7 +239,10 @@ describe("the DM page", () => {
     const user = userEvent.setup()
     network.on("POST", "/api/conversations/c1/stop", {}, 202)
     openConversation([userMessage], "busy")
-    await screen.findByText("Working")
+    await screen.findByRole("heading", { name: "test-runner" })
+    expect(
+      within(screen.getByRole("banner")).getByText("Working")
+    ).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Stop" }))
 
@@ -242,7 +256,9 @@ describe("the DM page", () => {
         .stream()
         .emit(1, { type: "agent_state", agentId: "a1", state: "idle" })
     )
-    expect(screen.getByText("Online")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("banner")).getByText("Online")
+    ).toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Stop" })
     ).not.toBeInTheDocument()
@@ -269,5 +285,110 @@ describe("the DM page", () => {
       body: { text: "Run the tests." },
     })
     expect(box).toHaveValue("")
+  })
+
+  test("the sidebar lists the channels, the group chats and the agents with their status", async () => {
+    openConversation([userMessage], "busy")
+
+    const sidebar = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+    expect(
+      await within(sidebar).findByRole("link", { name: "release-train" })
+    ).toHaveAttribute("href", "/conversations/ch1")
+    expect(
+      within(sidebar).getByRole("link", { name: "reviewer-bot, test-runner" })
+    ).toHaveAttribute("href", "/conversations/g1")
+    const current = within(sidebar).getByRole("link", {
+      name: "test-runner Working",
+    })
+    expect(current).toHaveAttribute("href", "/conversations/c1")
+    expect(current).toHaveAttribute("aria-current", "page")
+    expect(
+      within(sidebar).getByRole("button", { name: "reviewer-bot Online" })
+    ).toBeInTheDocument()
+  })
+
+  test("a channel shows its topic, each agent with its status, and the author of each message", async () => {
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: releaseChannel,
+      agents: [{ ...testRunner, state: "busy" }, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [
+        {
+          ...userMessage,
+          item: { ...userMessage.item, text: "@reviewer-bot review PR 212." },
+        },
+        {
+          ...agentMessage,
+          id: "s2/item-1",
+          authorKey: "agent:a2",
+          item: { ...agentMessage.item, text: "@test-runner add a test." },
+        },
+        agentMessage,
+      ],
+      lastEventId: 0,
+    })
+    window.history.pushState({}, "", "/conversations/ch1")
+    render(<App />)
+
+    const header = within(await screen.findByRole("banner"))
+    expect(
+      header.getByRole("heading", { name: "release-train" })
+    ).toBeInTheDocument()
+    expect(header.getByText("Ship v2.4 on Friday.")).toBeInTheDocument()
+    const members = header.getByRole("list", {
+      name: "Agents in this conversation",
+    })
+    expect(
+      within(members)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent)
+    ).toEqual(["test-runner Working", "reviewer-bot Online"])
+    const messages = screen.getAllByRole("article")
+    expect(within(messages[1]).getByText("reviewer-bot")).toBeInTheDocument()
+    expect(within(messages[2]).getByText("test-runner")).toBeInTheDocument()
+    expect(
+      screen.getByRole("textbox", { name: "Message #release-train" })
+    ).toBeInTheDocument()
+  })
+
+  test("the message box suggests the agents after @, and the user can pick one", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", { conversations: [releaseChannel] })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: releaseChannel,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    window.history.pushState({}, "", "/conversations/ch1")
+    render(<App />)
+    const box = await screen.findByRole("textbox", {
+      name: "Message #release-train",
+    })
+
+    await user.type(box, "Please @te")
+    const suggestions = screen.getByRole("listbox", { name: "Mention" })
+    expect(
+      within(suggestions)
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["test-runner"])
+    await user.keyboard("{Tab}")
+    expect(box).toHaveValue("Please @test-runner ")
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+
+    await user.type(box, "and @")
+    await user.click(screen.getByRole("option", { name: "reviewer-bot" }))
+    expect(box).toHaveValue("Please @test-runner and @reviewer-bot ")
   })
 })

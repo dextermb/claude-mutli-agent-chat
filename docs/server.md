@@ -29,7 +29,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `GET /api/agents/:id`                  |                                 | `{ agent }`. `404` for an unknown agent                  |
 | `PATCH /api/agents/:id`                | Some fields of the agent        | `{ agent }`. The other fields stay                       |
 | `GET /api/conversations`               |                                 | `{ conversations }`                                      |
-| `POST /api/conversations`              | `{ kind: "dm", agentId }`       | `201 { conversation }`, or `200` with the DM that exists |
+| `POST /api/conversations`              | A DM, a group chat or a channel | `201 { conversation }`, or `200` with the DM that exists |
 | `GET /api/conversations/:id`           |                                 | `{ conversation, agents }`, each agent with its `state`  |
 | `POST /api/conversations/:id/messages` | `{ text }`                      | `202 { entry }`. `404` for an unknown conversation       |
 | `GET /api/conversations/:id/timeline`  |                                 | `{ items, lastEventId }`                                 |
@@ -47,7 +47,8 @@ The state of an agent with no live process is `exited`.
 
 1. The store keeps the message as an item of `user:me`, and the stream sends
    it.
-2. Each agent member of the conversation gets the text as a prompt.
+2. Each agent that the message addresses gets a prompt. The rules and the
+   shape of the prompt are in `docs/conversations.md`.
 3. If the agent has no live process, the server starts one. It makes a new
    session row, with the Claude session ID of the latest row of that agent in
    that conversation. So `buildArgs()` adds `--resume`, and the agent keeps its
@@ -118,9 +119,6 @@ Each interrupted turn ends as `stopped`.
 
 ## Not handled yet
 
-- No route creates a group chat or a channel.
 - The event log of a conversation is never cut, so it grows while the server
   runs.
 - An empty message is accepted.
-- Each agent member gets each message. Mentions and the reply mode come with
-  group chats and channels.

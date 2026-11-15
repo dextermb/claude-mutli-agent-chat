@@ -5,10 +5,11 @@ import {
 } from "node:http"
 import type { AddressInfo } from "node:net"
 import type { PermissionAnswer } from "../protocol/encode.ts"
+import { parseMentions } from "../conversation/mentions.ts"
 import { buildArgs } from "../session/args.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
-import type { NewAgent, SessionRow, Store } from "../store/store.ts"
+import type { Agent, NewAgent, SessionRow, Store } from "../store/store.ts"
 
 export type SessionHandle = {
   prompt(text: string): void
@@ -18,6 +19,7 @@ export type SessionHandle = {
 }
 
 export type StartSession = (options: {
+  agent: Agent
   args: string[]
   cwd: string
   onEvent: (event: SessionEvent) => void
@@ -46,12 +48,22 @@ type Channel = {
   clients: Set<ServerResponse>
 }
 
+const URGENCY: SessionState[] = [
+  "waiting",
+  "busy",
+  "starting",
+  "failed",
+  "idle",
+  "exited",
+]
+
 const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 1_000_000
 
 export function createServer({ store, startSession }: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
+  const promptCursors = new Map<string, number>()
   const openRequests = new Map<
     string,
     { session: LiveSession; card: PermissionItem | QuestionItem }
@@ -113,6 +125,7 @@ export function createServer({ store, startSession }: ServerOptions) {
     }
     live.set(session.id, session)
     session.handle = startSession({
+      agent,
       args: buildArgs(agent, row),
       cwd: agent.cwd,
       onEvent: (event) => onSessionEvent(session, event),
@@ -133,6 +146,15 @@ export function createServer({ store, startSession }: ServerOptions) {
       )
       for (const entry of entries) {
         publish(session.conversationId, { type: "item", entry })
+        if (entry.item.kind === "message" && entry.item.status === "done") {
+          for (const agentId of mentionedAgents(
+            session.conversationId,
+            entry.item.text,
+            session.agentId
+          )) {
+            prompt(agentId, session.conversationId, entry.item.text)
+          }
+        }
       }
       for (const item of event.items) {
         if (item.kind !== "permission" && item.kind !== "question") continue
@@ -163,6 +185,17 @@ export function createServer({ store, startSession }: ServerOptions) {
     }
   }
 
+  function agentState(agentId: string): SessionState {
+    let state: SessionState = "exited"
+    for (const session of live.values()) {
+      if (session.agentId !== agentId) continue
+      if (URGENCY.indexOf(session.state) < URGENCY.indexOf(state)) {
+        state = session.state
+      }
+    }
+    return state
+  }
+
   function liveState(agentId: string, conversationId: string): SessionState {
     return findLive(agentId, conversationId)?.state ?? "exited"
   }
@@ -176,6 +209,76 @@ export function createServer({ store, startSession }: ServerOptions) {
     if (session.state !== "idle") return
     const text = session.queue.shift()
     if (text !== undefined) session.handle?.prompt(text)
+  }
+
+  function promptFor(
+    agentId: string,
+    conversationId: string,
+    text: string
+  ): string {
+    if (store.getConversation(conversationId)?.kind === "dm") return text
+    const author = `agent:${agentId}`
+    const entries = store.listTimeline(conversationId)
+    const key = `${agentId} ${conversationId}`
+    const cursor =
+      promptCursors.get(key) ??
+      Math.max(
+        0,
+        ...entries
+          .filter((entry) => entry.authorKey === author)
+          .map((entry) => entry.seq)
+      )
+    promptCursors.set(
+      key,
+      Math.max(cursor, ...entries.map((entry) => entry.seq))
+    )
+    return entries
+      .filter(
+        (entry) =>
+          entry.seq > cursor &&
+          entry.authorKey !== author &&
+          entry.item.kind === "message" &&
+          entry.item.status === "done"
+      )
+      .map((entry) => {
+        const text = entry.item.kind === "message" ? entry.item.text : ""
+        return `[${authorName(entry.authorKey)}] ${text}`
+      })
+      .join("\n")
+  }
+
+  function authorName(authorKey: string): string {
+    if (!authorKey.startsWith("agent:")) return "User"
+    return store.getAgent(authorKey.slice("agent:".length))?.name ?? "agent"
+  }
+
+  function prompt(agentId: string, conversationId: string, text: string) {
+    const session = liveSessionFor(agentId, conversationId)
+    if (session) deliver(session, promptFor(agentId, conversationId, text))
+  }
+
+  function addressedAgents(conversationId: string, text: string): string[] {
+    const conversation = store.getConversation(conversationId)
+    if (!conversation) return []
+    if (conversation.kind === "dm" || conversation.replyMode === "every") {
+      return agentIdsOf(conversationId)
+    }
+    return mentionedAgents(conversationId, text, null)
+  }
+
+  function mentionedAgents(
+    conversationId: string,
+    text: string,
+    authorAgentId: string | null
+  ): string[] {
+    if (store.getConversation(conversationId)?.kind === "dm") return []
+    const members = agentIdsOf(conversationId).flatMap((agentId) => {
+      const agent = store.getAgent(agentId)
+      return agent && agent.id !== authorAgentId
+        ? [{ key: agent.id, name: agent.name }]
+        : []
+    })
+    return parseMentions(text, members)
   }
 
   function agentIdsOf(conversationId: string): string[] {
@@ -207,9 +310,8 @@ export function createServer({ store, startSession }: ServerOptions) {
       const text = typeof body.text === "string" ? body.text : ""
       const entry = store.addUserMessage(conversationId, text)
       publish(conversationId, { type: "item", entry })
-      for (const agentId of agentIdsOf(conversationId)) {
-        const session = liveSessionFor(agentId, conversationId)
-        if (session) deliver(session, text)
+      for (const agentId of addressedAgents(conversationId, text)) {
+        prompt(agentId, conversationId, text)
       }
       return send(response, 202, { entry })
     }
@@ -264,7 +366,10 @@ export function createServer({ store, startSession }: ServerOptions) {
     }
 
     if (route("GET", "api/agents")) {
-      return send(response, 200, { agents: store.listAgents() })
+      const agents = store
+        .listAgents()
+        .map((agent) => ({ ...agent, state: agentState(agent.id) }))
+      return send(response, 200, { agents })
     }
 
     if (route("POST", "api/agents")) {
@@ -308,6 +413,42 @@ export function createServer({ store, startSession }: ServerOptions) {
 
     if (route("POST", "api/conversations")) {
       const body = await readJson(request)
+      if (body.kind === "group" || body.kind === "channel") {
+        const agents = texts(body.agentIds).flatMap(
+          (agentId) => store.getAgent(agentId) ?? []
+        )
+        const members = [
+          "user:me",
+          ...agents.map((agent) => `agent:${agent.id}`),
+        ]
+        if (body.kind === "group") {
+          if (agents.length === 0) {
+            return send(response, 400, { error: "Give one or more agentIds." })
+          }
+          const conversation = store.createConversation({
+            kind: "group",
+            name: agents.map((agent) => agent.name).join(", "),
+            topic: null,
+            private: true,
+            replyMode: "mention",
+            members,
+          })
+          return send(response, 201, { conversation })
+        }
+        const name = text(body.name).trim()
+        if (name === "") {
+          return send(response, 400, { error: "Give the channel a name." })
+        }
+        const conversation = store.createConversation({
+          kind: "channel",
+          name,
+          topic: text(body.topic).trim() || null,
+          private: body.private === true,
+          replyMode: body.replyMode === "every" ? "every" : "mention",
+          members,
+        })
+        return send(response, 201, { conversation })
+      }
       const agent = store.getAgent(text(body.agentId))
       if (body.kind !== "dm" || !agent) {
         return send(response, 400, { error: "Give kind dm and an agentId." })

@@ -5,6 +5,7 @@ type Json = Record<string, unknown>
 
 const fixture = readFixture(process.env.FAKE_CLAUDE_FIXTURE ?? "")
 const mode = process.env.FAKE_CLAUDE_MODE ?? "play"
+const reply = process.env.FAKE_CLAUDE_REPLY
 const input = createInterface({ input: process.stdin })[Symbol.asyncIterator]()
 const requestIds = new Map<string, string>()
 
@@ -60,7 +61,26 @@ async function nextInput(): Promise<Json | null> {
 }
 
 function write(line: Json) {
-  process.stdout.write(JSON.stringify(withRequestId(line)) + "\n")
+  const replied = withReply(line)
+  if (!replied) return
+  process.stdout.write(JSON.stringify(withRequestId(replied)) + "\n")
+}
+
+function withReply(line: Json): Json | null {
+  if (reply === undefined) return line
+  if (line.type === "stream_event") return null
+  if (line.type !== "assistant") return line
+  const message = object(line.message)
+  const content = Array.isArray(message.content) ? message.content : []
+  return {
+    ...line,
+    message: {
+      ...message,
+      content: content.map((block: Json) =>
+        block.type === "text" ? { ...block, text: reply } : block
+      ),
+    },
+  }
 }
 
 function withRequestId(line: Json): Json {

@@ -86,6 +86,27 @@ The status of an agent:
 While an agent is `busy` or `waiting`, the header shows Stop, and a line over
 the message box says that the next message waits.
 
+## The sidebar
+
+`src/components/app-sidebar.tsx` shows on the conversation page. It lists:
+
+- the channels, with `#` or a lock,
+- the group chats,
+- each agent, with a status dot and its status as text for a screen reader.
+  An agent with a DM links to it. An agent with no DM is a button that opens
+  one.
+
+The current conversation has `aria-current="page"`.
+
+## A group chat or a channel
+
+The header shows the name, the topic, and each agent with its status. Each
+message shows its author. The message box of a channel is "Message #<name>".
+
+After `@`, the message box shows the agents of the conversation whose names
+start with the typed text. Tab or Enter picks the first one, and a click picks
+any one. The pick puts `@<name> ` in the place of the typed text.
+
 ## The agent page
 
 The form sends every field. A new agent goes to `POST /api/agents`, then the
@@ -100,7 +121,8 @@ uses the new configuration.
 
 ## Not built yet
 
-- The sidebar of the design, group chats and channels.
+- A page to create a group chat or a channel.
+- Arrow keys in the mention list.
 - The session card of the design: model, folder, session ID, turns and cost.
 - New session, and the Files and Session log tabs.
 - The time of each message.

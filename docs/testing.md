@@ -43,8 +43,10 @@ The `AgentSession` tests start `server/test/fake-claude.ts`, which plays a
 fixture as a `claude` process. See `docs/agents.md`.
 
 The `createServer()` tests listen on a free port and send real requests with
-`fetch`. Their `startSession` starts the fake `claude` and keeps each line
-that goes to it, so a test can check the answers that reach Claude Code.
+`fetch`. `server/test/http.ts` holds their helpers. Its `startSession` starts
+the fake `claude` and keeps each line that goes to each agent, so a test can
+check the answers and the prompts that reach Claude Code. A test can give
+each agent its own fixture, and its own reply text with `FAKE_CLAUDE_REPLY`.
 
 The browser tests use `src/test/fake-network.ts`. It replaces `fetch` and
 `EventSource`, keeps each request that the page sends, and lets a test send

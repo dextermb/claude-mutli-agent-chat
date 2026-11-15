@@ -178,3 +178,33 @@ export const stoppedTurn = agentEntry(11, {
   costUsd: 0,
   numTurns: 2,
 })
+
+export const reviewerBot: AgentWithState = {
+  ...testRunner,
+  id: "a2",
+  name: "reviewer-bot",
+  colour: "orange",
+  state: "idle",
+}
+
+export const releaseChannel: Conversation = {
+  id: "ch1",
+  kind: "channel",
+  name: "release-train",
+  topic: "Ship v2.4 on Friday.",
+  private: false,
+  replyMode: "mention",
+  members: ["user:me", "agent:a1", "agent:a2"],
+  createdAt: "2026-11-15T09:00:00.000Z",
+}
+
+export const squadGroup: Conversation = {
+  id: "g1",
+  kind: "group",
+  name: "reviewer-bot, test-runner",
+  topic: null,
+  private: true,
+  replyMode: "mention",
+  members: ["user:me", "agent:a2", "agent:a1"],
+  createdAt: "2026-11-15T09:30:00.000Z",
+}
