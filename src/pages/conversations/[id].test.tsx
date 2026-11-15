@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { App } from "@/App"
 import type { TimelineEntry } from "@/lib/agent-api"
 import {
+  agentCall,
   agentMessage,
   bashCall,
   colourQuestion,
@@ -15,11 +16,13 @@ import {
   localTime,
   pushCall,
   pushRequest,
+  rateLimitNotice,
   readCall,
   releaseChannel,
   reviewerBot,
   squadGroup,
   stoppedTurn,
+  subagentRead,
   testRunner,
   userMessage,
 } from "@/test/conversation-data"
@@ -149,6 +152,88 @@ describe("the DM page", () => {
     })
     expect(
       within(denied).getByText("The user denied this.")
+    ).toBeInTheDocument()
+  })
+
+  test("the tool calls of a subagent show inside its Agent card, behind a button", async () => {
+    const user = userEvent.setup()
+    openConversation([agentCall, subagentRead])
+
+    const card = await screen.findByRole("region", {
+      name: "Agent Read notes.txt first line",
+    })
+    expect(
+      screen.queryByRole("region", { name: "Read src/notes.txt" })
+    ).not.toBeInTheDocument()
+
+    await user.click(within(card).getByRole("button", { name: "1 tool call" }))
+
+    expect(
+      within(card).getByRole("region", { name: "Read src/notes.txt" })
+    ).toBeInTheDocument()
+  })
+
+  test("a subagent call that waits for approval shows its approval without a click", async () => {
+    openConversation([
+      agentCall,
+      {
+        ...subagentRead,
+        item: { ...subagentRead.item, status: "running" },
+      } as TimelineEntry,
+      {
+        ...pushRequest,
+        id: "s1/item-14",
+        item: {
+          ...pushRequest.item,
+          toolUseId: "toolu_subagent_read",
+          toolName: "Read",
+        },
+      } as TimelineEntry,
+    ])
+
+    const card = await screen.findByRole("region", {
+      name: "Agent Read notes.txt first line",
+    })
+
+    expect(
+      within(card).getByRole("button", { name: "1 tool call" })
+    ).toHaveAttribute("aria-expanded", "true")
+    expect(
+      within(card).getByRole("button", { name: "Allow once" })
+    ).toBeInTheDocument()
+  })
+
+  test("a rate limit that is reached shows a notice with the time when it resets", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(localTime(15, 12, 0)))
+    openConversation([rateLimitNotice])
+
+    expect(
+      await screen.findByText(
+        "The five-hour rate limit is reached. It resets at 14:00."
+      )
+    ).toBeInTheDocument()
+  })
+
+  test("a rate limit that resets on a later day names that day in its notice", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(localTime(15, 12, 0)))
+    openConversation([
+      {
+        ...rateLimitNotice,
+        item: {
+          ...rateLimitNotice.item,
+          status: "allowed_warning",
+          rateLimitType: "seven_day",
+          resetsAt: new Date(localTime(17, 9, 0)).getTime() / 1000,
+        },
+      } as TimelineEntry,
+    ])
+
+    expect(
+      await screen.findByText(
+        "The seven-day rate limit is near. It resets on Tuesday 17 November at 09:00."
+      )
     ).toBeInTheDocument()
   })
 

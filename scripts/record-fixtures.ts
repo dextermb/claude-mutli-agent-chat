@@ -12,6 +12,8 @@ type Run = {
   prompts: string[]
   resumeFrom?: string
   interruptAfterText?: boolean
+  interruptAfterToolUseMs?: number
+  answerTogetherInReverse?: boolean
   settleMs?: number
 }
 
@@ -98,6 +100,32 @@ const scenarios: Scenario[] = [
     ],
   },
   {
+    name: "interrupt-tool",
+    permissionMode: "default",
+    runs: [
+      {
+        prompts: [
+          "Run the bash command `ping -c 30 127.0.0.1` in the foreground, not in the background. " +
+            "Then reply in one short sentence.",
+        ],
+        interruptAfterToolUseMs: 3000,
+      },
+    ],
+  },
+  {
+    name: "two-requests",
+    permissionMode: "default",
+    runs: [
+      {
+        prompts: [
+          "In one message, make two Write tool calls in parallel: write a.txt that holds the word one, " +
+            "and write b.txt that holds the word two. Then reply in one short sentence.",
+        ],
+        answerTogetherInReverse: true,
+      },
+    ],
+  },
+  {
     name: "subagent",
     permissionMode: "default",
     runs: [
@@ -111,7 +139,7 @@ const scenarios: Scenario[] = [
   },
 ]
 
-function answerFor(request: Json): Json {
+function answerFor(request: Json, allowOnce = false): Json {
   const toolName = String(request.tool_name)
   const input = (request.input ?? {}) as Json
   if (toolName === "AskUserQuestion") {
@@ -127,7 +155,7 @@ function answerFor(request: Json): Json {
   if (toolName === "Bash" && /\brm\b/.test(String(input.command))) {
     return { behavior: "deny", message: "The user denied this command." }
   }
-  if (toolName === "Write") {
+  if (toolName === "Write" && !allowOnce) {
     return {
       behavior: "allow",
       updatedInput: input,
@@ -207,6 +235,49 @@ function record(
     )
   }
 
+  const interruptOnToolUse = (line: Json) => {
+    if (run.interruptAfterToolUseMs === undefined || interruptSent) return
+    const content = ((line.message as Json | undefined)?.content ??
+      []) as Json[]
+    if (
+      line.type !== "assistant" ||
+      !content.some((b) => b.type === "tool_use")
+    )
+      return
+    interruptSent = true
+    setTimeout(
+      () =>
+        send({
+          type: "control_request",
+          request_id: "interrupt-1",
+          request: { subtype: "interrupt" },
+        }),
+      run.interruptAfterToolUseMs
+    )
+  }
+
+  const answer = (line: Json) =>
+    send({
+      type: "control_response",
+      response: {
+        subtype: "success",
+        request_id: line.request_id,
+        response: answerFor(
+          line.request as Json,
+          run.answerTogetherInReverse === true
+        ),
+      },
+    })
+
+  let waiting: Json[] = []
+  let waitTimer: NodeJS.Timeout | undefined
+  const answerWaiting = () => {
+    clearTimeout(waitTimer)
+    const lines = waiting.reverse()
+    waiting = []
+    for (const line of lines) answer(line)
+  }
+
   createInterface({ input: child.stderr }).on("line", (text) =>
     process.stderr.write(`[${scenario.name}] ${text}\n`)
   )
@@ -214,19 +285,20 @@ function record(
     const line = JSON.parse(text) as Json
     envelopes.push({ dir: "out", line })
     interruptOnText(line)
+    interruptOnToolUse(line)
     const request = line.request as Json | undefined
     if (
       line.type === "control_request" &&
       request?.subtype === "can_use_tool"
     ) {
-      send({
-        type: "control_response",
-        response: {
-          subtype: "success",
-          request_id: line.request_id,
-          response: answerFor(request),
-        },
-      })
+      if (!run.answerTogetherInReverse) {
+        answer(line)
+      } else {
+        waiting.push(line)
+        clearTimeout(waitTimer)
+        if (waiting.length >= 2) answerWaiting()
+        else waitTimer = setTimeout(answerWaiting, 5000)
+      }
     }
     if (line.type === "result") sendNextPrompt()
   })

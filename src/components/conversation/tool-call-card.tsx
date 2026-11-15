@@ -1,3 +1,5 @@
+import { useState } from "react"
+
 import { Approval } from "@/components/conversation/approval"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type { Json, PermissionItem, ToolCallItem } from "@/lib/agent-api"
@@ -15,13 +17,23 @@ export function ToolCallCard({
   request,
   agentName,
   onAnswer,
+  subagentCalls = [],
+  requests,
 }: {
   call: ToolCallItem
   cwd: string
   request: PermissionItem | undefined
   agentName: string
   onAnswer: (requestId: string, answer: RequestAnswer) => void
+  subagentCalls?: ToolCallItem[]
+  requests?: Map<string, PermissionItem>
 }) {
+  const [opened, setOpened] = useState(false)
+  const open =
+    opened ||
+    subagentCalls.some(
+      (child) => requests?.get(child.toolUseId)?.status === "pending"
+    )
   const target = mainInput(call.name, call.input, cwd)
   const { result } = call
   const detail =
@@ -72,6 +84,34 @@ export function ToolCallCard({
           {detail}
         </div>
       )}
+      {subagentCalls.length > 0 && (
+        <div className="border-t px-3 py-2">
+          <button
+            type="button"
+            aria-expanded={open}
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setOpened(!open)}
+          >
+            {subagentCalls.length === 1
+              ? "1 tool call"
+              : `${subagentCalls.length} tool calls`}
+          </button>
+          {open && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              {subagentCalls.map((child) => (
+                <ToolCallCard
+                  key={child.toolUseId}
+                  call={child}
+                  cwd={cwd}
+                  request={requests?.get(child.toolUseId)}
+                  agentName={agentName}
+                  onAnswer={onAnswer}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {request && (
         <Approval
           request={request}
@@ -86,7 +126,12 @@ export function ToolCallCard({
 
 export function mainInput(name: string, input: Json, cwd: string): string {
   const value =
-    input.file_path ?? input.command ?? input.pattern ?? input.url ?? ""
+    input.file_path ??
+    input.command ??
+    input.pattern ??
+    input.url ??
+    input.description ??
+    ""
   const text = typeof value === "string" ? value : ""
   if (name === "Bash") return text
   const prefix = cwd.endsWith("/") ? cwd : `${cwd}/`

@@ -6,6 +6,7 @@ import type {
   PermissionDecision,
   PermissionRequestLine,
   ResultLine,
+  RateLimitLine,
   TaskLine,
   ToolResult,
   TextDeltaLine,
@@ -28,6 +29,7 @@ export type ToolCallItem = {
   result: ToolCallResult | null
   decision: PermissionDecision | null
   job: { taskId: string; status: string } | null
+  parentToolUseId: string | null
 }
 
 export type MessageItem = {
@@ -68,8 +70,22 @@ export type TurnItem = {
   numTurns: number
 }
 
+export type NoticeItem = {
+  kind: "notice"
+  id: string
+  reason: "rate_limit"
+  status: string
+  rateLimitType: string
+  resetsAt: number
+}
+
 export type TimelineItem =
-  ToolCallItem | MessageItem | PermissionItem | QuestionItem | TurnItem
+  | ToolCallItem
+  | MessageItem
+  | PermissionItem
+  | QuestionItem
+  | TurnItem
+  | NoticeItem
 
 const QUESTION_TOOL = "AskUserQuestion"
 
@@ -78,6 +94,7 @@ export type TimelineState = {
   nextId: number
   draftId: string | null
   costSoFar: number
+  rateLimitStatus: string
 }
 
 export type TimelineStep = {
@@ -86,7 +103,13 @@ export type TimelineStep = {
 }
 
 export function emptyTimeline(): TimelineState {
-  return { items: [], nextId: 1, draftId: null, costSoFar: 0 }
+  return {
+    items: [],
+    nextId: 1,
+    draftId: null,
+    costSoFar: 0,
+    rateLimitStatus: "allowed",
+  }
 }
 
 export function reduceTimeline(
@@ -104,6 +127,7 @@ export function reduceTimeline(
   }
   if (line.kind === "result") return reduceResult(state, line)
   if (line.kind === "task") return reduceTask(state, line)
+  if (line.kind === "rate_limit") return reduceRateLimit(state, line)
   return { state, changes: [] }
 }
 
@@ -144,6 +168,7 @@ function reduceAssistant(
       result: null,
       decision: null,
       job: null,
+      parentToolUseId: line.parentToolUseId,
     }))
   }
   return step
@@ -246,6 +271,27 @@ function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
     numTurns: line.numTurns,
   }))
   return { ...step, state: { ...step.state, costSoFar: line.totalCostUsd } }
+}
+
+function reduceRateLimit(
+  state: TimelineState,
+  line: RateLimitLine
+): TimelineStep {
+  const step: TimelineStep = {
+    state: { ...state, rateLimitStatus: line.status },
+    changes: [],
+  }
+  if (line.status === "allowed" || line.status === state.rateLimitStatus) {
+    return step
+  }
+  return add(step, (id) => ({
+    kind: "notice",
+    id,
+    reason: "rate_limit",
+    status: line.status,
+    rateLimitType: line.rateLimitType,
+    resetsAt: line.resetsAt,
+  }))
 }
 
 function reduceTask(state: TimelineState, line: TaskLine): TimelineStep {

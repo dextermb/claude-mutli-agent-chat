@@ -101,6 +101,8 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F23 | With the user settings, `SessionStart` hooks send `system/hook_started` and `system/hook_response` lines **before** `system/init`. | Each fixture |
 | F24 | `system/commands_changed` carries the full list of the user's commands and skills. | Each fixture, cleared |
 | F25 | Claude Code answers `initialize` about 1 s after the start, before any prompt and with no `system/init`. When stdin closes and no turn runs, the process exits with code 0. | Probe |
+| F26 | **Claude Code sends one permission request at a time.** Two `Write` calls in one `assistant` message give the second `can_use_tool` request only after the answer to the first. So two requests are never open at the same time. | `two-requests` |
+| F27 | **Claude Code blocks `sleep N` that a command follows.** `sleep 30 && echo finished` gives a `tool_result` with `is_error: true` and the text "Blocked: sleep 30 followed by: echo finished", with no permission request. A long test command must not use `sleep`. | Probe |
 
 ## The decoder and the encoders
 
@@ -144,6 +146,7 @@ to stdout.
 | `resume-1.jsonl`, `resume-2.jsonl` | A first process, and a second process with `--resume` |
 | `background.jsonl` | A background `Bash` job, and the turn that it starts with no prompt |
 | `subagent.jsonl` | An `Agent` call and the lines of the subagent |
+| `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
 
 To record them again:
 
@@ -170,5 +173,7 @@ and the names of the user's plugins before the commit.
 
 - `set_model` and `set_permission_mode` on this version.
 - `--max-turns`. The help of 2.1.311 does not list it.
-- Two permission requests that are open at the same time.
+- A `rate_limit_event` with a status other than `allowed`. The names
+  `allowed_warning` and `rejected` come from the types of the Agent SDK.
+- An interrupt while a tool runs. The first try hit F27.
 - Two sessions that write to the same folder at the same time.
