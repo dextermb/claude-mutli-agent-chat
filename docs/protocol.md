@@ -97,6 +97,30 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F23 | With the user settings, `SessionStart` hooks send `system/hook_started` and `system/hook_response` lines **before** `system/init`. | Each fixture |
 | F24 | `system/commands_changed` carries the full list of the user's commands and skills. | Each fixture, cleared |
 
+## The decoder and the encoders
+
+`server/protocol/decode.ts` turns one stdout line into one typed line. It
+never throws. A line that is not a JSON object is `invalid`, and a line of a
+kind that the app does not read is `unknown` with the raw object.
+
+| `kind` | From |
+|---|---|
+| `init` | `system/init` |
+| `assistant` | `assistant`, with its `text` and `tool_use` blocks. Other blocks, such as `thinking`, are dropped |
+| `tool_results` | `user` with `tool_result` blocks, with `tool_use_result` and the permission decision |
+| `prompt_echo` | `user` with `isReplay: true` |
+| `text_delta` | `stream_event` with a `text_delta` |
+| `permission_request` | `control_request` with the subtype `can_use_tool` |
+| `result` | `result` |
+| `task` | `system/task_started`, `task_updated` and `task_notification` |
+| `rate_limit` | `rate_limit_event` |
+
+A `tool_results` line gives `structured` (the `tool_use_result`) only when it
+holds one result, because that field belongs to the whole line.
+
+`server/protocol/encode.ts` writes the input lines of the table above: a
+prompt, `initialize`, `interrupt`, and the answer to a permission request.
+
 ## The fixtures
 
 `server/protocol/fixtures` holds one file for each scenario, recorded with the
