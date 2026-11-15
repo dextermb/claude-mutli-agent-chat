@@ -259,6 +259,59 @@ describe("createServer", () => {
     ])
   })
 
+  test("the session log of an agent gives the lines of its processes, the last page first", async () => {
+    const { base, agent, conversation } = await startServer()
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.at(-1)?.item.kind).toBe("turn")
+    })
+    const route = `${base}/api/conversations/${conversation.id}/agents/${agent.id}/log`
+
+    const all = (await (await fetch(route)).json()) as {
+      lines: { seq: number; direction: string; text: string }[]
+    }
+    const before = all.lines[2].seq
+    const page = (await (await fetch(`${route}?before=${before}`)).json()) as {
+      lines: { seq: number }[]
+    }
+
+    expect(all.lines.slice(0, 2).map((line) => line.direction)).toEqual([
+      "in",
+      "out",
+    ])
+    expect(JSON.parse(all.lines[0].text)).toMatchObject({
+      type: "control_request",
+      request: { subtype: "initialize" },
+    })
+    expect(
+      all.lines.filter((line) => line.text.includes('"type":"result"'))
+    ).toHaveLength(1)
+    expect(page.lines.map((line) => line.seq)).toEqual([
+      all.lines[0].seq,
+      all.lines[1].seq,
+    ])
+  })
+
+  test("each line of a process goes live to the open streams, with no id, and is not replayed", async () => {
+    const { base, agent, conversation } = await startServer()
+    const live = openEvents(base, conversation.id)
+    await live.ready
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(() => expect(agentStates(live.events)).toHaveLength(4))
+
+    const { lines } = live
+    const replay = openEvents(base, conversation.id, 0)
+
+    expect(lines.length).toBeGreaterThan(5)
+    expect(lines[0]).toMatchObject({
+      id: Number.NaN,
+      data: { agentId: agent.id, line: { direction: "in" } },
+    })
+    await vi.waitFor(() => expect(agentStates(replay.events)).toHaveLength(4))
+    expect(replay.lines).toEqual([])
+  })
+
   test("a message to an agent with a stored Claude session resumes that session", async () => {
     const { base, store, started, agent, conversation } = await startServer()
     const earlier = store.createSession({

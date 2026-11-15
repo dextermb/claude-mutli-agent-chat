@@ -59,6 +59,27 @@ describe("useConversation", () => {
     )
   })
 
+  test("a line event of the session log does not change the timeline", async () => {
+    const { result } = renderHook(() => useConversation("c1"))
+    await waitFor(() => expect(result.current.status).toBe("ready"))
+
+    act(() =>
+      network.stream("/api/conversations/c1/events").emit(0, {
+        type: "line",
+        agentId: "a1",
+        line: {
+          seq: 30,
+          sessionId: "s1",
+          direction: "out",
+          at: "2026-11-15T14:05:00.000Z",
+          text: '{"type":"system","subtype":"status"}',
+        },
+      })
+    )
+
+    expect(result.current.entries).toEqual([userMessage, agentMessage])
+  })
+
   test("a reset event loads the timeline again and opens a new stream after its last event", async () => {
     const { result } = renderHook(() => useConversation("c1"))
     await waitFor(() => expect(result.current.status).toBe("ready"))

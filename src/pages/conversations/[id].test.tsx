@@ -275,6 +275,132 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("the files tab lists each file that the agent read or changed, and keeps the tab in the address", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage, readCall, editCall])
+
+    await user.click(await screen.findByRole("tab", { name: "Files" }))
+
+    const table = await screen.findByRole("table", { name: "Files" })
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) =>
+          within(row)
+            .getAllByRole("cell")
+            .map((cell) => cell.textContent)
+        )
+    ).toEqual([["src/notes.txt", "Edited", "+1 −1", "14:05"]])
+    expect(window.location.search).toBe("?tab=files")
+  })
+
+  test("a click on a file goes to the messages and to the last tool call on that file", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage, readCall, editCall])
+    await user.click(await screen.findByRole("tab", { name: "Files" }))
+
+    await user.click(
+      await screen.findByRole("button", { name: "src/notes.txt" })
+    )
+
+    expect(screen.getByRole("tab", { name: "Messages" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", { name: "Edit src/notes.txt" })
+      ).toHaveFocus()
+    )
+  })
+
+  test("the session log tab shows each line of the agent, and follows new lines", async () => {
+    const user = userEvent.setup()
+    const at = (seconds: number) =>
+      new Date(2026, 10, 15, 14, 5, seconds).toISOString()
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/agents/a1/log", {
+      lines: [
+        {
+          seq: 1,
+          sessionId: "s1",
+          direction: "in",
+          at: at(1),
+          text: '{"type":"control_request","request_id":"initialize-1","request":{"subtype":"initialize"}}',
+        },
+        {
+          seq: 2,
+          sessionId: "s1",
+          direction: "out",
+          at: at(2),
+          text: '{"type":"system","subtype":"init","session_id":"4f1c9a2e"}',
+        },
+      ],
+    })
+
+    await user.click(await screen.findByRole("tab", { name: "Session log" }))
+    const log = await screen.findByRole("list", { name: "Session log" })
+    const rows = () =>
+      within(log)
+        .getAllByRole("listitem")
+        .map((row) => row.querySelector("summary, p")?.textContent)
+    await waitFor(() =>
+      expect(rows()).toEqual([
+        "Process started · 14:05",
+        "14:05:01 in control_request initialize",
+        "14:05:02 out system/init",
+      ])
+    )
+
+    act(() =>
+      network.stream("/api/conversations/c1/events").emit(0, {
+        type: "line",
+        agentId: "a1",
+        line: {
+          seq: 3,
+          sessionId: "s1",
+          direction: "out",
+          at: at(9),
+          text: '{"type":"result","subtype":"success"}',
+        },
+      })
+    )
+
+    expect(rows().at(-1)).toBe("14:05:09 out result/success")
+  })
+
+  test("the session log loads earlier lines when the first page is full", async () => {
+    const user = userEvent.setup()
+    const line = (seq: number) => ({
+      seq,
+      sessionId: "s1",
+      direction: "out",
+      at: new Date(2026, 10, 15, 14, 5, 0).toISOString(),
+      text: `{"type":"system","subtype":"status","n":${seq}}`,
+    })
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/agents/a1/log", {
+      lines: Array.from({ length: 200 }, (_, index) => line(index + 11)),
+    })
+    network.on("GET", "/api/conversations/c1/agents/a1/log?before=11", {
+      lines: [line(9), line(10)],
+    })
+    await user.click(await screen.findByRole("tab", { name: "Session log" }))
+
+    await user.click(
+      await screen.findByRole("button", { name: "Load earlier lines" })
+    )
+
+    const log = screen.getByRole("list", { name: "Session log" })
+    await waitFor(() =>
+      expect(within(log).getAllByRole("listitem")).toHaveLength(203)
+    )
+    expect(
+      screen.queryByRole("button", { name: "Load earlier lines" })
+    ).not.toBeInTheDocument()
+  })
+
   test("shows a message while it arrives, and marks it busy until it is complete", async () => {
     openConversation([userMessage])
     await screen.findByText("Fix the flaky auth test.")

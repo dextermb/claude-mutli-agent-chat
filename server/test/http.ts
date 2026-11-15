@@ -152,6 +152,7 @@ function openStream(
   sendIdIn: "header" | "query"
 ) {
   const events: StreamEvent[] = []
+  const lines: StreamEvent[] = []
   const abort = new AbortController()
   const headers: Record<string, string> = {}
   let address = route
@@ -187,7 +188,9 @@ function openStream(
             ])
         )
         if (fields.data) {
-          events.push({ id: Number(fields.id), data: JSON.parse(fields.data) })
+          const event = { id: Number(fields.id), data: JSON.parse(fields.data) }
+          if (event.data.type === "line") lines.push(event)
+          else events.push(event)
         }
       }
     }
@@ -197,7 +200,7 @@ function openStream(
     await opened.catch(() => undefined)
   }
   cleanups.push(close)
-  return { events, close, ready: response.then(() => undefined) }
+  return { events, lines, close, ready: response.then(() => undefined) }
 }
 
 export function agentStates(events: StreamEvent[]) {

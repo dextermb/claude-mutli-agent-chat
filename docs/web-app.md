@@ -186,6 +186,26 @@ A new session shows in the timeline as a divider: "New session · 14:03", or
 "New session for test-runner · 14:03" when the conversation has more than one
 agent.
 
+## The DM tabs
+
+The header of a DM has the tabs of the design: Messages, Files and Session
+log. The tab is in the address (`?tab=files`, `?tab=log`), so a reload keeps
+it.
+
+- **Files** (`files-tab.tsx`) lists each file that the agent read or changed:
+  the path without the folder of the agent, the last action ("Read", "Edited"
+  or "Created"), the lines added and removed over all calls, and the time of
+  the last call. `filesOf()` in `src/lib/files.ts` makes the rows from the
+  timeline entries, so the tab needs no route. A call that failed does not
+  count. A click on a path goes to Messages, and focuses the card of the last
+  call on that file.
+- **Session log** (`session-log-tab.tsx`) shows each stored line of the
+  agent: the time, `in` or `out`, and a summary such as `system/init` or
+  `control_request can_use_tool`. A click opens the full JSON. A row marks
+  the start of each process. `useSessionLog()` opens its own stream for the
+  live `line` events, then loads the last 200 lines. "Load earlier lines"
+  loads the page before them.
+
 ## Members
 
 The header of a group chat has "Add people or agents", and the header of a
@@ -208,7 +228,6 @@ uses the new configuration.
 
 ## Not built yet
 
-- The Files and Session log tabs.
 - When the server refuses Stop turn, New session or Remove, the page does
   not show the reason.
 - On a narrow screen, the session panel does not become a `Sheet`.

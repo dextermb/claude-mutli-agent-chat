@@ -19,6 +19,7 @@ export function ToolCallCard({
   onAnswer,
   subagentCalls = [],
   requests,
+  anchorId,
 }: {
   call: ToolCallItem
   cwd: string
@@ -27,6 +28,7 @@ export function ToolCallCard({
   onAnswer: (requestId: string, answer: RequestAnswer) => void
   subagentCalls?: ToolCallItem[]
   requests?: Map<string, PermissionItem>
+  anchorId?: string
 }) {
   const [opened, setOpened] = useState(false)
   const open =
@@ -44,6 +46,8 @@ export function ToolCallCard({
         : null
   return (
     <section
+      id={anchorId}
+      tabIndex={anchorId ? -1 : undefined}
       aria-label={`${call.name} ${target}`}
       className="max-w-[640px] overflow-hidden rounded-[14px] border bg-rail font-mono text-[13px] leading-5"
     >

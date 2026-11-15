@@ -176,6 +176,7 @@ function EntryBody({
         onAnswer={onAnswer}
         subagentCalls={subagentCalls.get(item.toolUseId)}
         requests={requests}
+        anchorId={entryAnchor(entry.id)}
       />
     )
   }
@@ -272,6 +273,10 @@ function FailedNotice({
       )}
     </div>
   )
+}
+
+export function entryAnchor(entryId: string): string {
+  return `entry-${entryId}`
 }
 
 function subagentCallsByParent(
