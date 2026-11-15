@@ -67,6 +67,14 @@ export type PermissionRequestLine = {
   suggestions: Json[]
 }
 
+export type PermissionAnswerLine = {
+  kind: "permission_answer"
+  requestId: string
+  behavior: "allow" | "deny"
+  updatedInput: Json
+  updatedPermissions: Json[]
+}
+
 export type ResultLine = {
   kind: "result"
   subtype: string
@@ -102,6 +110,7 @@ export type DecodedLine =
   | TaskLine
   | ResultLine
   | PermissionRequestLine
+  | PermissionAnswerLine
   | TextDeltaLine
   | PromptEchoLine
   | UnknownLine
@@ -118,6 +127,7 @@ export function decodeLine(text: string): DecodedLine {
   if (raw.type === "user") return decodeUser(raw)
   if (raw.type === "stream_event") return decodeStreamEvent(raw)
   if (raw.type === "control_request") return decodeControlRequest(raw)
+  if (raw.type === "control_response") return decodeControlResponse(raw)
   if (raw.type === "result") return decodeResult(raw)
   if (raw.type === "rate_limit_event") return decodeRateLimit(raw)
   return { kind: "unknown", raw }
@@ -205,6 +215,21 @@ function decodeResult(raw: Json): ResultLine {
         toolName: string(denial.tool_name),
         toolUseId: string(denial.tool_use_id),
       })),
+  }
+}
+
+function decodeControlResponse(raw: Json): DecodedLine {
+  const response = object(raw.response)
+  const answer = object(response.response)
+  if (answer.behavior !== "allow" && answer.behavior !== "deny") {
+    return { kind: "unknown", raw }
+  }
+  return {
+    kind: "permission_answer",
+    requestId: string(response.request_id),
+    behavior: answer.behavior,
+    updatedInput: object(answer.updatedInput),
+    updatedPermissions: array(answer.updatedPermissions).filter(isObject),
   }
 }
 

@@ -26,6 +26,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `<App />` rendered at a URL      | `src/App.test.tsx`               |
 | `decodeLine()`, a stdout line    | `server/protocol/decode.test.ts` |
 | `encode…()`, a stdin line        | `server/protocol/encode.test.ts` |
+| `reduceTimeline()`, a fixture    | `server/timeline/reduce.test.ts` |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code

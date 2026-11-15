@@ -1,9 +1,9 @@
 # Headless agent sessions in the web app
 
-**Status:** in progress. Steps 1 and 2 are done: the fixtures, the findings,
-the decoder and the encoders are in `docs/protocol.md`. Steps 3 to 8 are still
-ahead. Each decision below is
-final.
+**Status:** in progress. Steps 1 to 3 are done: the fixtures, the findings,
+the decoder and the encoders are in `docs/protocol.md`, and the timeline
+reducer is in `docs/timeline.md`. Steps 4 to 8 are still ahead. Each decision
+below is final.
 
 ## The goal
 
@@ -226,8 +226,9 @@ session_events                      timeline_items
 +------------------------------+    |    kind            text        |  message | tool_call | permission
   ON DELETE CASCADE                 |                                |  | question | turn | notice
                                     |    tool_use_id     text        |  pairs a call and its result
-                                    |    status          text        |  running | done | error | pending
-                                    |                                |  | allowed | denied | expired
+                                    |    status          text        |  streaming | running | done | error
+                                    |                                |  | pending | allowed | denied
+                                    |                                |  | answered | stopped | expired
                                     |    payload         json        |
                                     |    created_at      text        |
                                     +--------------------------------+
@@ -271,7 +272,8 @@ user       tool_result {tool_use_id}    -> same item: status done or error,
 control_request can_use_tool   -> permission item, status pending
                                   session state: waiting, dot: waiting
 user clicks a button           -> POST /api/requests/:id {decision}
-server writes control_response -> item status allowed or denied
+server writes control_response -> its echo on stdout (F16): item
+                                  status allowed or denied
                                   session state: busy
 ```
 
@@ -332,7 +334,7 @@ The order:
 1. Done. Record the fixtures again with a probe script in `scripts/`. Remove
    the paths of this machine.
 2. Done. `server/protocol`: the decoder and the encoder.
-3. `server/timeline`: the reducer.
+3. Done. `server/timeline`: the reducer.
 4. `server/session`: `AgentSession` and the fake `claude`.
 5. The store and the schema.
 6. The routes and the SSE stream.
