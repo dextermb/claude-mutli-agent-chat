@@ -24,6 +24,7 @@ manager is pnpm.
 - `docs/protocol.md`: the Claude Code stream that the server reads, and its
   fixtures in `server/protocol/fixtures`. Record them again with
   `pnpm fixtures:record`.
+- `docs/timeline.md`: how the server turns the stream into timeline items.
 
 ## Rules
 

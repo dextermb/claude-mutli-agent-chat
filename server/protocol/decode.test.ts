@@ -268,4 +268,36 @@ describe("decodeLine", () => {
       decodeFixture(fixture).filter((line) => line.kind === "invalid")
     ).toEqual([])
   })
+
+  test("the echo of a permission answer gives the request id, the behaviour and the rules", () => {
+    const answers = decodeFixture("tools").filter(
+      (line) => line.kind === "permission_answer"
+    )
+
+    expect(
+      answers.map(({ requestId, behavior, updatedPermissions }) => ({
+        requestId,
+        behavior,
+        updatedPermissions,
+      }))
+    ).toEqual([
+      {
+        requestId: "397f44da-f197-43eb-9366-59857e2bfb6d",
+        behavior: "allow",
+        updatedPermissions: [],
+      },
+      {
+        requestId: "05dc0f3b-6b1b-4ec3-8c0b-36236200c5a6",
+        behavior: "deny",
+        updatedPermissions: [],
+      },
+      {
+        requestId: "c942ece4-4263-4c70-9297-c0034666a163",
+        behavior: "allow",
+        updatedPermissions: [
+          { type: "setMode", mode: "acceptEdits", destination: "session" },
+        ],
+      },
+    ])
+  })
 })

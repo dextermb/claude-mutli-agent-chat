@@ -99,7 +99,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 
 ## The decoder and the encoders
 
-`server/protocol/decode.ts` turns one stdout line into one typed line. It
+`server/protocol/decode.ts` turns one line into one typed line. It
 never throws. A line that is not a JSON object is `invalid`, and a line of a
 kind that the app does not read is `unknown` with the raw object.
 
@@ -111,6 +111,7 @@ kind that the app does not read is `unknown` with the raw object.
 | `prompt_echo` | `user` with `isReplay: true` |
 | `text_delta` | `stream_event` with a `text_delta` |
 | `permission_request` | `control_request` with the subtype `can_use_tool` |
+| `permission_answer` | `control_response` with an `allow` or `deny` answer: the line that the server sends, or its echo on stdout (F16) |
 | `result` | `result` |
 | `task` | `system/task_started`, `task_updated` and `task_notification` |
 | `rate_limit` | `rate_limit_event` |
@@ -120,6 +121,8 @@ holds one result, because that field belongs to the whole line.
 
 `server/protocol/encode.ts` writes the input lines of the table above: a
 prompt, `initialize`, `interrupt`, and the answer to a permission request.
+
+`docs/timeline.md` tells how the decoded lines become timeline items.
 
 ## The fixtures
 
