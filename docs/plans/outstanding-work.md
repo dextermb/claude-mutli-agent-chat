@@ -46,8 +46,8 @@ What is decided:
 - The browser validates each field, and the server keeps its own
   validation. Both apply.
 
-What is still open: the schema library (for example Zod, through Standard
-Schema), and whether the browser and the server share one schema.
+The user decided on 2026-11-15: Zod, with one schema that the browser and
+the server share. The plan of this step is `docs/plans/tanstack-form.md`.
 
 ## Resolved
 
