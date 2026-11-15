@@ -1,0 +1,100 @@
+# The conversation
+
+A conversation is a DM, a group chat or a channel. This page gives the hook
+that holds a conversation, the parts of its timeline, and the header and
+message box of a group chat or a channel.
+
+## `useConversation(id)`
+
+`src/hooks/use-conversation.ts` holds one conversation:
+
+1. It loads `GET /api/conversations/:id` (the conversation, its agents and
+   the state of each agent) and `GET /api/conversations/:id/timeline`.
+2. It opens an `EventSource` on `/api/conversations/:id/events?lastEventId=<n>`,
+   with the `lastEventId` of the timeline. So no event goes missing between
+   the two requests. After a lost connection, the browser sends
+   `Last-Event-ID` itself.
+3. An `item` event replaces the entry with the same ID, or adds it at the end.
+   An `agent_state` event changes the state of that agent. A `conversation`
+   event replaces the conversation and loads its agents again. A `reset`
+   event closes the stream and starts again from step 1.
+4. It closes the stream when the page goes away.
+
+It gives `status`, `conversation`, `agents`, `entries`, and three actions:
+`send(text)`, `answer(requestId, body)` and `stop()`.
+
+## The DM page
+
+`src/components/conversation/` holds the parts of the timeline:
+
+| Part                 | Shows                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `timeline.tsx`       | One block for each run of entries by the same author                                   |
+| `tool-call-card.tsx` | The tool, its main input, and its result: `4 lines`, `+1 −1`, the output, or the error |
+| `approval.tsx`       | Deny, Allow once and Always allow, under the tool call that waits                      |
+| `question-card.tsx`  | Each question with its options as buttons, then the answer                             |
+| `composer.tsx`       | The message box. Enter sends, Shift+Enter adds a line                                  |
+| `agent-look.ts`      | The avatar colours, the initials, and the status of each state                         |
+
+The main input of a tool is `file_path`, `command`, `pattern` or `url`. A path
+in the folder of the agent shows without that folder.
+
+An approval card shows inside the card of its tool call, so a waiting call is
+one card, as in the design. Always allow tells what each suggestion grants. A
+rule for `localSettings` stays in the folder of the agent, so the text says
+so.
+
+The card of an `Agent` call names the task of the subagent (its
+`description`). The tool calls of the subagent are inside that card, behind
+a button such as "3 tool calls". The list opens by itself while one of those
+calls waits for an approval, so the approval card is always visible.
+
+A failed process shows one line: "test-runner stopped with an error (exit code
+1)." "Show details" opens the stderr of the process.
+
+A rate-limit notice is one line with a warning icon: "The five-hour rate
+limit is reached. It resets at 14:00." A limit that is near, but not reached,
+says "near". A reset on a later day names the day: "It resets on Tuesday 17
+November at 09:00."
+
+Each block shows the time of its first entry next to the author, as 24-hour
+`HH:MM` ("14:03") in the local time zone. A level 2 heading names the day
+before the first block of each day: "Today", "Yesterday", or "Friday 13
+November". A block ends at a change of day, so that the heading sits between
+two blocks. `src/lib/time.ts` holds the formats.
+
+A message that is still arriving has `aria-busy="true"`. A turn summary shows
+`Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`.
+
+The status of an agent:
+
+| State      | Label    |
+| ---------- | -------- |
+| `starting` | Starting |
+| `idle`     | Online   |
+| `busy`     | Working  |
+| `waiting`  | Waiting  |
+| `failed`   | Error    |
+| `exited`   | Idle     |
+
+While an agent is `busy` or `waiting`, the header shows Stop, and a line over
+the message box says that the next message waits.
+
+## A group chat or a channel
+
+The header shows the name, the topic, and each agent with its status. Each
+message shows its author. The message box of a channel is "Message #<name>".
+
+After `@`, the message box shows the agents of the conversation whose names
+start with the typed text. Down and Up move the active name, and wrap at
+the ends. Tab or Enter picks the active name, and a click picks any one.
+Escape closes the list until the text changes. The pick puts `@<name> ` in
+the place of the typed text. The message box names the active option with
+`aria-activedescendant`.
+
+## Not built yet
+
+- The status words of the design. The design says "Idle" for `idle`, "Needs
+  approval" for `waiting`, and "Stopped" for `exited`. The app says
+  "Online", "Waiting" and "Idle" (the table above).
+- When the server refuses Stop, the page does not show the reason.
