@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test } from "vitest"
 
 import { App } from "@/App"
 import {
@@ -28,10 +28,6 @@ beforeEach(() => {
     })
   }
   window.history.pushState({}, "", "/conversations/c1")
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {

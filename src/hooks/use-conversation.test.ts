@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test } from "vitest"
 
 import { useConversation } from "@/hooks/use-conversation"
 import {
@@ -22,10 +22,6 @@ beforeEach(() => {
     items: [userMessage, agentMessage],
     lastEventId: 7,
   })
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 describe("useConversation", () => {
