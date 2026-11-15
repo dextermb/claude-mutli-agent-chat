@@ -1108,18 +1108,16 @@ describe("the DM page", () => {
     })
 
     await user.type(box, "Please @te")
-    const suggestions = screen.getByRole("listbox", { name: "Mention" })
-    expect(
-      within(suggestions)
-        .getAllByRole("option")
-        .map((option) => option.textContent)
-    ).toEqual(["test-runner"])
+    const suggestions = within(screen.getByRole("listbox", { name: "Members" }))
+    expect(suggestions.getAllByRole("option")).toEqual([
+      suggestions.getByRole("option", { name: "test-runner Idle" }),
+    ])
     await user.keyboard("{Tab}")
     expect(box).toHaveValue("Please @test-runner ")
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
 
     await user.type(box, "and @")
-    await user.click(screen.getByRole("option", { name: "reviewer-bot" }))
+    await user.click(screen.getByRole("option", { name: "reviewer-bot Idle" }))
     expect(box).toHaveValue("Please @test-runner and @reviewer-bot ")
   })
 })

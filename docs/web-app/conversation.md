@@ -138,7 +138,10 @@ the message box, a note says that agents reply to each other in this thread
 when they @mention each other, and that Stop all ends the chain.
 
 After `@`, the message box shows the agents of the conversation whose names
-start with the typed text. Down and Up move the active name, and wrap at
+start with the typed text, in a list named "Members". Each option shows the
+avatar of the agent, its name and its status Badge, and a screen reader hears
+"test-runner Idle". The hint under the box shows a `Kbd`: "Enter to send", or
+"Tab to pick" while the list is open. Down and Up move the active name, and wrap at
 the ends. Tab or Enter picks the active name, and a click picks any one.
 Escape closes the list until the text changes. The pick puts `@<name> ` in
 the place of the typed text. The message box names the active option with

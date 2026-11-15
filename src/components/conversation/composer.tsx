@@ -9,13 +9,24 @@ import {
 } from "react"
 
 import {
+  AVATAR_COLOURS,
+  initialsOf,
+  statusOf,
+} from "@/components/conversation/agent-look"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import { Kbd } from "@/components/ui/kbd"
+import type { AgentWithState } from "@/lib/agent-api"
 
 const MENTION_AT_CARET = /(?:^|\s)@([\w-]*)$/
+
+type Member = Pick<AgentWithState, "id" | "name" | "colour" | "state">
 
 export function Composer({
   label,
@@ -23,7 +34,7 @@ export function Composer({
   onSend,
 }: {
   label: string
-  members: string[]
+  members: Member[]
   onSend: (text: string) => void
 }) {
   const [text, setText] = useState("")
@@ -45,8 +56,8 @@ export function Composer({
   const typed = MENTION_AT_CARET.exec(text.slice(0, caret))
   const suggestions =
     typed && typed[1] !== dismissed
-      ? members.filter((name) =>
-          name.toLowerCase().startsWith(typed[1].toLowerCase())
+      ? members.filter((member) =>
+          member.name.toLowerCase().startsWith(typed[1].toLowerCase())
         )
       : []
   const activeIndex =
@@ -98,7 +109,7 @@ export function Composer({
       (event.key === "Tab" || event.key === "Enter")
     ) {
       event.preventDefault()
-      pick(suggestions[activeIndex])
+      pick(suggestions[activeIndex].name)
       return
     }
     if (event.key === "Enter" && !event.shiftKey) send(event)
@@ -107,28 +118,49 @@ export function Composer({
   return (
     <form onSubmit={send} className="flex flex-col gap-2">
       {suggestions.length > 0 && (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-label="Mention"
-          className="m-0 flex max-w-sm list-none flex-col rounded-[14px] border bg-popover p-1.5 text-popover-foreground shadow-md"
-        >
-          {suggestions.map((name, index) => (
-            <li
-              key={name}
-              id={`${listId}-${index}`}
-              role="option"
-              aria-selected={index === activeIndex}
-              className="cursor-pointer rounded-[10px] px-2 py-1.5 aria-selected:bg-accent"
-              onMouseDown={(event) => {
-                event.preventDefault()
-                pick(name)
-              }}
-            >
-              {name}
-            </li>
-          ))}
-        </ul>
+        <div className="flex max-w-sm flex-col gap-1 rounded-[14px] border bg-popover p-1.5 text-popover-foreground shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
+          <p
+            id={`${listId}-label`}
+            className="m-0 px-2 pt-1 text-xs font-medium text-muted-foreground"
+          >
+            Members
+          </p>
+          <ul
+            id={listId}
+            role="listbox"
+            aria-labelledby={`${listId}-label`}
+            className="m-0 flex list-none flex-col p-0"
+          >
+            {suggestions.map((member, index) => {
+              const status = statusOf(member.state)
+              return (
+                <li
+                  key={member.id}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2 py-1.5 aria-selected:bg-accent"
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    pick(member.name)
+                  }}
+                >
+                  <Avatar size="sm" aria-hidden="true">
+                    <AvatarFallback className={AVATAR_COLOURS[member.colour]}>
+                      {initialsOf(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="flex-1 truncate font-medium text-foreground-strong">
+                    {member.name}
+                  </span>{" "}
+                  <Badge variant="outline" className={status.text}>
+                    {status.label}
+                  </Badge>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
       <InputGroup>
         <InputGroupTextarea
@@ -152,8 +184,9 @@ export function Composer({
           onKeyDown={onKeyDown}
         />
         <InputGroupAddon align="block-end">
-          <span className="ml-auto text-xs text-foreground-faint">
-            {suggestions.length > 0 ? "Tab to pick" : "Enter to send"}
+          <span className="ml-auto flex items-center gap-1 text-xs text-foreground-faint">
+            <Kbd>{suggestions.length > 0 ? "Tab" : "Enter"}</Kbd>
+            {suggestions.length > 0 ? "to pick" : "to send"}
           </span>
           <InputGroupButton
             type="submit"

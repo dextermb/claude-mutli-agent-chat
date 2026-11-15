@@ -338,7 +338,7 @@ export default function ConversationPage() {
               />
             )}
             <Composer
-              members={conversation.agents.map((member) => member.name)}
+              members={conversation.agents}
               label={`Message ${
                 conversation.conversation.kind === "channel" ? "#" : ""
               }${conversation.conversation.name}`}
