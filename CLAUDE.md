@@ -25,6 +25,7 @@ manager is pnpm.
   fixtures in `server/protocol/fixtures`. Record them again with
   `pnpm fixtures:record`.
 - `docs/timeline.md`: how the server turns the stream into timeline items.
+- `docs/agents.md`: the `claude` process of each agent session.
 
 ## Rules
 

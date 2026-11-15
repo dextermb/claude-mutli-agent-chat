@@ -1,0 +1,77 @@
+import { describe, expect, test } from "vitest"
+import { buildArgs, type AgentConfig } from "./args.ts"
+
+const reviewer: AgentConfig = {
+  model: "claude-haiku-5-5",
+  permissionMode: "default",
+  allowedTools: [],
+  disallowedTools: [],
+  systemPrompt: null,
+}
+
+function flagValues(args: string[], flag: string): string[] {
+  const start = args.indexOf(flag)
+  if (start === -1) return []
+  const rest = args.slice(start + 1)
+  const end = rest.findIndex((arg) => arg.startsWith("-"))
+  return end === -1 ? rest : rest.slice(0, end)
+}
+
+describe("buildArgs", () => {
+  test("a new session gets the stream-json command line with the model and the mode", () => {
+    expect(buildArgs(reviewer, { claudeSessionId: null })).toEqual([
+      "-p",
+      "--input-format",
+      "stream-json",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-partial-messages",
+      "--replay-user-messages",
+      "--permission-prompt-tool",
+      "stdio",
+      "--setting-sources",
+      "user,project",
+      "--model",
+      "claude-haiku-5-5",
+      "--permission-mode",
+      "default",
+    ])
+  })
+
+  test("a session with a Claude session id resumes that session", () => {
+    const args = buildArgs(reviewer, {
+      claudeSessionId: "074f7c64-3c94-4c49-8714-412f5e85ada2",
+    })
+
+    expect(args.slice(-2)).toEqual([
+      "--resume",
+      "074f7c64-3c94-4c49-8714-412f5e85ada2",
+    ])
+  })
+
+  test("the allowed and the disallowed tool rules of the agent each get a flag", () => {
+    const args = buildArgs(
+      {
+        ...reviewer,
+        allowedTools: ["Read", "Bash(git *)"],
+        disallowedTools: ["WebFetch"],
+      },
+      { claudeSessionId: null }
+    )
+
+    expect(flagValues(args, "--allowedTools")).toEqual(["Read", "Bash(git *)"])
+    expect(flagValues(args, "--disallowedTools")).toEqual(["WebFetch"])
+  })
+
+  test("the system prompt of the agent goes after the default system prompt", () => {
+    const args = buildArgs(
+      { ...reviewer, systemPrompt: "You review pull requests." },
+      { claudeSessionId: null }
+    )
+
+    expect(flagValues(args, "--append-system-prompt")).toEqual([
+      "You review pull requests.",
+    ])
+  })
+})

@@ -27,10 +27,15 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `decodeLine()`, a stdout line    | `server/protocol/decode.test.ts` |
 | `encode…()`, a stdin line        | `server/protocol/encode.test.ts` |
 | `reduceTimeline()`, a fixture    | `server/timeline/reduce.test.ts` |
+| `buildArgs()`, the command line  | `server/session/args.test.ts`    |
+| `AgentSession`, a fake `claude`  | `server/session/session.test.ts` |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code
 really sent or accepted. See `docs/protocol.md`.
+
+The `AgentSession` tests start `server/test/fake-claude.ts`, which plays a
+fixture as a `claude` process. See `docs/agents.md`.
 
 To render the app at a URL, the `App` tests call
 `window.history.pushState()` before `render(<App />)`. The pages load lazily,
