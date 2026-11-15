@@ -9,6 +9,7 @@ import {
   XIcon,
 } from "lucide-react"
 import { useState, type ReactNode } from "react"
+import { Link } from "wouter"
 
 import {
   AVATAR_COLOURS,
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -101,13 +102,27 @@ export function SessionPanel(details: SessionDetailsProps) {
   )
 }
 
+export type SheetViews = {
+  current: string
+  onShow: (view: string) => void
+  configureHref: string
+}
+
+const VIEWS = [
+  { value: "messages", label: "Messages" },
+  { value: "files", label: "Files" },
+  { value: "log", label: "Session log" },
+]
+
 export function SessionSheet({
   open,
   onOpenChange,
+  views,
   ...details
 }: SessionDetailsProps & {
   open: boolean
   onOpenChange: (open: boolean) => void
+  views?: SheetViews
 }) {
   const [refusal, setRefusal] = useState<Refusal>(null)
   return (
@@ -134,6 +149,34 @@ export function SessionSheet({
               <p className="m-0 text-xs text-foreground-faint">
                 Other tools wait for your approval.
               </p>
+            </>
+          )}
+          {views && (
+            <>
+              <Separator />
+              <nav aria-label="Views" className="flex flex-wrap gap-2">
+                {VIEWS.map((view) => (
+                  <Button
+                    key={view.value}
+                    variant={
+                      views.current === view.value ? "secondary" : "outline"
+                    }
+                    size="sm"
+                    aria-current={
+                      views.current === view.value ? "page" : undefined
+                    }
+                    onClick={() => views.onShow(view.value)}
+                  >
+                    {view.label}
+                  </Button>
+                ))}
+                <Link
+                  href={views.configureHref}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  Configure
+                </Link>
+              </nav>
             </>
           )}
         </div>

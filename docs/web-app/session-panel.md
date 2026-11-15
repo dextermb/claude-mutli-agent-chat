@@ -69,6 +69,12 @@ The header of a DM has the tabs of the design: Messages, Files and Session
 log. The tab is in the address (`?tab=files`, `?tab=log`), so a reload keeps
 it.
 
+Below 768 px, the header has no tabs and no Configure, as the MobileSession
+board shows. The Session sheet then ends with a navigation named "Views":
+Messages, Files and Session log (the current one has `aria-current="page"`),
+and a Configure link. A view changes the address in the same way as a tab,
+and closes the sheet.
+
 - **Files** (`files-tab.tsx`) lists each file that the agent read or changed:
   the path without the folder of the agent, the last action as a Badge
   ("Read", "Edited" or "Created"), the lines added and removed over all calls

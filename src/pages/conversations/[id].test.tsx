@@ -1664,6 +1664,50 @@ describe("a narrow screen", () => {
     ).toBeInTheDocument()
   })
 
+  test("on a phone, the DM header has no tabs, and the session sheet moves between the views", async () => {
+    const user = userEvent.setup()
+    screenWidth(375)
+    openConversation([userMessage, readCall])
+    const header = within(await screen.findByRole("banner"))
+    expect(header.queryByRole("tablist")).not.toBeInTheDocument()
+    expect(
+      header.queryByRole("link", { name: "Configure" })
+    ).not.toBeInTheDocument()
+
+    await user.click(header.getByRole("button", { name: "Session" }))
+    const views = within(
+      within(await screen.findByRole("dialog", { name: "Session" })).getByRole(
+        "navigation",
+        { name: "Views" }
+      )
+    )
+    expect(views.getByRole("button", { name: "Messages" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+    expect(views.getByRole("link", { name: "Configure" })).toHaveAttribute(
+      "href",
+      "/agents/a1"
+    )
+    await user.click(views.getByRole("button", { name: "Files" }))
+
+    expect(window.location.search).toBe("?tab=files")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    expect(
+      await screen.findByRole("heading", { name: /file/i })
+    ).toBeInTheDocument()
+
+    await user.click(header.getByRole("button", { name: "Session" }))
+    await user.click(
+      within(
+        await screen.findByRole("navigation", { name: "Views" })
+      ).getByRole("button", { name: "Messages" })
+    )
+    expect(window.location.search).toBe("")
+  })
+
   test("in a channel, the members open as a sheet, and Close closes it", async () => {
     const user = userEvent.setup()
     screenWidth(375)

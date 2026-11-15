@@ -70,6 +70,14 @@ export default function ConversationPage() {
   const [, navigate] = useLocation()
   const tab = new URLSearchParams(search).get("tab") ?? "messages"
   const focusEntry = useRef<string | null>(null)
+  function showTab(value: string) {
+    navigate(
+      value === "messages"
+        ? `/conversations/${params.id}`
+        : `/conversations/${params.id}?tab=${value}`,
+      { replace: true }
+    )
+  }
   useEffect(() => {
     if (tab !== "messages" || !focusEntry.current) return
     document.getElementById(entryAnchor(focusEntry.current))?.focus()
@@ -143,14 +151,7 @@ export default function ConversationPage() {
       />
       <Tabs
         value={isDirect ? tab : "messages"}
-        onValueChange={(value: string) =>
-          navigate(
-            value === "messages"
-              ? `/conversations/${params.id}`
-              : `/conversations/${params.id}?tab=${value}`,
-            { replace: true }
-          )
-        }
+        onValueChange={(value: string) => showTab(value)}
         render={<main className="flex min-w-0 flex-1 flex-col" />}
       >
         <header className="flex flex-wrap items-center gap-3 border-b px-5 py-3">
@@ -239,14 +240,14 @@ export default function ConversationPage() {
               <EllipsisIcon />
             </Button>
           )}
-          {isDirect && (
+          {isDirect && !isMobile && (
             <TabsList>
               <TabsTrigger value="messages">Messages</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="log">Session log</TabsTrigger>
             </TabsList>
           )}
-          {isDirect && agent && (
+          {isDirect && agent && !isMobile && (
             <Link
               href={`/agents/${agent.id}`}
               className={buttonVariants({ variant: "outline" })}
@@ -388,6 +389,14 @@ export default function ConversationPage() {
           {...panel}
           open={showingSheet}
           onOpenChange={setShowingSheet}
+          views={{
+            current: tab,
+            onShow: (view) => {
+              showTab(view)
+              setShowingSheet(false)
+            },
+            configureHref: `/agents/${panel.agentId}`,
+          }}
         />
       )}
       {isDirect && panel && !isMobile && (
