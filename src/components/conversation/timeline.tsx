@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   AVATAR_COLOURS,
+  HUMAN_AVATAR,
   initialsOf,
 } from "@/components/conversation/agent-look"
 import { QuestionCard } from "@/components/conversation/question-card"
@@ -121,7 +122,7 @@ function AuthorGroup({
     <article className="flex gap-3 px-5 py-2">
       <Avatar className="flex-none">
         <AvatarFallback
-          className={agent ? AVATAR_COLOURS[agent.colour] : "bg-human"}
+          className={agent ? AVATAR_COLOURS[agent.colour] : HUMAN_AVATAR}
         >
           {initialsOf(name)}
         </AvatarFallback>

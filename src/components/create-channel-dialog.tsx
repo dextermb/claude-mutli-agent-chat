@@ -103,7 +103,7 @@ export function CreateChannelDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px]">
+      <DialogContent className="sm:max-w-[520px]">
         <form
           noValidate
           onSubmit={(event) => {

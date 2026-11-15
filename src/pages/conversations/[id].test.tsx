@@ -1135,7 +1135,9 @@ describe("a refused action", () => {
     )
     const alert = await within(panel).findByRole("alert")
 
-    await user.click(within(alert).getByRole("button", { name: "Close" }))
+    await user.click(
+      within(alert).getByRole("button", { name: "Close the alert" })
+    )
 
     expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
   })
