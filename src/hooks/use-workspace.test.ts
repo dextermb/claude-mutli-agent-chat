@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test } from "vitest"
 
 import { useWorkspace } from "@/hooks/use-workspace"
 import {
@@ -19,10 +19,6 @@ beforeEach(() => {
     conversations: [releaseChannel, directMessage],
   })
   network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 describe("useWorkspace", () => {
