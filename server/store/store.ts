@@ -6,36 +6,22 @@ import {
   reduceTimeline,
   type TimelineItem,
 } from "../timeline/reduce.ts"
+import type {
+  Agent,
+  Conversation,
+  NewAgent,
+  NewConversation,
+  TimelineEntry,
+} from "../api-types.ts"
 import { SCHEMA } from "./schema.ts"
 
-export type Agent = {
-  id: string
-  name: string
-  colour: string
-  model: string
-  permissionMode: string
-  cwd: string
-  autostart: boolean
-  allowedTools: string[]
-  disallowedTools: string[]
-  systemPrompt: string | null
-  createdAt: string
-}
-
-export type NewAgent = Omit<Agent, "id" | "createdAt">
-
-export type Conversation = {
-  id: string
-  kind: "channel" | "group" | "dm"
-  name: string
-  topic: string | null
-  private: boolean
-  replyMode: "mention" | "every"
-  members: string[]
-  createdAt: string
-}
-
-export type NewConversation = Omit<Conversation, "id" | "createdAt">
+export type {
+  Agent,
+  Conversation,
+  NewAgent,
+  NewConversation,
+  TimelineEntry,
+} from "../api-types.ts"
 
 export type SessionRow = {
   id: string
@@ -50,13 +36,6 @@ export type StoredLine = {
   seq: number
   direction: "in" | "out"
   text: string
-}
-
-export type TimelineEntry = {
-  id: string
-  seq: number
-  authorKey: string
-  item: TimelineItem
 }
 
 export type Store = ReturnType<typeof openStore>
@@ -98,6 +77,30 @@ export function openStore(location: string) {
     return created
   }
 
+  function updateAgent(id: string, agent: NewAgent): Agent | undefined {
+    db.prepare(
+      `UPDATE agents SET name = :name, colour = :colour, model = :model,
+         permission_mode = :permissionMode, cwd = :cwd, autostart = :autostart,
+         allowed_tools = :allowedTools, disallowed_tools = :disallowedTools,
+         system_prompt = :systemPrompt
+       WHERE id = :id`
+    ).run({
+      ...agent,
+      id,
+      autostart: agent.autostart ? 1 : 0,
+      allowedTools: JSON.stringify(agent.allowedTools),
+      disallowedTools: JSON.stringify(agent.disallowedTools),
+    })
+    return getAgent(id)
+  }
+
+  function listAgents(): Agent[] {
+    return db
+      .prepare("SELECT * FROM agents ORDER BY name")
+      .all()
+      .map((row) => toAgent(row as Row))
+  }
+
   function getAgent(id: string): Agent | undefined {
     const row = db.prepare("SELECT * FROM agents WHERE id = ?").get(id)
     return row ? toAgent(row as Row) : undefined
@@ -131,6 +134,26 @@ export function openStore(location: string) {
       addMember.run(created.id, memberKey, agentIdOf(memberKey), position)
     })
     return created
+  }
+
+  function listConversations(): Conversation[] {
+    return db
+      .prepare("SELECT id FROM conversations ORDER BY created_at, rowid")
+      .all()
+      .flatMap((row) => getConversation(String(row.id)) ?? [])
+  }
+
+  function findDirectMessage(agentId: string): Conversation | undefined {
+    const row = db
+      .prepare(
+        `SELECT conversations.id FROM conversations
+         JOIN conversation_members
+           ON conversation_members.conversation_id = conversations.id
+         WHERE conversations.kind = 'dm' AND conversation_members.agent_id = ?
+         LIMIT 1`
+      )
+      .get(agentId)
+    return row ? getConversation(String(row.id)) : undefined
   }
 
   function getConversation(id: string): Conversation | undefined {
@@ -365,8 +388,12 @@ export function openStore(location: string) {
   return {
     createAgent,
     getAgent,
+    listAgents,
+    updateAgent,
     createConversation,
     getConversation,
+    listConversations,
+    findDirectMessage,
     createSession,
     getSession,
     latestSession,

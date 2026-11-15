@@ -20,17 +20,20 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 
 ## The seams under test
 
-| Seam                             | Test file                        |
-| -------------------------------- | -------------------------------- |
-| `fileToRoutePath()`, file to URL | `src/router/file-routes.test.ts` |
-| `<App />` rendered at a URL      | `src/App.test.tsx`               |
-| `decodeLine()`, a stdout line    | `server/protocol/decode.test.ts` |
-| `encode…()`, a stdin line        | `server/protocol/encode.test.ts` |
-| `reduceTimeline()`, a fixture    | `server/timeline/reduce.test.ts` |
-| `buildArgs()`, the command line  | `server/session/args.test.ts`    |
-| `AgentSession`, a fake `claude`  | `server/session/session.test.ts` |
-| `Store`, an in-memory database   | `server/store/store.test.ts`     |
-| `createServer()`, HTTP and SSE   | `server/http/server.test.ts`     |
+| Seam                              | Test file                               |
+| --------------------------------- | --------------------------------------- |
+| `fileToRoutePath()`, file to URL  | `src/router/file-routes.test.ts`        |
+| `<App />` rendered at a URL       | `src/App.test.tsx`                      |
+| `decodeLine()`, a stdout line     | `server/protocol/decode.test.ts`        |
+| `encode…()`, a stdin line         | `server/protocol/encode.test.ts`        |
+| `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`        |
+| `buildArgs()`, the command line   | `server/session/args.test.ts`           |
+| `AgentSession`, a fake `claude`   | `server/session/session.test.ts`        |
+| `Store`, an in-memory database    | `server/store/store.test.ts`            |
+| `createServer()`, HTTP and SSE    | `server/http/server.test.ts`            |
+| `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`    |
+| The DM page, fake network         | `src/pages/conversations/[id].test.tsx` |
+| The agent page, fake network      | `src/pages/agents/[id].test.tsx`        |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code
@@ -42,6 +45,15 @@ fixture as a `claude` process. See `docs/agents.md`.
 The `createServer()` tests listen on a free port and send real requests with
 `fetch`. Their `startSession` starts the fake `claude` and keeps each line
 that goes to it, so a test can check the answers that reach Claude Code.
+
+The browser tests use `src/test/fake-network.ts`. It replaces `fetch` and
+`EventSource`, keeps each request that the page sends, and lets a test send
+stream events. `src/test/conversation-data.ts` holds the conversation, the
+agent and the timeline entries that the tests show.
+
+`server/http/live.test.ts` runs the real `claude` with Haiku. It runs only
+with `pnpm test:live` (`CLAUDE_LIVE=1`), because each run costs about
+0.01 USD.
 
 The `Store` tests use `:memory:`. A test of a server start uses a database
 file in a temporary folder, and opens the store a second time.

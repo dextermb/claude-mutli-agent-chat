@@ -8,7 +8,7 @@ import type { PermissionAnswer } from "../protocol/encode.ts"
 import { buildArgs } from "../session/args.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
-import type { SessionRow, Store } from "../store/store.ts"
+import type { NewAgent, SessionRow, Store } from "../store/store.ts"
 
 export type SessionHandle = {
   prompt(text: string): void
@@ -74,7 +74,7 @@ export function createServer({ store, startSession }: ServerOptions) {
     for (const client of channel.clients) writeEvent(client, event)
   }
 
-  function liveSessionFor(agentId: string, conversationId: string) {
+  function findLive(agentId: string, conversationId: string) {
     for (const session of live.values()) {
       if (
         session.agentId === agentId &&
@@ -83,6 +83,12 @@ export function createServer({ store, startSession }: ServerOptions) {
         return session
       }
     }
+    return undefined
+  }
+
+  function liveSessionFor(agentId: string, conversationId: string) {
+    const running = findLive(agentId, conversationId)
+    if (running) return running
     const earlier = store.latestSession(agentId, conversationId)
     return start(
       store.createSession({
@@ -157,6 +163,10 @@ export function createServer({ store, startSession }: ServerOptions) {
     }
   }
 
+  function liveState(agentId: string, conversationId: string): SessionState {
+    return findLive(agentId, conversationId)?.state ?? "exited"
+  }
+
   function deliver(session: LiveSession, text: string) {
     session.queue.push(text)
     deliverNext(session)
@@ -184,56 +194,46 @@ export function createServer({ store, startSession }: ServerOptions) {
   async function handle(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? "/", `http://${HOST}`)
     const parts = url.pathname.split("/").filter(Boolean)
+    const route = (method: string, pattern: string) =>
+      matchRoute(request.method, parts, method, pattern)
+    let params: Record<string, string> | null
 
-    if (
-      request.method === "POST" &&
-      parts.length === 4 &&
-      parts[0] === "api" &&
-      parts[1] === "conversations" &&
-      parts[3] === "messages"
-    ) {
-      if (!store.getConversation(parts[2])) {
+    if ((params = route("POST", "api/conversations/:id/messages"))) {
+      const conversationId = params.id
+      if (!store.getConversation(conversationId)) {
         return send(response, 404, { error: "no such conversation" })
       }
       const body = await readJson(request)
       const text = typeof body.text === "string" ? body.text : ""
-      const entry = store.addUserMessage(parts[2], text)
-      publish(parts[2], { type: "item", entry })
-      for (const agentId of agentIdsOf(parts[2])) {
-        const session = liveSessionFor(agentId, parts[2])
+      const entry = store.addUserMessage(conversationId, text)
+      publish(conversationId, { type: "item", entry })
+      for (const agentId of agentIdsOf(conversationId)) {
+        const session = liveSessionFor(agentId, conversationId)
         if (session) deliver(session, text)
       }
       return send(response, 202, { entry })
     }
 
-    if (
-      request.method === "GET" &&
-      parts.length === 4 &&
-      parts[0] === "api" &&
-      parts[1] === "conversations" &&
-      parts[3] === "timeline"
-    ) {
+    if ((params = route("GET", "api/conversations/:id/timeline"))) {
       return send(response, 200, {
-        items: store.listTimeline(parts[2]),
-        lastEventId: channelOf(parts[2]).nextId - 1,
+        items: store.listTimeline(params.id),
+        lastEventId: channelOf(params.id).nextId - 1,
       })
     }
 
-    if (
-      request.method === "GET" &&
-      parts.length === 4 &&
-      parts[0] === "api" &&
-      parts[1] === "conversations" &&
-      parts[3] === "events"
-    ) {
-      const channel = channelOf(parts[2])
+    if ((params = route("GET", "api/conversations/:id/events"))) {
+      const channel = channelOf(params.id)
       response.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         connection: "keep-alive",
       })
       response.flushHeaders()
-      const lastEventId = Number(request.headers["last-event-id"])
+      const lastEventId = Number(
+        request.headers["last-event-id"] ??
+          url.searchParams.get("lastEventId") ??
+          Number.NaN
+      )
       if (Number.isInteger(lastEventId)) {
         for (const event of channel.log) {
           if (event.id > lastEventId) writeEvent(response, event)
@@ -244,15 +244,9 @@ export function createServer({ store, startSession }: ServerOptions) {
       return
     }
 
-    if (
-      request.method === "POST" &&
-      parts.length === 4 &&
-      parts[0] === "api" &&
-      parts[1] === "conversations" &&
-      parts[3] === "stop"
-    ) {
+    if ((params = route("POST", "api/conversations/:id/stop"))) {
       for (const session of live.values()) {
-        if (session.conversationId !== parts[2]) continue
+        if (session.conversationId !== params.id) continue
         session.queue = []
         if (session.state === "busy" || session.state === "waiting") {
           session.handle?.interrupt()
@@ -261,17 +255,74 @@ export function createServer({ store, startSession }: ServerOptions) {
       return send(response, 202, {})
     }
 
-    if (
-      request.method === "POST" &&
-      parts.length === 3 &&
-      parts[0] === "api" &&
-      parts[1] === "requests"
-    ) {
-      const open = openRequests.get(parts[2])
+    if ((params = route("POST", "api/requests/:id"))) {
+      const open = openRequests.get(params.id)
       if (!open) return send(response, 404, { error: "no open request" })
       const body = await readJson(request)
-      open.session.handle?.answer(parts[2], permissionAnswer(open.card, body))
+      open.session.handle?.answer(params.id, permissionAnswer(open.card, body))
       return send(response, 202, {})
+    }
+
+    if (route("GET", "api/agents")) {
+      return send(response, 200, { agents: store.listAgents() })
+    }
+
+    if (route("POST", "api/agents")) {
+      const agent = toNewAgent(await readJson(request))
+      const empty = emptyFields(agent)
+      if (empty) return send(response, 400, { error: empty })
+      return send(response, 201, { agent: store.createAgent(agent) })
+    }
+
+    if ((params = route("GET", "api/agents/:id"))) {
+      const agent = store.getAgent(params.id)
+      if (!agent) return send(response, 404, { error: "no such agent" })
+      return send(response, 200, { agent })
+    }
+
+    if ((params = route("PATCH", "api/agents/:id"))) {
+      const current = store.getAgent(params.id)
+      if (!current) return send(response, 404, { error: "no such agent" })
+      const agent = toNewAgent({ ...current, ...(await readJson(request)) })
+      const empty = emptyFields(agent)
+      if (empty) return send(response, 400, { error: empty })
+      return send(response, 200, { agent: store.updateAgent(params.id, agent) })
+    }
+
+    if ((params = route("GET", "api/conversations/:id"))) {
+      const conversation = store.getConversation(params.id)
+      if (!conversation) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      const agents = agentIdsOf(conversation.id).flatMap((agentId) => {
+        const agent = store.getAgent(agentId)
+        if (!agent) return []
+        return [{ ...agent, state: liveState(agentId, conversation.id) }]
+      })
+      return send(response, 200, { conversation, agents })
+    }
+
+    if (route("GET", "api/conversations")) {
+      return send(response, 200, { conversations: store.listConversations() })
+    }
+
+    if (route("POST", "api/conversations")) {
+      const body = await readJson(request)
+      const agent = store.getAgent(text(body.agentId))
+      if (body.kind !== "dm" || !agent) {
+        return send(response, 400, { error: "Give kind dm and an agentId." })
+      }
+      const existing = store.findDirectMessage(agent.id)
+      if (existing) return send(response, 200, { conversation: existing })
+      const conversation = store.createConversation({
+        kind: "dm",
+        name: agent.name,
+        topic: null,
+        private: true,
+        replyMode: "every",
+        members: ["user:me", `agent:${agent.id}`],
+      })
+      return send(response, 201, { conversation })
     }
 
     send(response, 404, { error: "not found" })
@@ -296,6 +347,62 @@ export function createServer({ store, startSession }: ServerOptions) {
       await new Promise<void>((resolve) => http.close(() => resolve()))
     },
   }
+}
+
+function toNewAgent(body: Record<string, unknown>): NewAgent {
+  return {
+    name: text(body.name),
+    colour: text(body.colour),
+    model: text(body.model),
+    permissionMode: text(body.permissionMode),
+    cwd: text(body.cwd),
+    autostart: body.autostart === true,
+    allowedTools: texts(body.allowedTools),
+    disallowedTools: texts(body.disallowedTools),
+    systemPrompt:
+      typeof body.systemPrompt === "string" && body.systemPrompt !== ""
+        ? body.systemPrompt
+        : null,
+  }
+}
+
+function emptyFields(agent: NewAgent): string | null {
+  const empty = (["name", "cwd", "model", "permissionMode"] as const).filter(
+    (field) => agent[field].trim() === ""
+  )
+  return empty.length > 0
+    ? `These fields are empty: ${empty.join(", ")}.`
+    : null
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : ""
+}
+
+function texts(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : []
+}
+
+function matchRoute(
+  method: string | undefined,
+  parts: string[],
+  wantedMethod: string,
+  pattern: string
+): Record<string, string> | null {
+  if (method !== wantedMethod) return null
+  const pieces = pattern.split("/")
+  if (pieces.length !== parts.length) return null
+  const params: Record<string, string> = {}
+  for (const [index, piece] of pieces.entries()) {
+    if (piece.startsWith(":")) {
+      params[piece.slice(1)] = decodeURIComponent(parts[index])
+    } else if (piece !== parts[index]) {
+      return null
+    }
+  }
+  return params
 }
 
 function permissionAnswer(

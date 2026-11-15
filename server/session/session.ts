@@ -14,10 +14,10 @@ import {
   type TimelineItem,
   type TimelineState,
 } from "../timeline/reduce.ts"
+import type { SessionState } from "../api-types.ts"
 import { childEnvironment } from "./environment.ts"
 
-export type SessionState =
-  "starting" | "idle" | "busy" | "waiting" | "exited" | "failed"
+export type { SessionState } from "../api-types.ts"
 
 export type SessionEvent =
   | { type: "state"; state: SessionState }

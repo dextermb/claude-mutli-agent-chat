@@ -1,10 +1,10 @@
 # Headless agent sessions in the web app
 
-**Status:** in progress. Steps 1 to 6 are done: the fixtures, the findings,
+**Status:** in progress. Steps 1 to 7 are done: the fixtures, the findings,
 the decoder and the encoders are in `docs/protocol.md`, the timeline reducer
 is in `docs/timeline.md`, the session is in `docs/agents.md`, the store is in
-`docs/store.md`, and the routes are in `docs/server.md`. Steps 7 and 8 are
-still ahead. Each decision
+`docs/store.md`, the routes are in `docs/server.md`, and the pages are in
+`docs/web-app.md`. Step 8 is still ahead. Each decision
 below is final.
 
 ## The goal
@@ -288,14 +288,13 @@ The order:
 4. Done. `server/session`: `AgentSession` and the fake `claude`.
 5. Done. The store and the schema.
 6. Done. The routes and the SSE stream.
-7. The DM screen and the agent configuration screen.
+7. Done. The DM screen and the agent configuration screen.
 8. Group chats, then channels and mentions.
 
 Each step lands in its own worktree. `docs/agents.md` and `docs/protocol.md`
 get the parts that stay true, and this plan gets smaller after each step.
 
-**Live check.** After step 6, one test runs the real `claude` with Haiku. It
-runs only when a flag is set, because it costs money (about 0.01 USD).
+**Live check.** Done in step 7: `pnpm test:live`.
 
 ## Risks
 

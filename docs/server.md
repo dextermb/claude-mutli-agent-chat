@@ -22,13 +22,26 @@ in `server/http/server.ts` does the work, so a test can give it a
 
 ## Routes
 
-| Route                                  | Body                            | Result                                             |
-| -------------------------------------- | ------------------------------- | -------------------------------------------------- |
-| `POST /api/conversations/:id/messages` | `{ text }`                      | `202 { entry }`. `404` for an unknown conversation |
-| `GET /api/conversations/:id/timeline`  |                                 | `{ items, lastEventId }`                           |
-| `GET /api/conversations/:id/events`    |                                 | The event stream (SSE)                             |
-| `POST /api/conversations/:id/stop`     |                                 | `202`. Interrupts each busy agent                  |
-| `POST /api/requests/:requestId`        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open            |
+| Route                                  | Body                            | Result                                                   |
+| -------------------------------------- | ------------------------------- | -------------------------------------------------------- |
+| `GET /api/agents`                      |                                 | `{ agents }`, by name                                    |
+| `POST /api/agents`                     | The agent                       | `201 { agent }`. `400` if a field is empty               |
+| `GET /api/agents/:id`                  |                                 | `{ agent }`. `404` for an unknown agent                  |
+| `PATCH /api/agents/:id`                | Some fields of the agent        | `{ agent }`. The other fields stay                       |
+| `GET /api/conversations`               |                                 | `{ conversations }`                                      |
+| `POST /api/conversations`              | `{ kind: "dm", agentId }`       | `201 { conversation }`, or `200` with the DM that exists |
+| `GET /api/conversations/:id`           |                                 | `{ conversation, agents }`, each agent with its `state`  |
+| `POST /api/conversations/:id/messages` | `{ text }`                      | `202 { entry }`. `404` for an unknown conversation       |
+| `GET /api/conversations/:id/timeline`  |                                 | `{ items, lastEventId }`                                 |
+| `GET /api/conversations/:id/events`    |                                 | The event stream (SSE)                                   |
+| `POST /api/conversations/:id/stop`     |                                 | `202`. Interrupts each busy agent                        |
+| `POST /api/requests/:requestId`        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                  |
+
+An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
+`cwd` would start `claude` in the folder of the server, so the server refuses
+it. An empty `systemPrompt` is stored as `null`.
+
+The state of an agent with no live process is `exited`.
 
 ## A message
 
@@ -71,8 +84,11 @@ id: 7
 data: {"type":"item","entry":{"id":"…","seq":12,"authorKey":"agent:…","item":{…}}}
 ```
 
-The browser loads the timeline first, then opens the stream with
-`Last-Event-ID` set to the `lastEventId` of the timeline. The server then
+The browser loads the timeline first, then opens the stream from the
+`lastEventId` of the timeline. A browser `EventSource` cannot set a header on
+its first request, so the stream also takes `?lastEventId=<n>`. The
+`Last-Event-ID` header wins when both are there. A stream with neither gets
+only new events. The server then
 sends each event after that ID, so no event goes missing between the two
 requests. A stream that connects again does the same.
 
@@ -102,7 +118,7 @@ Each interrupted turn ends as `stopped`.
 
 ## Not handled yet
 
-- No route creates an agent or a conversation.
+- No route creates a group chat or a channel.
 - The event log of a conversation is never cut, so it grows while the server
   runs.
 - An empty message is accepted.
