@@ -1,9 +1,9 @@
 # Headless agent sessions in the web app
 
-**Status:** in progress. Steps 1 to 4 are done: the fixtures, the findings,
+**Status:** in progress. Steps 1 to 5 are done: the fixtures, the findings,
 the decoder and the encoders are in `docs/protocol.md`, the timeline reducer
-is in `docs/timeline.md`, and the session is in `docs/agents.md`. Steps 5 to
-8 are still ahead. Each decision
+is in `docs/timeline.md`, the session is in `docs/agents.md`, and the store
+is in `docs/store.md`. Steps 6 to 8 are still ahead. Each decision
 below is final.
 
 ## The goal
@@ -182,65 +182,13 @@ None.
 
 ## ERD
 
-All tables are new.
+Built in step 5. The tables are in `docs/store.md`. They differ from the first
+sketch:
 
-```
-agents                              conversations
-+------------------------+          +------------------------+
-| PK id          text    |          | PK id          text    |
-|    name        text    |          |    kind        text    |  channel | group | dm
-|    colour      text    |          |    name        text    |
-|    model       text    |          |    topic       text    |
-|    permission_mode text|          |    private     integer |
-|    cwd         text    |          |    reply_mode  text    |  mention | every
-|    max_turns   integer |          |    created_at  text    |
-|    autostart   integer |          +-----------+------------+
-|    allowed_tools  json |                      | 1
-|    disallowed_tools json|                     |
-|    system_prompt text  |                      | N
-|    created_at  text    |          conversation_members
-+-----------+------------+          +------------------------+
-            | 1                     | PK,FK conversation_id  |  ON DELETE CASCADE
-            |                       | PK    member_key  text |  "agent:<id>" | "user:me"
-            | N                     |    FK agent_id  text   |  nullable, ON DELETE CASCADE
-agent_sessions                      +------------------------+
-+------------------------------+
-| PK id                text    |
-| FK agent_id          text    |  ON DELETE CASCADE
-| FK conversation_id   text    |  ON DELETE CASCADE
-|    claude_session_id text    |  from system/init
-|    state             text    |  starting | idle | busy | waiting | exited | failed
-|    cost_usd          real    |
-|    turns             integer |
-|    started_at        text    |
-|    ended_at          text    |
-+--------------+---------------+
-               | 1
-               | N
-session_events                      timeline_items
-+------------------------------+    +--------------------------------+
-| PK,FK session_id  text       |    | PK id              text        |
-| PK    seq         integer    |    | FK conversation_id text        |  ON DELETE CASCADE
-|       direction   text       |    |    seq             integer     |  order in the conversation
-|       line        json       |    | FK session_id      text        |  nullable, ON DELETE SET NULL
-|       at          text       |    |    author_key      text        |
-+------------------------------+    |    kind            text        |  message | tool_call | permission
-  ON DELETE CASCADE                 |                                |  | question | turn | notice
-                                    |    tool_use_id     text        |  pairs a call and its result
-                                    |    status          text        |  streaming | running | done | error
-                                    |                                |  | pending | allowed | denied
-                                    |                                |  | answered | stopped | expired
-                                    |    payload         json        |
-                                    |    created_at      text        |
-                                    +--------------------------------+
-```
-
-- An agent has many sessions. A conversation has many sessions, one for each
-  agent member, and one more after each "New session".
-- A conversation has many members. A member is a user or an agent.
-- A session has many raw events. A conversation has many timeline items.
-- `session_events` is the source of truth. `timeline_items` can be built again
-  from it.
+- `agents` has no `max_turns`, because Claude Code 2.1.311 has no flag for it.
+- `conversation_members` has a `position`, to keep the order of the members.
+- `agent_sessions` has no `cost_usd`, `turns` or `ended_at` yet.
+- `seq` comes from one counter for lines and user messages.
 
 ## Data flows
 
@@ -337,7 +285,7 @@ The order:
 2. Done. `server/protocol`: the decoder and the encoder.
 3. Done. `server/timeline`: the reducer.
 4. Done. `server/session`: `AgentSession` and the fake `claude`.
-5. The store and the schema.
+5. Done. The store and the schema.
 6. The routes and the SSE stream.
 7. The DM screen and the agent configuration screen.
 8. Group chats, then channels and mentions.
