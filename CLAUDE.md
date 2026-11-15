@@ -21,6 +21,9 @@ manager is pnpm.
 - `src/components/ui`: shadcn components. Add them with
   `pnpm dlx shadcn@latest add <name>`. Do not write them by hand.
 - `docs/testing.md`: the test set-up and the seams under test.
+- `docs/protocol.md`: the Claude Code stream that the server reads, and its
+  fixtures in `server/protocol/fixtures`. Record them again with
+  `pnpm fixtures:record`.
 
 ## Rules
 
