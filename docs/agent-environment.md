@@ -6,6 +6,9 @@ the chat app behaves. Without the rule, an agent does not know these facts:
 - Its text is a chat message, and each text block is a separate message.
 - A mention starts a turn of another agent, and each turn costs money.
 - An approval card or a question card can wait for a long time.
+- A question in the correct shape lets the user answer with no mention. The
+  section "Questions to the user" gives the shape and how to ask well. The
+  rule that the server applies is in `docs/conversations.md`.
 - Each conversation is a separate session with a separate memory.
 - Another agent can work in the same folder.
 
