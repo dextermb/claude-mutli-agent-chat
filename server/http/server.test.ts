@@ -7,6 +7,7 @@ import {
   answerRequest,
   cleanups,
   nextPendingCard,
+  openAppEvents,
   openEvents,
   postJson,
   runCleanups,
@@ -177,6 +178,69 @@ describe("createServer", () => {
       ["message", "done", "ok"],
       ["turn", "done", undefined],
     ])
+  })
+
+  test("the app stream sends each change of the state of an agent", async () => {
+    const { base, agent, conversation } = await startServer()
+    const stream = openAppEvents(base)
+    await stream.ready
+
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(() =>
+      expect(stream.events.map(({ data }) => data)).toEqual([
+        { type: "agent_state", agentId: agent.id, state: "starting" },
+        { type: "agent_state", agentId: agent.id, state: "idle" },
+        { type: "agent_state", agentId: agent.id, state: "busy" },
+        { type: "agent_state", agentId: agent.id, state: "idle" },
+      ])
+    )
+  })
+
+  test("the app stream sends each new conversation", async () => {
+    const { base, agent } = await startServer()
+    const stream = openAppEvents(base)
+    await stream.ready
+
+    const response = await postJson(base, "/api/conversations", {
+      kind: "channel",
+      name: "release-train",
+      agentIds: [agent.id],
+    })
+    const { conversation } = (await response.json()) as {
+      conversation: { id: string }
+    }
+
+    await vi.waitFor(() =>
+      expect(stream.events.map(({ data }) => data)).toEqual([
+        { type: "conversation", conversation },
+      ])
+    )
+  })
+
+  test("a stream asks for events that the cut log no longer holds, and gets a reset", async () => {
+    const { base, conversation } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({}),
+      { eventLogSize: 3 }
+    )
+    const first = openEvents(base, conversation.id)
+    await first.ready
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(() => expect(agentStates(first.events)).toHaveLength(4))
+    const last = first.events.at(-1)?.id ?? 0
+
+    const late = openEvents(base, conversation.id, 1)
+    const recent = openEvents(base, conversation.id, last - 2)
+    const ahead = openEvents(base, conversation.id, last + 5)
+
+    await vi.waitFor(() => {
+      expect(late.events.map(({ data }) => data)).toEqual([{ type: "reset" }])
+      expect(recent.events).toEqual(first.events.slice(-2))
+      expect(ahead.events.map(({ data }) => data)).toEqual([{ type: "reset" }])
+    })
   })
 
   test("a stream that connects again with Last-Event-ID gets each event that it did not get", async () => {

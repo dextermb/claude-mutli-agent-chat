@@ -24,7 +24,8 @@ export async function startServer(
   fixture = "resume-1",
   location = ":memory:",
   members?: Members,
-  perAgent: (agentName: string) => FakeAgent = () => ({})
+  perAgent: (agentName: string) => FakeAgent = () => ({}),
+  options: { eventLogSize?: number } = {}
 ) {
   const store = openStore(location)
   const started: string[][] = []
@@ -57,7 +58,7 @@ export async function startServer(
     session.start()
     return session
   }
-  const server = createServer({ store, startSession })
+  const server = createServer({ store, startSession, ...options })
   const address = await server.listen(0)
   const stop = async () => {
     await server.close()
@@ -133,10 +134,26 @@ export function openEvents(
   lastEventId?: number,
   sendIdIn: "header" | "query" = "header"
 ) {
+  return openStream(
+    `${base}/api/conversations/${conversationId}/events`,
+    lastEventId,
+    sendIdIn
+  )
+}
+
+export function openAppEvents(base: string, lastEventId?: number) {
+  return openStream(`${base}/api/events`, lastEventId, "header")
+}
+
+function openStream(
+  route: string,
+  lastEventId: number | undefined,
+  sendIdIn: "header" | "query"
+) {
   const events: StreamEvent[] = []
   const abort = new AbortController()
   const headers: Record<string, string> = {}
-  let address = `${base}/api/conversations/${conversationId}/events`
+  let address = route
   if (lastEventId !== undefined && sendIdIn === "header") {
     headers["last-event-id"] = String(lastEventId)
   }

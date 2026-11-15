@@ -126,10 +126,18 @@ describe("the DM page", () => {
       item: { ...agentMessage.item, text: "I will use", status: "streaming" },
     } as TimelineEntry
 
-    act(() => network.stream().emit(1, { type: "item", entry: piece }))
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "item", entry: piece })
+    )
 
     expect(screen.getByText("I will use")).toHaveAttribute("aria-busy", "true")
-    act(() => network.stream().emit(2, { type: "item", entry: agentMessage }))
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(2, { type: "item", entry: agentMessage })
+    )
     expect(screen.getByText("I will use a fixed clock.")).toHaveAttribute(
       "aria-busy",
       "false"
@@ -277,7 +285,7 @@ describe("the DM page", () => {
       body: { decision: "allow_once" },
     })
     act(() =>
-      network.stream().emit(1, {
+      network.stream("/api/conversations/c1/events").emit(1, {
         type: "item",
         entry: {
           ...pushRequest,
@@ -356,7 +364,7 @@ describe("the DM page", () => {
       body: { answers: { "Which colour do you prefer?": "Red" } },
     })
     act(() =>
-      network.stream().emit(1, {
+      network.stream("/api/conversations/c1/events").emit(1, {
         type: "item",
         entry: {
           ...colourQuestion,
@@ -399,7 +407,7 @@ describe("the DM page", () => {
     })
     act(() =>
       network
-        .stream()
+        .stream("/api/conversations/c1/events")
         .emit(1, { type: "agent_state", agentId: "a1", state: "idle" })
     )
     expect(
@@ -452,6 +460,28 @@ describe("the DM page", () => {
     expect(current).toHaveAttribute("aria-current", "page")
     expect(
       within(sidebar).getByRole("button", { name: "reviewer-bot Online" })
+    ).toBeInTheDocument()
+  })
+
+  test("the sidebar follows the state of each agent, and counts the agents that work", async () => {
+    openConversation([userMessage], "busy")
+    const sidebar = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+    await within(sidebar).findByRole("button", { name: "reviewer-bot Online" })
+    expect(within(sidebar).getByText("1 agent working")).toBeInTheDocument()
+
+    act(() =>
+      network
+        .stream("/api/events")
+        .emit(1, { type: "agent_state", agentId: "a2", state: "waiting" })
+    )
+
+    expect(
+      within(sidebar).getByRole("button", { name: "reviewer-bot Waiting" })
+    ).toBeInTheDocument()
+    expect(
+      within(sidebar).getByText("1 agent working · 1 needs approval")
     ).toBeInTheDocument()
   })
 

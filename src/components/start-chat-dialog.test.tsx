@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
@@ -125,11 +125,13 @@ describe("the Start a chat dialog", () => {
     expect(
       within(dialog).getByText("2 picked: a group chat")
     ).toBeInTheDocument()
-    network.on("GET", "/api/conversations", {
-      conversations: [releaseChannel, squadGroup],
-    })
     await user.click(
       within(dialog).getByRole("button", { name: "Start group chat" })
+    )
+    act(() =>
+      network
+        .stream("/api/events")
+        .emit(1, { type: "conversation", conversation: squadGroup })
     )
 
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(

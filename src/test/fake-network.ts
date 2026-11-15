@@ -58,8 +58,10 @@ export function fakeNetwork() {
     on(method: string, url: string, reply: unknown, status = 200) {
       routes.set(`${method} ${url}`, () => ({ status, body: reply }))
     },
-    stream() {
-      const source = FakeEventSource.opened.at(-1)
+    stream(address?: string) {
+      const source = FakeEventSource.opened.findLast(
+        (opened) => address === undefined || opened.url.startsWith(address)
+      )
       if (!source) throw new Error("No event stream is open")
       return source
     },

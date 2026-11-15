@@ -9,7 +9,13 @@ import { parseMentions } from "../conversation/mentions.ts"
 import { buildArgs } from "../session/args.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
-import type { Agent, NewAgent, SessionRow, Store } from "../store/store.ts"
+import type {
+  Agent,
+  Conversation,
+  NewAgent,
+  SessionRow,
+  Store,
+} from "../store/store.ts"
 
 export type SessionHandle = {
   prompt(text: string): void
@@ -28,6 +34,7 @@ export type StartSession = (options: {
 export type ServerOptions = {
   store: Store
   startSession: StartSession
+  eventLogSize?: number
 }
 
 type LiveSession = {
@@ -60,10 +67,17 @@ const URGENCY: SessionState[] = [
 
 const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 1_000_000
+const EVENT_LOG_SIZE = 500
 
-export function createServer({ store, startSession }: ServerOptions) {
+export function createServer({
+  store,
+  startSession,
+  eventLogSize = EVENT_LOG_SIZE,
+}: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
+  const appChannel: Channel = { nextId: 1, log: [], clients: new Set() }
+  const sentAgentStates = new Map<string, SessionState>()
   const promptCursors = new Map<string, number>()
   const openRequests = new Map<
     string,
@@ -80,10 +94,14 @@ export function createServer({ store, startSession }: ServerOptions) {
   }
 
   function publish(conversationId: string, data: unknown) {
-    const channel = channelOf(conversationId)
+    publishTo(channelOf(conversationId), data)
+  }
+
+  function publishTo(channel: Channel, data: unknown) {
     const event = { id: channel.nextId, data: JSON.stringify(data) }
     channel.nextId += 1
     channel.log.push(event)
+    if (channel.log.length > eventLogSize) channel.log.shift()
     for (const client of channel.clients) writeEvent(client, event)
   }
 
@@ -188,12 +206,25 @@ export function createServer({ store, startSession }: ServerOptions) {
         agentId: session.agentId,
         state: event.state,
       })
-      if (event.state === "idle") deliverNext(session)
-      if (event.state === "failed") addFailedNotice(session)
       if (event.state === "exited" || event.state === "failed") {
         live.delete(session.id)
       }
+      publishAgentState(session.agentId)
+      if (event.state === "idle") deliverNext(session)
+      if (event.state === "failed") addFailedNotice(session)
     }
+  }
+
+  function publishAgentState(agentId: string) {
+    const state = agentState(agentId)
+    if (state === (sentAgentStates.get(agentId) ?? "exited")) return
+    sentAgentStates.set(agentId, state)
+    publishTo(appChannel, { type: "agent_state", agentId, state })
+  }
+
+  function created(response: ServerResponse, conversation: Conversation) {
+    publishTo(appChannel, { type: "conversation", conversation })
+    send(response, 201, { conversation })
   }
 
   function addFailedNotice(session: LiveSession) {
@@ -351,27 +382,12 @@ export function createServer({ store, startSession }: ServerOptions) {
       })
     }
 
+    if (route("GET", "api/events")) {
+      return openStream(appChannel, request, response, url)
+    }
+
     if ((params = route("GET", "api/conversations/:id/events"))) {
-      const channel = channelOf(params.id)
-      response.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-cache",
-        connection: "keep-alive",
-      })
-      response.flushHeaders()
-      const lastEventId = Number(
-        request.headers["last-event-id"] ??
-          url.searchParams.get("lastEventId") ??
-          Number.NaN
-      )
-      if (Number.isInteger(lastEventId)) {
-        for (const event of channel.log) {
-          if (event.id > lastEventId) writeEvent(response, event)
-        }
-      }
-      channel.clients.add(response)
-      request.on("close", () => channel.clients.delete(response))
-      return
+      return openStream(channelOf(params.id), request, response, url)
     }
 
     if ((params = route("POST", "api/conversations/:id/stop"))) {
@@ -461,7 +477,7 @@ export function createServer({ store, startSession }: ServerOptions) {
             replyMode: "mention",
             members,
           })
-          return send(response, 201, { conversation })
+          return created(response, conversation)
         }
         const name = text(body.name).trim()
         if (name === "") {
@@ -489,7 +505,7 @@ export function createServer({ store, startSession }: ServerOptions) {
           replyMode: body.replyMode === "every" ? "every" : "mention",
           members,
         })
-        return send(response, 201, { conversation })
+        return created(response, conversation)
       }
       const agent = store.getAgent(text(body.agentId))
       if (body.kind !== "dm" || !agent) {
@@ -505,7 +521,7 @@ export function createServer({ store, startSession }: ServerOptions) {
         replyMode: "every",
         members: ["user:me", `agent:${agent.id}`],
       })
-      return send(response, 201, { conversation })
+      return created(response, conversation)
     }
 
     send(response, 404, { error: "not found" })
@@ -524,7 +540,7 @@ export function createServer({ store, startSession }: ServerOptions) {
       await Promise.all(
         [...live.values()].map((session) => session.handle?.stop())
       )
-      for (const channel of channels.values()) {
+      for (const channel of [...channels.values(), appChannel]) {
         for (const client of channel.clients) client.end()
       }
       await new Promise<void>((resolve) => http.close(() => resolve()))
@@ -609,6 +625,37 @@ function permissionAnswer(
     }
   }
   return { behavior: "deny", message: "The user denied this." }
+}
+
+function openStream(
+  channel: Channel,
+  request: IncomingMessage,
+  response: ServerResponse,
+  url: URL
+) {
+  response.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache",
+    connection: "keep-alive",
+  })
+  response.flushHeaders()
+  const lastEventId = Number(
+    request.headers["last-event-id"] ??
+      url.searchParams.get("lastEventId") ??
+      Number.NaN
+  )
+  if (Number.isInteger(lastEventId)) {
+    const oldest = channel.log[0]?.id ?? channel.nextId
+    if (lastEventId > channel.nextId - 1 || lastEventId < oldest - 1) {
+      response.write(`data: ${JSON.stringify({ type: "reset" })}\n\n`)
+    } else {
+      for (const event of channel.log) {
+        if (event.id > lastEventId) writeEvent(response, event)
+      }
+    }
+  }
+  channel.clients.add(response)
+  request.on("close", () => channel.clients.delete(response))
 }
 
 function writeEvent(response: ServerResponse, event: StreamEvent) {

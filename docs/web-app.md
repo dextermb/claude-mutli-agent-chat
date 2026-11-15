@@ -42,7 +42,8 @@ type check of the app does not need the Node types.
    the two requests. After a lost connection, the browser sends
    `Last-Event-ID` itself.
 3. An `item` event replaces the entry with the same ID, or adds it at the end.
-   An `agent_state` event changes the state of that agent.
+   An `agent_state` event changes the state of that agent. A `reset` event
+   closes the stream and starts again from step 1.
 4. It closes the stream when the page goes away.
 
 It gives `status`, `conversation`, `agents`, `entries`, and three actions:
@@ -116,8 +117,17 @@ conversation page. It lists:
   An agent with a DM links to it. An agent with no DM is a button that opens
   one.
 
-The current conversation has `aria-current="page"`. The sidebar loads the
-lists again each time the page moves to another conversation.
+The current conversation has `aria-current="page"`.
+
+The sidebar gets its lists from `useWorkspace()` (`src/hooks/use-workspace.ts`).
+The hook opens the app stream (`/api/events`), then loads
+`GET /api/conversations` and `GET /api/agents`. An `agent_state` event
+changes the state of that agent. A `conversation` event adds the
+conversation, or replaces it if the list holds it. A `reset` event loads the
+lists again.
+
+When an agent works or waits, a footer counts them: "2 agents working · 1
+needs approval". With no such agent, the footer is not there.
 
 ## Start a chat and Create a channel
 
