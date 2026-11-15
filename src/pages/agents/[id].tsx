@@ -157,7 +157,7 @@ export default function AgentPage() {
         open={showingSidebar}
         onOpenChange={setShowingSidebar}
       />
-      <main className="min-w-0 flex-1 overflow-y-auto px-8 pt-5 pb-8">
+      <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-5 pb-8 sm:px-8">
         <form
           noValidate
           onSubmit={(event) => {
