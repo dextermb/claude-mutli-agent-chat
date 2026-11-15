@@ -75,6 +75,38 @@ describe("createServer", () => {
     })
   })
 
+  test("a process that fails adds a notice with its stderr, and its session keeps the exit", async () => {
+    const { base, store, agent, conversation } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ mode: "crash" })
+    )
+
+    await sendMessage(base, conversation.id, "Hello.")
+
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.map(({ item }) => item)).toEqual([
+        expect.objectContaining({ kind: "message", text: "Hello." }),
+        {
+          kind: "notice",
+          id: "exit",
+          reason: "failed",
+          status: "failed",
+          exitCode: 1,
+          stderr: "fake claude (crash): crash on the first prompt\n",
+        },
+      ])
+    })
+    expect(store.latestSession(agent.id, conversation.id)).toMatchObject({
+      state: "failed",
+      exitCode: 1,
+      stderr: "fake claude (crash): crash on the first prompt\n",
+      endedAt: expect.stringMatching(/^2\d{3}-/),
+    })
+  })
+
   test("a message to an agent with a stored Claude session resumes that session", async () => {
     const { base, store, started, agent, conversation } = await startServer()
     const earlier = store.createSession({

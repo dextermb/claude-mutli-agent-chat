@@ -12,6 +12,7 @@ import {
   deniedCall,
   directMessage,
   editCall,
+  failedNotice,
   finishedTurn,
   localTime,
   pushCall,
@@ -235,6 +236,26 @@ describe("the DM page", () => {
         "The seven-day rate limit is near. It resets on Tuesday 17 November at 09:00."
       )
     ).toBeInTheDocument()
+  })
+
+  test("a process that fails shows a notice, and the details show what it wrote to stderr", async () => {
+    const user = userEvent.setup()
+    openConversation([failedNotice])
+
+    expect(
+      await screen.findByText(
+        "test-runner stopped with an error (exit code 1)."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/the SessionStart hook failed/)
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Show details" }))
+
+    expect(screen.getByText(/at hook\.js:4/)).toHaveTextContent(
+      "Error: the SessionStart hook failed at hook.js:4"
+    )
   })
 
   test("the user can allow a tool once, and the card then shows that it is allowed", async () => {

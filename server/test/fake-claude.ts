@@ -9,6 +9,10 @@ const reply = process.env.FAKE_CLAUDE_REPLY
 const input = createInterface({ input: process.stdin })[Symbol.asyncIterator]()
 const requestIds = new Map<string, string>()
 
+if (mode === "hang") {
+  process.on("SIGTERM", () => undefined)
+}
+
 const recordedInitialize = fixture.find(
   ({ dir, line }) => dir === "in" && subtype(line) === "initialize"
 )
@@ -25,7 +29,7 @@ for (const { dir, line } of fixture) {
     continue
   }
   const received = await nextInput()
-  if (!received) process.exit(0)
+  if (!received) break
   if (received.type !== line.type || subtype(received) !== subtype(line)) {
     fail(`expected ${String(line.type)}, got ${String(received.type)}`)
   }
@@ -52,7 +56,13 @@ for (const { dir, line } of fixture) {
 while (await nextInput()) {
   continue
 }
-process.exit(0)
+await end()
+
+async function end(): Promise<never> {
+  if (mode === "hang") setInterval(() => undefined, 1000)
+  else process.exit(0)
+  return new Promise<never>(() => undefined)
+}
 
 async function nextInput(): Promise<Json | null> {
   const next = await input.next()

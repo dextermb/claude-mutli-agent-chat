@@ -65,3 +65,15 @@ CREATE TABLE IF NOT EXISTS timeline_items (
 CREATE INDEX IF NOT EXISTS timeline_items_order
   ON timeline_items (conversation_id, seq);
 `
+
+export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
+  {
+    version: 2,
+    rebuild: true,
+    sql: `
+      ALTER TABLE agent_sessions ADD COLUMN ended_at TEXT;
+      ALTER TABLE agent_sessions ADD COLUMN exit_code INTEGER;
+      ALTER TABLE agent_sessions ADD COLUMN stderr TEXT;
+    `,
+  },
+]

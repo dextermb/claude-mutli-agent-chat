@@ -71,6 +71,12 @@ The server writes each event of a session to the store, then to the stream:
 | `changes`        | `saveItems()` with the `seq` of the last stdout line | `{ type: "item", entry }` for each item   |
 | `state`          | `updateSession({ state })`                           | `{ type: "agent_state", agentId, state }` |
 | `claude_session` | `updateSession({ claudeSessionId })`                 |                                           |
+| `exit`           | `updateSession({ endedAt, exitCode, stderr })`       |                                           |
+
+When the state becomes `failed`, the server also adds a `notice` item with
+`reason: "failed"`, the exit code and the stderr, and sends it as an `item`
+event. Its item ID is `<session id>/exit`. The stderr goes to the local
+database and the local browser only. It never goes into a prompt.
 
 After `exited` or `failed`, the session is no longer live. The next message
 starts a new process.

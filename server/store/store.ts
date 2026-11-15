@@ -13,7 +13,7 @@ import type {
   NewConversation,
   TimelineEntry,
 } from "../api-types.ts"
-import { SCHEMA } from "./schema.ts"
+import { MIGRATIONS, SCHEMA } from "./schema.ts"
 
 export type {
   Agent,
@@ -30,6 +30,9 @@ export type SessionRow = {
   claudeSessionId: string | null
   state: string
   startedAt: string
+  endedAt: string | null
+  exitCode: number | null
+  stderr: string | null
 }
 
 export type StoredLine = {
@@ -51,6 +54,7 @@ export function openStore(location: string) {
      WHERE kind IN ('permission', 'question') AND status = 'pending'
        AND (:id IS NULL OR id = :id)`
   )
+  migrate()
   expireOpenRequests.run({ id: null })
   db.exec(
     `UPDATE agent_sessions SET state = 'exited'
@@ -181,12 +185,15 @@ export function openStore(location: string) {
       claudeSessionId: session.claudeSessionId ?? null,
       state: "starting",
       startedAt: new Date().toISOString(),
+      endedAt: null,
+      exitCode: null,
+      stderr: null,
     }
     db.prepare(
       `INSERT INTO agent_sessions (id, agent_id, conversation_id,
-         claude_session_id, state, started_at)
+         claude_session_id, state, started_at, ended_at, exit_code, stderr)
        VALUES (:id, :agentId, :conversationId, :claudeSessionId, :state,
-         :startedAt)`
+         :startedAt, :endedAt, :exitCode, :stderr)`
     ).run(created)
     return created
   }
@@ -219,22 +226,37 @@ export function openStore(location: string) {
         row.claude_session_id === null ? null : String(row.claude_session_id),
       state: String(row.state),
       startedAt: String(row.started_at),
+      endedAt: row.ended_at === null ? null : String(row.ended_at),
+      exitCode: row.exit_code === null ? null : Number(row.exit_code),
+      stderr: row.stderr === null ? null : String(row.stderr),
     }
   }
 
   function updateSession(
     id: string,
-    change: Partial<Pick<SessionRow, "claudeSessionId" | "state">>
+    change: Partial<
+      Pick<
+        SessionRow,
+        "claudeSessionId" | "state" | "endedAt" | "exitCode" | "stderr"
+      >
+    >
   ) {
     const current = getSession(id)
     if (!current) return
+    const next = { ...current, ...change }
     db.prepare(
-      `UPDATE agent_sessions SET claude_session_id = ?, state = ? WHERE id = ?`
-    ).run(
-      change.claudeSessionId ?? current.claudeSessionId,
-      change.state ?? current.state,
-      id
-    )
+      `UPDATE agent_sessions SET claude_session_id = :claudeSessionId,
+         state = :state, ended_at = :endedAt, exit_code = :exitCode,
+         stderr = :stderr
+       WHERE id = :id`
+    ).run({
+      id,
+      claudeSessionId: next.claudeSessionId,
+      state: next.state,
+      endedAt: next.endedAt,
+      exitCode: next.exitCode,
+      stderr: next.stderr,
+    })
   }
 
   function nextSeq(): number {
@@ -279,7 +301,7 @@ export function openStore(location: string) {
   function saveItems(
     sessionId: string,
     items: TimelineItem[],
-    seq: number
+    seq = nextSeq()
   ): TimelineEntry[] {
     const session = db
       .prepare(
@@ -349,30 +371,43 @@ export function openStore(location: string) {
   }
 
   function rebuildTimeline(sessionId: string) {
-    db.exec("BEGIN")
-    try {
-      const expired = db
-        .prepare(
-          `SELECT id FROM timeline_items
-           WHERE session_id = ? AND status = 'expired'`
-        )
-        .all(sessionId)
-        .map((row) => String(row.id))
-      db.prepare("DELETE FROM timeline_items WHERE session_id = ?").run(
-        sessionId
+    inTransaction(db, () => rebuildSession(sessionId))
+  }
+
+  function rebuildSession(sessionId: string) {
+    const expired = db
+      .prepare(
+        `SELECT id FROM timeline_items
+         WHERE session_id = ? AND status = 'expired'`
       )
-      let timeline = emptyTimeline()
-      for (const line of listLines(sessionId)) {
-        if (line.direction !== "out") continue
-        const step = reduceTimeline(timeline, decodeLine(line.text))
-        timeline = step.state
-        saveItems(sessionId, step.changes, line.seq)
-      }
-      for (const id of expired) expireOpenRequests.run({ id })
-      db.exec("COMMIT")
-    } catch (error) {
-      db.exec("ROLLBACK")
-      throw error
+      .all(sessionId)
+      .map((row) => String(row.id))
+    db.prepare("DELETE FROM timeline_items WHERE session_id = ?").run(sessionId)
+    let timeline = emptyTimeline()
+    for (const line of listLines(sessionId)) {
+      if (line.direction !== "out") continue
+      const step = reduceTimeline(timeline, decodeLine(line.text))
+      timeline = step.state
+      saveItems(sessionId, step.changes, line.seq)
+    }
+    for (const id of expired) expireOpenRequests.run({ id })
+  }
+
+  function migrate() {
+    const version = Number(
+      db.prepare("PRAGMA user_version").get()?.user_version
+    )
+    for (const migration of MIGRATIONS) {
+      if (migration.version <= version) continue
+      inTransaction(db, () => {
+        db.exec(migration.sql)
+        if (migration.rebuild) {
+          for (const row of db.prepare("SELECT id FROM agent_sessions").all()) {
+            rebuildSession(String(row.id))
+          }
+        }
+        db.exec(`PRAGMA user_version = ${migration.version}`)
+      })
     }
   }
 
@@ -412,6 +447,17 @@ export function openStore(location: string) {
     rebuildTimeline,
     listTimeline,
     close: () => db.close(),
+  }
+}
+
+function inTransaction(db: DatabaseSync, work: () => void) {
+  db.exec("BEGIN")
+  try {
+    work()
+    db.exec("COMMIT")
+  } catch (error) {
+    db.exec("ROLLBACK")
+    throw error
   }
 }
 

@@ -14,7 +14,8 @@ afterEach(async () => {
 function startFake(
   fixture: string,
   mode = "play",
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  stopTimeoutMs?: number
 ) {
   const events: SessionEvent[] = []
   const session = new AgentSession({
@@ -27,6 +28,7 @@ function startFake(
       FAKE_CLAUDE_MODE: mode,
     },
     onEvent: (event) => events.push(event),
+    stopTimeoutMs,
   })
   running.push(session)
   session.start()
@@ -193,6 +195,24 @@ describe("AgentSession", () => {
     )
   })
 
+  test("a session that fails reports its exit code and what the process wrote to stderr", async () => {
+    const { session, events } = startFake("resume-1", "crash")
+    await untilIdle(events, 1)
+
+    session.prompt("Remember the word kiwi. Reply with the single word ok.")
+
+    await vi.waitFor(() =>
+      expect(events.filter((event) => event.type === "exit")).toEqual([
+        {
+          type: "exit",
+          code: 1,
+          signal: null,
+          stderr: "fake claude (crash): crash on the first prompt\n",
+        },
+      ])
+    )
+  })
+
   test("a line that is not JSON is kept for storage and the turn continues", async () => {
     const { session, events } = startFake("resume-1", "not-json")
     await untilIdle(events, 1)
@@ -224,6 +244,15 @@ describe("AgentSession", () => {
     )
     expect(sent).toEqual(stdinLines("resume-1"))
   })
+
+  test("a process that ignores stop is killed, and the session reports that it exited", async () => {
+    const { session, events } = startFake("resume-1", "hang", process.env, 50)
+    await untilIdle(events, 1)
+
+    await session.stop()
+
+    expect(states(events)).toEqual(["starting", "idle", "exited"])
+  }, 2000)
 
   test("a stopped session reports that it exited", async () => {
     const { session, events } = startFake("resume-1")

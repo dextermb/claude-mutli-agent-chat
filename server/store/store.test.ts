@@ -1,9 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { DatabaseSync } from "node:sqlite"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { decodeLine } from "../protocol/decode.ts"
 import { readFixture } from "../test/fixtures.ts"
+import { SCHEMA_V1 } from "../test/schema-v1.ts"
 import { emptyTimeline, reduceTimeline } from "../timeline/reduce.ts"
 import { openStore, type NewAgent, type Store } from "./store.ts"
 
@@ -44,6 +46,31 @@ function restartableStore() {
       return after
     },
   }
+}
+
+function versionOneFile() {
+  const folder = mkdtempSync(join(tmpdir(), "store-test-"))
+  folders.push(folder)
+  const file = join(folder, "agents.db")
+  const db = new DatabaseSync(file)
+  db.exec(SCHEMA_V1)
+  db.exec(
+    `INSERT INTO agents VALUES ('a1', 'reviewer-bot', 'aqua', 'claude-haiku-5-5',
+       'default', '/home/user/projects/app', 0, '[]', '[]', NULL,
+       '2026-11-15T10:00:00.000Z');
+     INSERT INTO conversations VALUES ('c1', 'dm', 'reviewer-bot', NULL, 1,
+       'every', '2026-11-15T10:00:00.000Z');
+     INSERT INTO agent_sessions VALUES ('s1', 'a1', 'c1',
+       '9a966a23-de85-473e-b54f-ea449c292221', 'exited',
+       '2026-11-15T10:00:00.000Z');`
+  )
+  return { file, db }
+}
+
+function openFile(file: string): Store {
+  const store = openStore(file)
+  stores.push(store)
+  return store
 }
 
 function memoryStore(): Store {
@@ -269,6 +296,50 @@ describe("Store", () => {
         .listTimeline(conversation.id)
         .map(({ item }) => ({ kind: item.kind, status: item.status }))
     ).toEqual([{ kind: "question", status: "expired" }])
+  })
+
+  test("a database of version 1 gets the exit columns, and keeps its rows", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+
+    const store = openFile(file)
+    store.updateSession("s1", {
+      endedAt: "2026-11-15T10:05:00.000Z",
+      exitCode: 1,
+      stderr: "Error: the hook failed\n",
+    })
+
+    expect(store.getSession("s1")).toEqual({
+      id: "s1",
+      agentId: "a1",
+      conversationId: "c1",
+      claudeSessionId: "9a966a23-de85-473e-b54f-ea449c292221",
+      state: "exited",
+      startedAt: "2026-11-15T10:00:00.000Z",
+      endedAt: "2026-11-15T10:05:00.000Z",
+      exitCode: 1,
+      stderr: "Error: the hook failed\n",
+    })
+  })
+
+  test("a database of version 1 gets its timelines built again, so each turn shows its own cost", () => {
+    const { file, db } = versionOneFile()
+    const insert = db.prepare(
+      `INSERT INTO session_events (session_id, seq, direction, line, at)
+       VALUES ('s1', ?, ?, ?, '2026-11-15T10:01:00.000Z')`
+    )
+    fixtureLines("background").forEach((line, index) =>
+      insert.run(index + 1, line.direction, line.text)
+    )
+    db.close()
+
+    const turns = openFile(file)
+      .listTimeline("c1")
+      .flatMap(({ item }) => (item.kind === "turn" ? [item.costUsd] : []))
+
+    expect(turns).toHaveLength(2)
+    expect(turns[0]).toBeCloseTo(0.00843574, 10)
+    expect(turns[1]).toBeCloseTo(0.00068716, 10)
   })
 
   test("a session keeps its Claude session id and its state for the next start", () => {

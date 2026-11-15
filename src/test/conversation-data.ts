@@ -264,3 +264,12 @@ export const rateLimitNotice = agentEntry(14, {
   rateLimitType: "five_hour",
   resetsAt: new Date(localTime(15, 14, 0)).getTime() / 1000,
 })
+
+export const failedNotice = agentEntry(15, {
+  kind: "notice",
+  id: "exit",
+  reason: "failed",
+  status: "failed",
+  exitCode: 1,
+  stderr: "Error: the SessionStart hook failed\n    at hook.js:4\n",
+})

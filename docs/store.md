@@ -12,14 +12,36 @@ the tables. No other module writes SQL.
 const store = openStore("data/agents.db") // or ":memory:" in a test
 ```
 
-`openStore()` makes each table that does not exist. Then it does the work of a
-server start, because no `claude` process from before is still alive:
+`openStore()` makes each table that does not exist, and runs each migration
+that the file does not have yet (see "Migrations"). Then it does the work of
+a server start, because no `claude` process from before is still alive:
 
 - Each approval card and question card that is `pending` becomes `expired`.
 - Each session that is not `exited` or `failed` becomes `exited`.
 
 The next prompt to an agent starts a new process with `--resume` and the
 stored Claude session ID.
+
+## Migrations
+
+`SCHEMA` in `server/store/schema.ts` is version 1. `MIGRATIONS` lists each
+later version. `PRAGMA user_version` holds the version of a file. A file from
+before the migrations has version 0, and its tables are version 1.
+
+`openStore()` runs each migration with a higher version, in order. Each one
+runs in one transaction with its SQL, its rebuild and the new
+`user_version`. So a failure leaves the file at the version before it.
+
+| Version | Change                                                                                   |
+| ------- | ---------------------------------------------------------------------------------------- |
+| 2       | `agent_sessions` gets `ended_at`, `exit_code` and `stderr`. Each timeline is built again |
+
+A migration with `rebuild: true` builds the timeline of each session again
+from its stored lines. Use it when a change to the reducer must reach the
+stored items.
+
+`server/test/schema-v1.ts` holds the version 1 schema, so a test can make a
+file of that version and open it.
 
 ## Tables
 
@@ -32,14 +54,14 @@ conversations ──1:N── conversation_members
       └──────1:N── timeline_items
 ```
 
-| Table                  | Holds                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| `agents`               | The configuration of each agent. The tool lists are JSON arrays                             |
-| `conversations`        | Each channel, group chat and DM                                                             |
-| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order                           |
-| `agent_sessions`       | One `claude` session for one agent in one conversation, its Claude session ID and its state |
-| `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                   |
-| `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                |
+| Table                  | Holds                                                                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents`               | The configuration of each agent. The tool lists are JSON arrays                                                                                             |
+| `conversations`        | Each channel, group chat and DM                                                                                                                             |
+| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order                                                                                           |
+| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID, its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`) |
+| `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                   |
+| `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                |
 
 A delete of an agent or a conversation deletes its sessions, members and
 items. A delete of a session keeps its items, with `session_id` set to null.
@@ -70,7 +92,9 @@ For each `line` event of an `AgentSession` (see `docs/agents.md`):
 The ID of an agent item is `<session id>/<item id>`. A second change to the
 same item replaces its status and its payload. The author is the agent of the
 session. `saveItems()` gives back the stored entries, with the `seq` that each
-item kept.
+item kept. With no `seq`, it takes the next one, so the item comes after each
+item that is stored now. The server does this for an item that no stdout line
+added, such as the notice of a failed process.
 
 Use one session row for each process. A new process starts its reducer again
 at `item-1`, so it needs a new row, or its items replace the items of the
@@ -96,18 +120,17 @@ in each replay.
 
 ## Queries
 
-| Function                                                          | Result                                   |
-| ----------------------------------------------------------------- | ---------------------------------------- |
-| `createAgent(agent)`, `getAgent(id)`                              | An agent                                 |
-| `createConversation(c)`, `getConversation(id)`                    | A conversation with its members in order |
-| `createSession({ agentId, conversationId })`, `getSession(id)`    | A session, `starting` at first           |
-| `updateSession(id, { claudeSessionId, state })`                   | Changes the given fields only            |
-| `recordLine()`, `listLines(sessionId)`                            | The lines of a session, in order         |
-| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)` | The timeline                             |
-| `rebuildTimeline(sessionId)`                                      | The items of a session, from its lines   |
-| `close()`                                                         | Closes the database                      |
+| Function                                                                   | Result                                   |
+| -------------------------------------------------------------------------- | ---------------------------------------- |
+| `createAgent(agent)`, `getAgent(id)`                                       | An agent                                 |
+| `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order |
+| `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first           |
+| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only            |
+| `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order         |
+| `saveItems()`, `addUserMessage()`, `listTimeline(conversationId)`          | The timeline                             |
+| `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines   |
+| `close()`                                                                  | Closes the database                      |
 
 ## Not stored yet
 
 - The cost and the turns of a session. The `turn` items hold them.
-- When a session ended.
