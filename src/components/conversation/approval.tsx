@@ -32,7 +32,7 @@ export function Approval({
     <div
       role="region"
       aria-label={`Approval for ${label}`}
-      className="flex flex-wrap items-center gap-3 border-t bg-background px-3 py-2 font-sans"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-background px-2.5 py-2 font-sans"
     >
       {request.status === "pending" ? (
         <>
@@ -60,9 +60,15 @@ export function Approval({
               </Button>
             )}
           </ButtonGroup>
-          <span id={grantsId} className="w-full text-xs text-foreground-faint">
-            {describeGrants(request.suggestions, agentName)}
-          </span>
+          {request.suggestions.length > 0 && (
+            <span
+              id={grantsId}
+              className="w-full text-xs leading-[18px] text-foreground-faint"
+            >
+              <span aria-hidden="true">Always allow: </span>
+              {describeGrants(request.suggestions, agentName)}
+            </span>
+          )}
         </>
       ) : (
         <span className="text-[13px] text-muted-foreground">

@@ -35,7 +35,11 @@ import { useConversation } from "@/hooks/use-conversation"
 import { useMarkRead } from "@/hooks/use-mark-read"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useSessionCard } from "@/hooks/use-session-card"
-import type { Conversation } from "@/lib/agent-api"
+import type {
+  AgentWithState,
+  Conversation,
+  TimelineEntry,
+} from "@/lib/agent-api"
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
@@ -260,6 +264,27 @@ export default function ConversationPage() {
         )}
         <TabsContent value="messages" className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
+            {isDirect && agent && (
+              <div className="flex flex-col items-start gap-2 px-5 pt-4 pb-2">
+                <Avatar size="lg">
+                  <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
+                    {initialsOf(agent.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <p className="m-0 max-w-[520px] leading-[22px] text-muted-foreground">
+                  This is your DM with{" "}
+                  <strong className="text-foreground-strong">
+                    {agent.name}
+                  </strong>
+                  . In a DM, the agent replies to every message. It runs Claude
+                  Code in{" "}
+                  <code className="font-mono text-[13px] text-agent-yellow">
+                    {agent.cwd}
+                  </code>
+                  .
+                </p>
+              </div>
+            )}
             <Timeline
               entries={conversation.entries}
               agents={conversation.agents}
@@ -269,19 +294,23 @@ export default function ConversationPage() {
             />
           </div>
           <div className="flex flex-col gap-1.5 px-5 pb-4">
-            {working.map((member) => (
-              <p
-                key={member.id}
-                className="m-0 flex items-center gap-2 text-xs text-foreground-faint"
-              >
-                <span
-                  className={`size-2 rounded-full ${statusOf(member.state).dot}`}
-                />
-                {member.state === "waiting"
-                  ? `${member.name} waits for your answer.`
-                  : `${member.name} is working. Your next message waits until this turn ends.`}
-              </p>
-            ))}
+            {conversation.agents.map((member) => {
+              const line = statusLine(member, conversation.entries)
+              return (
+                line && (
+                  <p
+                    key={member.id}
+                    className="m-0 flex items-center gap-2 text-xs text-foreground-faint"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`size-2 flex-none rounded-full ${statusOf(member.state).dot}`}
+                    />
+                    {line}
+                  </p>
+                )
+              )
+            })}
             {shownRefusal && (
               <RefusalAlert
                 refusal={shownRefusal}
@@ -342,4 +371,25 @@ function KindIcon({ conversation }: { conversation: Conversation }) {
   ) : (
     <HashIcon aria-hidden="true" className="size-[18px]" />
   )
+}
+
+function statusLine(
+  member: AgentWithState,
+  entries: TimelineEntry[]
+): string | null {
+  const next = "Your next message waits until this turn ends."
+  if (member.state === "busy") return `${member.name} is working. ${next}`
+  if (member.state === "failed") {
+    return `${member.name} stopped. Your next message starts it again and resumes the session.`
+  }
+  if (member.state !== "waiting") return null
+  const asks = entries.some(
+    (entry) =>
+      entry.authorKey === `agent:${member.id}` &&
+      entry.item.kind === "question" &&
+      entry.item.status === "pending"
+  )
+  return asks
+    ? `${member.name} waits for your answer. ${next}`
+    : `${member.name} needs your approval. ${next}`
 }

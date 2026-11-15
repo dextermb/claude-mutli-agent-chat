@@ -1,6 +1,8 @@
+import { ChevronDownIcon } from "lucide-react"
 import { useState } from "react"
 
 import { Approval } from "@/components/conversation/approval"
+import { Button } from "@/components/ui/button"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type { Json, PermissionItem, ToolCallItem } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
@@ -21,6 +23,7 @@ export function ToolCallCard({
   subagentCalls = [],
   requests,
   anchorId,
+  compact = false,
 }: {
   call: ToolCallItem
   cwd: string
@@ -30,13 +33,14 @@ export function ToolCallCard({
   subagentCalls?: ToolCallItem[]
   requests?: Map<string, PermissionItem>
   anchorId?: string
+  compact?: boolean
 }) {
   const [opened, setOpened] = useState(false)
-  const open =
-    opened ||
-    subagentCalls.some(
-      (child) => requests?.get(child.toolUseId)?.status === "pending"
-    )
+  const childWaits = subagentCalls.some(
+    (child) => requests?.get(child.toolUseId)?.status === "pending"
+  )
+  const open = opened || childWaits
+  const waits = request?.status === "pending" || childWaits
   const target = mainInput(call.name, call.input, cwd)
   const { result } = call
   const detail =
@@ -50,21 +54,36 @@ export function ToolCallCard({
       id={anchorId}
       tabIndex={anchorId ? -1 : undefined}
       aria-label={`${call.name} ${target}`}
-      className="max-w-[640px] overflow-hidden rounded-[14px] border bg-rail font-mono text-[13px] leading-5"
+      className={cn(
+        "max-w-[640px] overflow-hidden border bg-rail font-mono text-[13px] leading-5",
+        compact ? "rounded-[10px]" : "rounded-[14px]"
+      )}
     >
-      <div className="flex items-center gap-2 px-3 py-1.5">
+      <div
+        className={cn(
+          "flex items-center gap-2",
+          compact ? "px-2.5 py-1" : "px-3 py-1.5",
+          subagentCalls.length > 0 && "pr-1.5"
+        )}
+      >
         <span
+          aria-hidden="true"
           className={cn(
             "size-2 flex-none rounded-full",
-            request?.status === "pending"
-              ? "bg-status-waiting"
-              : DOT[call.status]
+            waits ? "bg-status-waiting" : DOT[call.status]
           )}
         />
         <span className="text-foreground-strong">{call.name}</span>
-        <span className="min-w-0 flex-1 truncate text-link">{target}</span>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            call.name === "Agent" ? "font-sans text-foreground" : "text-link"
+          )}
+        >
+          {target}
+        </span>
         {call.status === "stopped" && (
-          <span className="font-sans text-muted-foreground">Stopped</span>
+          <span className="text-muted-foreground">Stopped</span>
         )}
         {result?.kind === "lines" && (
           <span className="text-muted-foreground">{result.count} lines</span>
@@ -79,6 +98,23 @@ export function ToolCallCard({
             )}
           </>
         )}
+        {subagentCalls.length > 0 && (
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-expanded={open}
+            className="font-sans"
+            onClick={() => setOpened(!open)}
+          >
+            {subagentCalls.length === 1
+              ? "1 tool call"
+              : `${subagentCalls.length} tool calls`}
+            <ChevronDownIcon
+              aria-hidden="true"
+              className={cn("transition-transform", open && "rotate-180")}
+            />
+          </Button>
+        )}
       </div>
       {detail && (
         <div
@@ -92,32 +128,19 @@ export function ToolCallCard({
           {detail}
         </div>
       )}
-      {subagentCalls.length > 0 && (
-        <div className="border-t px-3 py-2">
-          <button
-            type="button"
-            aria-expanded={open}
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setOpened(!open)}
-          >
-            {subagentCalls.length === 1
-              ? "1 tool call"
-              : `${subagentCalls.length} tool calls`}
-          </button>
-          {open && (
-            <div className="mt-2 flex flex-col gap-1.5">
-              {subagentCalls.map((child) => (
-                <ToolCallCard
-                  key={child.toolUseId}
-                  call={child}
-                  cwd={cwd}
-                  request={requests?.get(child.toolUseId)}
-                  agentName={agentName}
-                  onAnswer={onAnswer}
-                />
-              ))}
-            </div>
-          )}
+      {subagentCalls.length > 0 && open && (
+        <div className="flex flex-col gap-1.5 border-t bg-background p-2">
+          {subagentCalls.map((child) => (
+            <ToolCallCard
+              key={child.toolUseId}
+              call={child}
+              cwd={cwd}
+              request={requests?.get(child.toolUseId)}
+              agentName={agentName}
+              onAnswer={onAnswer}
+              compact
+            />
+          ))}
         </div>
       )}
       {request && (

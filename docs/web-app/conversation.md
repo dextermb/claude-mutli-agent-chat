@@ -54,8 +54,14 @@ so.
 
 The card of an `Agent` call names the task of the subagent (its
 `description`). The tool calls of the subagent are inside that card, behind
-a button such as "3 tool calls". The list opens by itself while one of those
-calls waits for an approval, so the approval card is always visible.
+a ghost button such as "3 tool calls" in the header of the card. Each call of
+the subagent is a compact card. The list opens by itself while one of those
+calls waits for an approval, so the approval card is always visible, and the
+dot of the `Agent` card then shows the waiting colour.
+
+A tool call that a stop interrupted shows a grey dot and "Stopped"
+(`docs/timeline.md`). A new session shows as a dashed divider in the link
+colour, with a restart icon: "New session · 09:12".
 
 A failed process shows one line: "test-runner stopped with an error (exit code
 1)." "Show details" opens the stderr of the process.
@@ -90,7 +96,22 @@ The status of an agent:
 The labels are the words of the design.
 
 While an agent is `busy` or `waiting`, the header shows Stop, and a line over
-the message box says that the next message waits.
+the message box gives its state:
+
+| State                       | Line                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `busy`                      | "test-runner is working. Your next message waits until this turn ends."            |
+| `waiting`, for a permission | "test-runner needs your approval. Your next message waits until this turn ends."   |
+| `waiting`, for a question   | "test-runner waits for your answer. Your next message waits until this turn ends." |
+| `failed`                    | "test-runner stopped. Your next message starts it again and resumes the session."  |
+
+## A DM
+
+The header shows the avatar of the agent with a status dot, its status Badge,
+Stop while it works, the tabs Messages, Files and Session log, and Configure,
+which opens `/agents/:id`. The messages start with a line about the agent:
+"This is your DM with test-runner. In a DM, the agent replies to every
+message. It runs Claude Code in /home/user/code/web-app."
 
 ## A refused action
 
@@ -100,7 +121,7 @@ Each action of `useConversation()` resolves to the reason of a refusal, or to
 
 When the server refuses Stop, a message or an answer to a card, an alert over
 the message box shows the reason. The alert closes at the next action that
-works, or with its Close button. The router keeps the page when the user
+works, or with its button "Close the alert". The router keeps the page when the user
 opens another conversation, so the page keeps the ID of the conversation with
 the reason, and shows the alert only there. The session panel has its own
 alert (`docs/web-app/session-panel.md`).

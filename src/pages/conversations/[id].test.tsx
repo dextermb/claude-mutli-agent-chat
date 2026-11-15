@@ -108,6 +108,24 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("a DM starts with a line that names the agent, the reply rule and its folder", async () => {
+    openConversation([userMessage])
+
+    expect(await screen.findByText(/This is your DM with/)).toHaveTextContent(
+      "This is your DM with test-runner. In a DM, the agent replies to every message. It runs Claude Code in /home/user/code/web-app."
+    )
+  })
+
+  test("an agent whose process failed says that the next message starts it again", async () => {
+    openConversation([userMessage, failedNotice], "failed")
+
+    expect(
+      await screen.findByText(
+        "test-runner stopped. Your next message starts it again and resumes the session."
+      )
+    ).toBeInTheDocument()
+  })
+
   test("Configure in the header of a DM opens the agent page", async () => {
     openConversation([userMessage])
 
@@ -652,7 +670,9 @@ describe("the DM page", () => {
       name: "Approval for Bash git push origin release-train",
     })
     expect(
-      screen.getByText("test-runner waits for your answer.")
+      screen.getByText(
+        "test-runner needs your approval. Your next message waits until this turn ends."
+      )
     ).toBeInTheDocument()
 
     await user.click(within(card).getByRole("button", { name: "Allow once" }))
@@ -733,6 +753,11 @@ describe("the DM page", () => {
     const card = await screen.findByRole("region", {
       name: "Which colour do you prefer?",
     })
+    expect(
+      screen.getByText(
+        "test-runner waits for your answer. Your next message waits until this turn ends."
+      )
+    ).toBeInTheDocument()
 
     await user.click(within(card).getByRole("button", { name: /Red/ }))
 

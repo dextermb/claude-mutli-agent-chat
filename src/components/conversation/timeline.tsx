@@ -1,4 +1,4 @@
-import { TriangleAlertIcon } from "lucide-react"
+import { RotateCcwIcon, TriangleAlertIcon } from "lucide-react"
 import { Fragment, useState } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -81,13 +81,19 @@ function SessionDivider({
   createdAt: string
   agentName: string | undefined
 }) {
+  const label = `New session${agentName ? ` for ${agentName}` : ""} · ${clockTime(createdAt)}`
   return (
-    <div className="flex items-center gap-3 px-5 py-2">
-      <Separator className="flex-1" />
-      <p className="m-0 text-xs text-foreground-faint">
-        {`New session${agentName ? ` for ${agentName}` : ""} · ${clockTime(createdAt)}`}
-      </p>
-      <Separator className="flex-1" />
+    <div
+      role="separator"
+      aria-label={label}
+      className="mx-5 my-1 flex items-center gap-3 text-xs text-link"
+    >
+      <span className="flex-1 border-t border-dashed border-link" />
+      <span className="inline-flex items-center gap-1.5">
+        <RotateCcwIcon aria-hidden="true" className="size-3.5" />
+        {label}
+      </span>
+      <span className="flex-1 border-t border-dashed border-link" />
     </div>
   )
 }
@@ -128,7 +134,12 @@ function AuthorGroup({
         </AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex items-center gap-2">
+        <div
+          className={cn(
+            "flex gap-2",
+            agent ? "items-center" : "items-baseline"
+          )}
+        >
           <span className="font-semibold text-foreground-strong">{name}</span>
           {agent && <Badge>Agent</Badge>}
           <time
