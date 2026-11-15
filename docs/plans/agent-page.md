@@ -1,8 +1,9 @@
 # The agent page
 
 **Status:** in progress. Slices 1 (Description), 2 (Command preview) and 3
-(Stop agent) are built on the branch `agent-page`. Slices 4 and 5 wait for
-the answers to the open questions.
+(Stop agent) are built on the branch `agent-page`. The user agreed to the
+three recommendations on 2026-11-15. Slice 4 (Restart session) is built.
+Slice 5 (Maximum turns) is next. Browse moved to its own Tier 3 item.
 
 This is one Tier 3 item of `docs/plans/design-boards.md`: Description,
 Maximum turns, the Command preview, Browse for the working directory, and
@@ -72,25 +73,17 @@ except that it gets the two new fields, because both boards share the cards.
    the agent becomes `exited`. The next message starts it again with
    `--resume`. It asks first in an `AlertDialog`, as New session does.
 
-## Open questions
+## Resolved
 
-1. **Restart session: resume or forget?** My recommendation: Restart
-   session stops each live process of the agent and starts it again with
-   `--resume` of the same Claude session. So a new configuration applies at
-   once, and the agent keeps its memory. New session (in the session panel)
-   stays the way to forget.
-2. **Maximum turns needs a live check.** One recording with
-   `pnpm fixtures:record` (about 0.03 USD) tells what `--max-turns` does
-   with `stream-json` input, and what the `result` line says when the limit
-   comes. The timeline must show that end of turn. My recommendation: allow
-   the recording. Until then, Maximum turns is not built.
-3. **Browse needs a folder route on the server.** A browser cannot read the
-   path of a folder on the disk. So Browse needs `GET /api/folders?path=`
-   (the subfolders of a folder) and a dialog to move through them. The
-   server listens only on `127.0.0.1`, and an agent can already run shell
-   commands, so the route adds no new reach. But it is the largest part. My
-   recommendation: move Browse to its own Tier 3 item, and leave it out of
-   this change.
+1. **Restart session resumes.** It stops each live process of the agent and
+   starts it again with `--resume` of the same Claude session. A new
+   configuration applies at once, and the agent keeps its memory. New
+   session (in the session panel) stays the way to forget.
+2. **Maximum turns gets one live recording** with `pnpm fixtures:record`
+   (about 0.03 USD), to learn what `--max-turns` does with `stream-json`
+   input and what the `result` line says at the limit.
+3. **Browse is its own Tier 3 item** in `docs/plans/design-boards.md`. It
+   needs `GET /api/folders?path=` and a dialog. It is not in this change.
 
 ## Data flow
 
@@ -121,7 +114,9 @@ Stop agent ─▶ POST /api/agents/:id/stop
   each turn that runs stops, and each waiting message is dropped. The
   description says that the next message starts the agent again with its
   memory. A refusal shows an alert, "Stop agent did not work.".
-- **Restart session:** after question 1.
+- **Restart session:** shows next to Stop agent, with the same condition. It
+  asks "Restart test-runner?" first, because it also stops each running
+  turn.
 
 ## The build
 
@@ -134,7 +129,7 @@ migration, and the agent page.
 | 1. Description     | A version 5 file opens with `description` null. The agent page saves and loads a description. An empty description is stored as null               |
 | 2. Command preview | `buildArgs()` gives the same arguments as before. The page shows the command with the model, the mode and the tools, and it follows a change. Copy |
 | 3. Stop agent      | The route stops the processes of the agent in two conversations, and leaves another agent alone. The page asks first, then sends the stop          |
-| 4. Restart session | After question 1                                                                                                                                   |
+| 4. Restart session | The route starts the process again with the same Claude session and the new model. The page asks first                                             |
 | 5. Maximum turns   | After question 2: the argument, the stored value, the end of turn in the timeline                                                                  |
 
 Docs in the same change: `docs/store.md` (migration 6), `docs/agents.md`

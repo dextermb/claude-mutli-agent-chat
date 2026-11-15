@@ -735,4 +735,54 @@ describe("group chats and channels", () => {
 
     expect(response.status).toBe(404)
   })
+
+  test("restart session starts each process of the agent again with its Claude session and the new configuration", async () => {
+    const { base, started } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const dm = (
+      (await (
+        await postJson(base, "/api/conversations", {
+          kind: "dm",
+          agentId: runner.id,
+        })
+      ).json()) as { conversation: { id: string } }
+    ).conversation
+    await sendMessage(base, dm.id, "Run the tests.")
+    await untilTurns(base, dm.id, 1)
+    const sessionCard = async () =>
+      (
+        (await (
+          await fetch(
+            `${base}/api/conversations/${dm.id}/agents/${runner.id}/session`
+          )
+        ).json()) as {
+          session: { claudeSessionId: string; model: string; state: string }
+        }
+      ).session
+    const before = await sessionCard()
+    await fetch(`${base}/api/agents/${runner.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-haiku-5-5" }),
+    })
+
+    const response = await postJson(
+      base,
+      `/api/agents/${runner.id}/restart`,
+      {}
+    )
+
+    expect(response.status).toBe(202)
+    expect(started).toHaveLength(2)
+    const again = started[1]
+    expect(again[again.indexOf("--resume") + 1]).toBe(before.claudeSessionId)
+    expect(again[again.indexOf("--model") + 1]).toBe("claude-haiku-5-5")
+    await vi.waitFor(async () =>
+      expect(await sessionCard()).toMatchObject({
+        claudeSessionId: before.claudeSessionId,
+        model: "claude-haiku-5-5",
+        configChanged: false,
+      })
+    )
+  })
 })

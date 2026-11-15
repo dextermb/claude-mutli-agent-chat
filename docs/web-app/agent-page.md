@@ -13,15 +13,23 @@ The header:
   message.", Cancel (back to `/`), and Create agent.
 - **Saved agent:** its avatar with a status dot, its status Badge, the line
   "Headless Claude Code agent. Runs in 2 channels and 1 group chat.", Stop
-  agent while the agent has a process (its state is not `exited`), and Save
-  agent. The status and the counts come from `useWorkspace()`, so they follow
+  agent and Restart session while the agent has a process (its state is not
+  `exited`), and Save agent. The status and the counts come from `useWorkspace()`, so they follow
   the app stream.
 
-Stop agent asks first in an `AlertDialog`: "Stop test-runner?", "The next
-message to test-runner starts it again, and it remembers each conversation.",
-then two points: each turn that runs stops, and a waiting message gets no
-reply. It sends `POST /api/agents/:id/stop` (`docs/server.md`). A refusal shows
-an alert with the title "Stop agent did not work." and the reason.
+`src/components/agent-form/agent-actions.tsx` holds both actions. Each one
+asks first in an `AlertDialog`, then sends its route (`docs/server.md`):
+
+- **Stop agent:** "Stop test-runner?", "The next message to test-runner
+  starts it again, and it remembers each conversation."
+  (`POST /api/agents/:id/stop`).
+- **Restart session:** "Restart test-runner?", "test-runner starts again
+  with the current configuration, and it remembers each conversation."
+  (`POST /api/agents/:id/restart`).
+
+Both dialogs then say that each turn that runs stops, and that a waiting
+message gets no reply. A refusal shows an alert with the title "Stop agent
+did not work." or "Restart session did not work.", and the reason.
 
 The form sends every field. A new agent goes to `POST /api/agents`, then the
 page moves to `/agents/<id>`. A saved agent goes to `PATCH /api/agents/:id`.

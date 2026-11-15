@@ -377,7 +377,7 @@ describe("the agent configuration page", () => {
     )
   })
 
-  test("an agent with no process has no stop agent, and a new agent has none", async () => {
+  test("an agent with no process has no stop agent or restart, and a new agent has none", async () => {
     network.on("GET", "/api/agents", {
       agents: [reviewerBot, { ...testRunner, state: "exited" }],
     })
@@ -389,6 +389,9 @@ describe("the agent configuration page", () => {
     ).toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Stop agent" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Restart session" })
     ).not.toBeInTheDocument()
     unmount()
 
@@ -417,5 +420,32 @@ describe("the agent configuration page", () => {
     expect(
       network.sent.filter((request) => request.method === "PATCH")
     ).toEqual([])
+  })
+
+  test("restart session asks first, and then restarts the agent with its memory", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("POST", "/api/agents/a1/restart", {}, 202)
+    openPage("/agents/a1")
+
+    await user.click(
+      await screen.findByRole("button", { name: "Restart session" })
+    )
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Restart test-runner?",
+    })
+    expect(dialog).toHaveTextContent(
+      "test-runner starts again with the current configuration, and it remembers each conversation."
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Restart session" })
+    )
+
+    expect(network.sent.filter((request) => request.method === "POST")).toEqual(
+      [{ method: "POST", url: "/api/agents/a1/restart", body: {} }]
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
   })
 })

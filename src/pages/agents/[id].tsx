@@ -4,7 +4,10 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
-import { StopAgent } from "@/components/agent-form/stop-agent"
+import {
+  AgentActions,
+  type ActionRefusal,
+} from "@/components/agent-form/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -89,7 +92,7 @@ export default function AgentPage() {
   const [, navigate] = useLocation()
   const isNew = id === "new"
   const [error, setError] = useState<string | null>(null)
-  const [stopRefusal, setStopRefusal] = useState<string | null>(null)
+  const [actionRefusal, setActionRefusal] = useState<ActionRefusal | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
@@ -254,10 +257,10 @@ export default function AgentPage() {
               </Link>
             )}
             {agent && agent.state !== "exited" && (
-              <StopAgent
+              <AgentActions
                 agentId={agent.id}
                 agentName={agent.name}
-                onRefusal={setStopRefusal}
+                onRefusal={setActionRefusal}
               />
             )}
             <Button type="submit">
@@ -271,11 +274,11 @@ export default function AgentPage() {
               refusal={error}
             />
           )}
-          {stopRefusal && (
+          {actionRefusal && (
             <RefusalAlert
-              title="Stop agent did not work."
-              refusal={stopRefusal}
-              onClose={() => setStopRefusal(null)}
+              title={actionRefusal.title}
+              refusal={actionRefusal.reason}
+              onClose={() => setActionRefusal(null)}
             />
           )}
           <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-5">

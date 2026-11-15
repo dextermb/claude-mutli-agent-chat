@@ -29,6 +29,7 @@ in `server/http/server.ts` does the work, so a test can give it a
 | `GET /api/agents/:id`                                  |                                         | `{ agent }`. `404` for an unknown agent                                                                                                               |
 | `PATCH /api/agents/:id`                                | Some fields of the agent                | `{ agent }`. The other fields stay                                                                                                                    |
 | `POST /api/agents/:id/stop`                            |                                         | `202`. Stops the agent in each conversation. `404` for an unknown agent                                                                               |
+| `POST /api/agents/:id/restart`                         |                                         | `202`. Starts each live process of the agent again, with `--resume`. `404` for an unknown agent                                                       |
 | `GET /api/conversations`                               |                                         | `{ conversations, unread }`. `unread` gives the unread count of each conversation that has one                                                        |
 | `POST /api/conversations`                              | A DM, a group chat or a channel         | `201 { conversation }`, or `200` with the DM that exists                                                                                              |
 | `GET /api/conversations/:id`                           |                                         | `{ conversation, agents }`, each agent with its `state`                                                                                               |
@@ -184,6 +185,13 @@ session of the agent, in each conversation, it empties the queue, interrupts
 the turn, and stops the process. The agent becomes `exited`. Its session rows
 keep their Claude session IDs, so the next message starts it again with
 `--resume`, and it remembers each conversation.
+
+`POST /api/agents/:id/restart` is Restart session on the agent page. It does
+the same as Stop agent, then starts a new process in each conversation where
+the agent had one. Each new process has a new session row with the Claude
+session ID of the row before it, so it uses `--resume`, and it gets the
+configuration of now. So a change to the agent applies at once, and the agent
+keeps its memory. New session is the way to forget (see "Sessions").
 
 ## Sessions
 
