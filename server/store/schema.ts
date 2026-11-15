@@ -102,4 +102,10 @@ export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
       );
     `,
   },
+  {
+    version: 6,
+    sql: `
+      ALTER TABLE agents ADD COLUMN description TEXT;
+    `,
+  },
 ]

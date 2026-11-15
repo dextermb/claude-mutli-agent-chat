@@ -38,6 +38,7 @@ runs in one transaction with its SQL, its rebuild and the new
 | 3       | `agent_sessions` gets `config` (JSON, null for older rows) and `claude_session_new`      |
 | 4       | `conversation_members` gets `joined_seq`, 0 for older rows                               |
 | 5       | New table `conversation_reads`                                                           |
+| 6       | `agents` gets `description`, null for older rows                                         |
 
 A migration with `rebuild: true` builds the timeline of each session again
 from its stored lines. Use it when a change to the reducer must reach the
@@ -60,7 +61,7 @@ conversations ──1:N── conversation_members
 
 | Table                  | Holds                                                                                                                                                                                                                                                       |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agents`               | The configuration of each agent. The tool lists are JSON arrays                                                                                                                                                                                             |
+| `agents`               | The configuration and the description of each agent. The tool lists are JSON arrays                                                                                                                                                                         |
 | `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                             |
 | `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                              |
 | `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`) |

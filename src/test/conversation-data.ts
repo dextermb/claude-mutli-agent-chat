@@ -16,6 +16,7 @@ export const testRunner: AgentWithState = {
   allowedTools: ["Read", "Bash(pnpm test:*)"],
   disallowedTools: [],
   systemPrompt: null,
+  description: null,
   createdAt: "2026-11-15T10:00:00.000Z",
   state: "idle",
 }

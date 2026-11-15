@@ -29,6 +29,10 @@ default values. A call to `form.reset()` is not enough: the page renders again
 when the workspace loads, and the form then goes back to the default values
 of its options, because the user has not changed a field yet.
 
+The Identity card has the name, the colour and a one-line Description. The
+description is for the people who read the page. It does not go into a
+prompt, and a change to it does not mark a running session as changed.
+
 The model and the permission mode use the Base UI `Select`, with a mono
 trigger, as the design shows. The description under the permission mode
 changes with the mode. The working directory has a folder icon. A tool goes

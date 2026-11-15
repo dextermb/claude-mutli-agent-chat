@@ -250,6 +250,7 @@ describe("createServer", () => {
       allowedTools: [],
       disallowedTools: [],
       systemPrompt: null,
+      description: null,
     })
     store.createConversation({
       kind: "dm",
@@ -701,6 +702,27 @@ describe("createServer", () => {
       ...testRunner,
       model: "claude-haiku-5-5",
       allowedTools: ["Read"],
+    })
+  })
+
+  test("an agent keeps its description, and an empty description is stored as null", async () => {
+    const { base } = await startServer()
+    const created = (await (
+      await postJson(base, "/api/agents", {
+        ...testRunner,
+        description: "Runs and fixes the Vitest tests.",
+      })
+    ).json()) as { agent: { id: string; description: string | null } }
+
+    const response = await fetch(`${base}/api/agents/${created.agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ description: "" }),
+    })
+
+    expect(created.agent.description).toBe("Runs and fixes the Vitest tests.")
+    expect(await response.json()).toMatchObject({
+      agent: { description: null },
     })
   })
 

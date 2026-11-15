@@ -45,6 +45,10 @@ describe("the agent configuration page", () => {
 
     await user.type(await screen.findByLabelText("Name"), "test-runner")
     await user.click(screen.getByRole("radio", { name: "aqua" }))
+    await user.type(
+      screen.getByLabelText("Description"),
+      "Runs and fixes the Vitest tests."
+    )
     await pick("Model", "claude-sonnet-5-5")
     await pick("Permission mode", "acceptEdits")
     await user.type(
@@ -85,6 +89,7 @@ describe("the agent configuration page", () => {
         allowedTools: ["Read", "Bash(pnpm test:*)"],
         disallowedTools: ["WebFetch"],
         systemPrompt: "You run and fix the Vitest tests.",
+        description: "Runs and fixes the Vitest tests.",
       },
     })
     expect(window.location.pathname).toBe("/agents/a1")
@@ -108,7 +113,9 @@ describe("the agent configuration page", () => {
 
   test("a saved agent loads in the form, and a change goes to the server", async () => {
     const user = userEvent.setup()
-    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("GET", "/api/agents/a1", {
+      agent: { ...testRunner, description: "Runs the tests." },
+    })
     network.on("PATCH", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/a1")
 
@@ -119,6 +126,12 @@ describe("the agent configuration page", () => {
     )
     expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent(
       "claude-sonnet-5-5"
+    )
+    expect(screen.getByLabelText("Description")).toHaveValue("Runs the tests.")
+    await user.clear(screen.getByLabelText("Description"))
+    await user.type(
+      screen.getByLabelText("Description"),
+      "Runs and fixes the tests."
     )
     await pick("Model", "claude-haiku-5-5")
     await user.click(screen.getByRole("button", { name: "Remove Read" }))
@@ -131,6 +144,7 @@ describe("the agent configuration page", () => {
         model: "claude-haiku-5-5",
         allowedTools: ["Bash(pnpm test:*)"],
         cwd: "/home/user/code/web-app",
+        description: "Runs and fixes the tests.",
       }),
     })
   })

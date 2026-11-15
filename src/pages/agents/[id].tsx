@@ -79,6 +79,7 @@ const EMPTY: Draft = {
   allowedTools: [],
   disallowedTools: [],
   systemPrompt: "",
+  description: "",
 }
 
 export default function AgentPage() {
@@ -337,6 +338,23 @@ export default function AgentPage() {
                       </FieldSet>
                     )}
                   </form.Field>
+                  <form.Field name="description">
+                    {(field) => (
+                      <Field>
+                        <FieldLabel htmlFor="agent-description">
+                          Description
+                        </FieldLabel>
+                        <Input
+                          id="agent-description"
+                          placeholder="Runs and fixes the Vitest tests."
+                          value={field.state.value ?? ""}
+                          onChange={(event) =>
+                            field.handleChange(event.currentTarget.value)
+                          }
+                        />
+                      </Field>
+                    )}
+                  </form.Field>
                 </FieldGroup>
               </CardContent>
             </Card>
@@ -536,6 +554,7 @@ function draftOf(agent: Agent): Draft {
     allowedTools: agent.allowedTools,
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt ?? "",
+    description: agent.description ?? "",
   }
 }
 

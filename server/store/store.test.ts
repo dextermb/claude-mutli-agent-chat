@@ -19,6 +19,7 @@ const reviewer: NewAgent = {
   allowedTools: ["Read", "Bash(git *)"],
   disallowedTools: ["WebFetch"],
   systemPrompt: "You review pull requests.",
+  description: "Reviews each pull request.",
 }
 
 const stores: Store[] = []
@@ -137,6 +138,7 @@ describe("Store", () => {
       allowedTools: ["Read", "Bash(git *)"],
       disallowedTools: ["WebFetch"],
       systemPrompt: "You review pull requests.",
+      description: "Reviews each pull request.",
     })
   })
 
@@ -353,6 +355,24 @@ describe("Store", () => {
         .listTimeline(conversation.id)
         .map(({ item }) => ({ kind: item.kind, status: item.status }))
     ).toEqual([{ kind: "question", status: "expired" }])
+  })
+
+  test("an agent of an older database has no description, and a description can be saved", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+    const older = store.getAgent("a1")
+
+    expect(older).toMatchObject({ name: "reviewer-bot", description: null })
+    const { id, createdAt, ...fields } = older!
+    store.updateAgent(id, {
+      ...fields,
+      description: "Reviews each pull request.",
+    })
+    expect(store.getAgent("a1")).toMatchObject({
+      description: "Reviews each pull request.",
+      createdAt,
+    })
   })
 
   test("a database of version 1 gets the exit columns, and keeps its rows", () => {

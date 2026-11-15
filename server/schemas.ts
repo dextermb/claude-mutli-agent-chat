@@ -21,6 +21,7 @@ export const agentSchema = z.object({
   allowedTools: z.array(z.string()).default([]),
   disallowedTools: z.array(z.string()).default([]),
   systemPrompt: emptyAsNull(),
+  description: emptyAsNull(),
 })
 
 export const channelSchema = z.object({

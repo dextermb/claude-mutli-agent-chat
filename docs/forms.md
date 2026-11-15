@@ -44,7 +44,7 @@ taken gives `409`, and the dialog shows it in its alert only.
 The model and the permission mode are free strings, because new models come
 out. The schema gives a default to the fields that an older client can leave
 out (the colour, the lists, `autostart`, `private`, `replyMode`), and turns
-an empty system prompt or topic into `null`.
+an empty system prompt, description or topic into `null`.
 
 ## A refused body
 

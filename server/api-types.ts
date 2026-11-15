@@ -16,6 +16,7 @@ export type Agent = {
   allowedTools: string[]
   disallowedTools: string[]
   systemPrompt: string | null
+  description: string | null
   createdAt: string
 }
 
