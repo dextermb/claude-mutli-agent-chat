@@ -80,7 +80,11 @@ the answer sets `answers` and the status `answered`.
 ### Turns
 
 Each `result` line adds a turn summary with `durationMs`, `costUsd` and
-`numTurns`. A turn that ends with `terminal_reason: "aborted_streaming"` (an
+`numTurns`. `costUsd` is the cost of that turn only. `total_cost_usd` counts
+from the start of the process (F18), so the reducer subtracts the total of
+the turn before it in the same process. A turn item that was stored before
+this rule holds the process total until `rebuildTimeline()` runs on its
+session. A turn that ends with `terminal_reason: "aborted_streaming"` (an
 interrupt) is `stopped`.
 
 A turn does not need a prompt. A background job that ends after the turn

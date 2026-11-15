@@ -308,6 +308,9 @@ export function createServer({ store, startSession }: ServerOptions) {
       }
       const body = await readJson(request)
       const text = typeof body.text === "string" ? body.text : ""
+      if (text.trim() === "") {
+        return send(response, 400, { error: "Write a message." })
+      }
       const entry = store.addUserMessage(conversationId, text)
       publish(conversationId, { type: "item", entry })
       for (const agentId of addressedAgents(conversationId, text)) {

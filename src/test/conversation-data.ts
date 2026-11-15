@@ -30,10 +30,15 @@ export const directMessage: Conversation = {
   createdAt: "2026-11-15T10:00:00.000Z",
 }
 
+export function localTime(day: number, hours: number, minutes: number) {
+  return new Date(2026, 10, day, hours, minutes).toISOString()
+}
+
 export const userMessage: TimelineEntry = {
   id: "u1",
   seq: 1,
   authorKey: "user:me",
+  createdAt: localTime(15, 14, 3),
   item: {
     kind: "message",
     id: "u1",
@@ -46,6 +51,7 @@ export const agentMessage: TimelineEntry = {
   id: "s1/item-1",
   seq: 2,
   authorKey: "agent:a1",
+  createdAt: localTime(15, 14, 4),
   item: {
     kind: "message",
     id: "item-1",
@@ -55,7 +61,13 @@ export const agentMessage: TimelineEntry = {
 }
 
 function agentEntry(seq: number, item: TimelineEntry["item"]): TimelineEntry {
-  return { id: `s1/${item.id}`, seq, authorKey: "agent:a1", item }
+  return {
+    id: `s1/${item.id}`,
+    seq,
+    authorKey: "agent:a1",
+    createdAt: localTime(15, 14, 5),
+    item,
+  }
 }
 
 export const readCall = agentEntry(3, {

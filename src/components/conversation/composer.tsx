@@ -28,6 +28,8 @@ export function Composer({
 }) {
   const [text, setText] = useState("")
   const [caret, setCaret] = useState(0)
+  const [active, setActive] = useState({ query: "", index: 0 })
+  const [dismissed, setDismissed] = useState<string | null>(null)
   const box = useRef<HTMLTextAreaElement>(null)
   const pendingCaret = useRef<number | null>(null)
   const listId = useId()
@@ -41,15 +43,21 @@ export function Composer({
   })
 
   const typed = MENTION_AT_CARET.exec(text.slice(0, caret))
-  const suggestions = typed
-    ? members.filter((name) =>
-        name.toLowerCase().startsWith(typed[1].toLowerCase())
-      )
-    : []
+  const suggestions =
+    typed && typed[1] !== dismissed
+      ? members.filter((name) =>
+          name.toLowerCase().startsWith(typed[1].toLowerCase())
+        )
+      : []
+  const activeIndex =
+    typed && active.query === typed[1] && active.index < suggestions.length
+      ? active.index
+      : 0
 
   function update(value: string, at: number) {
     setText(value)
     setCaret(at)
+    setDismissed(null)
   }
 
   function pick(name: string) {
@@ -70,12 +78,27 @@ export function Composer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    const step = { ArrowDown: 1, ArrowUp: -1 }[event.key]
+    if (typed && suggestions.length > 0 && event.key === "Escape") {
+      event.preventDefault()
+      setDismissed(typed[1])
+      return
+    }
+    if (typed && suggestions.length > 0 && step) {
+      event.preventDefault()
+      const count = suggestions.length
+      setActive({
+        query: typed[1],
+        index: (activeIndex + step + count) % count,
+      })
+      return
+    }
     if (
       suggestions.length > 0 &&
       (event.key === "Tab" || event.key === "Enter")
     ) {
       event.preventDefault()
-      pick(suggestions[0])
+      pick(suggestions[activeIndex])
       return
     }
     if (event.key === "Enter" && !event.shiftKey) send(event)
@@ -93,8 +116,9 @@ export function Composer({
           {suggestions.map((name, index) => (
             <li
               key={name}
+              id={`${listId}-${index}`}
               role="option"
-              aria-selected={index === 0}
+              aria-selected={index === activeIndex}
               className="cursor-pointer rounded-[10px] px-2 py-1.5 aria-selected:bg-accent"
               onMouseDown={(event) => {
                 event.preventDefault()
@@ -112,6 +136,9 @@ export function Composer({
           aria-label={label}
           aria-autocomplete="list"
           aria-controls={suggestions.length > 0 ? listId : undefined}
+          aria-activedescendant={
+            suggestions.length > 0 ? `${listId}-${activeIndex}` : undefined
+          }
           aria-expanded={suggestions.length > 0}
           placeholder={label}
           value={text}

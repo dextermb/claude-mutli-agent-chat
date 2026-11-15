@@ -20,20 +20,23 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 
 ## The seams under test
 
-| Seam                              | Test file                               |
-| --------------------------------- | --------------------------------------- |
-| `fileToRoutePath()`, file to URL  | `src/router/file-routes.test.ts`        |
-| `<App />` rendered at a URL       | `src/App.test.tsx`                      |
-| `decodeLine()`, a stdout line     | `server/protocol/decode.test.ts`        |
-| `encode…()`, a stdin line         | `server/protocol/encode.test.ts`        |
-| `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`        |
-| `buildArgs()`, the command line   | `server/session/args.test.ts`           |
-| `AgentSession`, a fake `claude`   | `server/session/session.test.ts`        |
-| `Store`, an in-memory database    | `server/store/store.test.ts`            |
-| `createServer()`, HTTP and SSE    | `server/http/server.test.ts`            |
-| `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`    |
-| The DM page, fake network         | `src/pages/conversations/[id].test.tsx` |
-| The agent page, fake network      | `src/pages/agents/[id].test.tsx`        |
+| Seam                              | Test file                                       |
+| --------------------------------- | ----------------------------------------------- |
+| `fileToRoutePath()`, file to URL  | `src/router/file-routes.test.ts`                |
+| `<App />` rendered at a URL       | `src/App.test.tsx`                              |
+| `decodeLine()`, a stdout line     | `server/protocol/decode.test.ts`                |
+| `encode…()`, a stdin line         | `server/protocol/encode.test.ts`                |
+| `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`                |
+| `buildArgs()`, the command line   | `server/session/args.test.ts`                   |
+| `AgentSession`, a fake `claude`   | `server/session/session.test.ts`                |
+| `Store`, an in-memory database    | `server/store/store.test.ts`                    |
+| `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
+| `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`            |
+| The DM page, fake network         | `src/pages/conversations/[id].test.tsx`         |
+| `Composer`, the mention list      | `src/components/conversation/composer.test.tsx` |
+| The Start a chat dialog           | `src/components/start-chat-dialog.test.tsx`     |
+| The Create a channel dialog       | `src/components/create-channel-dialog.test.tsx` |
+| The agent page, fake network      | `src/pages/agents/[id].test.tsx`                |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code

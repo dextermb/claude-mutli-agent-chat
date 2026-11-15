@@ -69,6 +69,12 @@ one card, as in the design. Always allow tells what each suggestion grants. A
 rule for `localSettings` stays in the folder of the agent, so the text says
 so.
 
+Each block shows the time of its first entry next to the author, as 24-hour
+`HH:MM` ("14:03") in the local time zone. A level 2 heading names the day
+before the first block of each day: "Today", "Yesterday", or "Friday 13
+November". A block ends at a change of day, so that the heading sits between
+two blocks. `src/lib/time.ts` holds the formats.
+
 A message that is still arriving has `aria-busy="true"`. A turn summary shows
 `Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`.
 
@@ -107,7 +113,8 @@ Two dialogs that the sidebar opens:
 - **Start a chat** (`src/components/start-chat-dialog.tsx`), from the pen
   button. The search filters the agents by name. Each picked agent shows in
   "To:". One agent opens its DM, and two or more agents start a group chat.
-  The footer says which one.
+  The footer says which one. If the server refuses the chat, the dialog
+  shows the reason and stays open.
 - **Create a channel** (`src/components/create-channel-dialog.tsx`), from the
   `+` of Channels. It sends the name, the topic, Private, the invited agents
   and the reply mode. If the server refuses the channel, the dialog shows the
@@ -121,8 +128,11 @@ The header shows the name, the topic, and each agent with its status. Each
 message shows its author. The message box of a channel is "Message #<name>".
 
 After `@`, the message box shows the agents of the conversation whose names
-start with the typed text. Tab or Enter picks the first one, and a click picks
-any one. The pick puts `@<name> ` in the place of the typed text.
+start with the typed text. Down and Up move the active name, and wrap at
+the ends. Tab or Enter picks the active name, and a click picks any one.
+Escape closes the list until the text changes. The pick puts `@<name> ` in
+the place of the typed text. The message box names the active option with
+`aria-activedescendant`.
 
 ## The agent page
 
@@ -138,8 +148,5 @@ uses the new configuration.
 
 ## Not built yet
 
-- The Start a chat dialog does not show the reason when the server refuses.
-- Arrow keys in the mention list.
 - The session card of the design: model, folder, session ID, turns and cost.
 - New session, and the Files and Session log tabs.
-- The time of each message.

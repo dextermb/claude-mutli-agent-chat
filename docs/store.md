@@ -79,6 +79,11 @@ earlier process.
 `addUserMessage(conversationId, text)` stores a message of `user:me` with a
 new UUID.
 
+Each entry has a `createdAt`. For a user message, it is the time of the
+message. For an agent item, it is the `at` of the stdout line that added the
+item. A later change to the item keeps it, and a rebuild gives the same
+value, because it reads the same line.
+
 ## Build the timeline again
 
 `rebuildTimeline(sessionId)` deletes the items of the session, then plays its

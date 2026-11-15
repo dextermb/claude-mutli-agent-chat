@@ -84,6 +84,33 @@ describe("the Start a chat dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
+  test("the dialog shows the reason when the server refuses the chat, and stays open", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/conversations",
+      { error: "Give one or more agentIds." },
+      400
+    )
+    const dialog = await openDialog(user)
+
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick reviewer-bot" })
+    )
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick test-runner" })
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start group chat" })
+    )
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Give one or more agentIds."
+    )
+    expect(screen.getByRole("dialog", { name: "Start a chat" })).toBe(dialog)
+    expect(window.location.pathname).toBe("/conversations/ch1")
+  })
+
   test("two picked agents start a group chat, and the sidebar then lists it", async () => {
     const user = userEvent.setup()
     network.on("POST", "/api/conversations", { conversation: squadGroup }, 201)
