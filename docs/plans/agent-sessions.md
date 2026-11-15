@@ -1,7 +1,8 @@
 # Headless agent sessions in the web app
 
-**Status:** in progress. Step 1 is done: the fixtures and the findings are in
-`docs/protocol.md`. Steps 2 to 8 are still ahead. Each decision below is
+**Status:** in progress. Steps 1 and 2 are done: the fixtures, the findings,
+the decoder and the encoders are in `docs/protocol.md`. Steps 3 to 8 are still
+ahead. Each decision below is
 final.
 
 ## The goal
@@ -330,7 +331,7 @@ The order:
 
 1. Done. Record the fixtures again with a probe script in `scripts/`. Remove
    the paths of this machine.
-2. `server/protocol`: the decoder and the encoder.
+2. Done. `server/protocol`: the decoder and the encoder.
 3. `server/timeline`: the reducer.
 4. `server/session`: `AgentSession` and the fake `claude`.
 5. The store and the schema.

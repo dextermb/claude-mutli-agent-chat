@@ -12,8 +12,25 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
-    setupFiles: ["./src/test/setup.ts"],
     exclude: [...configDefaults.exclude, ".worktrees/**"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "app",
+          include: ["src/**/*.test.{ts,tsx}"],
+          environment: "jsdom",
+          setupFiles: ["./src/test/setup.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "server",
+          include: ["server/**/*.test.ts"],
+          environment: "node",
+        },
+      },
+    ],
   },
 })
