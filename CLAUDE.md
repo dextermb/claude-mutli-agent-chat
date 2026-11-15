@@ -22,6 +22,7 @@ manager is pnpm.
 - `src/router`: the file-based router.
 - `src/components/ui`: shadcn components. Add them with
   `pnpm dlx shadcn@latest add <name>`. Do not write them by hand.
+- `docs/architecture.md`: the parts of the agent app, and why.
 - `docs/testing.md`: the test set-up and the seams under test.
 - `docs/protocol.md`: the Claude Code stream that the server reads, and its
   fixtures in `server/protocol/fixtures`. Record them again with
@@ -30,6 +31,7 @@ manager is pnpm.
 - `docs/agents.md`: the `claude` process of each agent session.
 - `docs/store.md`: the SQLite tables and the queries.
 - `docs/server.md`: the routes and the event stream of the agent server.
+- `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.
 - `docs/web-app.md`: the pages, the conversation hook and the DM parts.
 
 ## Rules

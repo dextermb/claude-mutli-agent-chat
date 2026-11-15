@@ -1,0 +1,252 @@
+import { expect, vi } from "vitest"
+import { AgentSession } from "../session/session.ts"
+import {
+  openStore,
+  type Agent,
+  type Conversation,
+  type Store,
+} from "../store/store.ts"
+import { createServer, type StartSession } from "../http/server.ts"
+
+const FAKE_CLAUDE = new URL("./fake-claude.ts", import.meta.url).pathname
+
+export const cleanups: (() => Promise<void>)[] = []
+
+export async function runCleanups() {
+  for (const cleanup of cleanups.splice(0).reverse()) await cleanup()
+}
+
+export type Members = { agent: Agent; conversation: Conversation }
+
+export type FakeAgent = { fixture?: string; reply?: string }
+
+export async function startServer(
+  fixture = "resume-1",
+  location = ":memory:",
+  members?: Members,
+  perAgent: (agentName: string) => FakeAgent = () => ({})
+) {
+  const store = openStore(location)
+  const started: string[][] = []
+  const startedAgents: string[] = []
+  const sent: Record<string, unknown>[] = []
+  const sentTo = new Map<string, Record<string, unknown>[]>()
+  const startSession: StartSession = ({ agent, args, onEvent }) => {
+    started.push(args)
+    startedAgents.push(agent.name)
+    const fake = perAgent(agent.name)
+    const session = new AgentSession({
+      command: process.execPath,
+      args: [FAKE_CLAUDE, ...args],
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        FAKE_CLAUDE_FIXTURE: fake.fixture ?? fixture,
+        FAKE_CLAUDE_MODE: "play",
+        ...(fake.reply === undefined ? {} : { FAKE_CLAUDE_REPLY: fake.reply }),
+      },
+      onEvent: (event) => {
+        if (event.type === "line" && event.direction === "in") {
+          const line = JSON.parse(event.text) as Record<string, unknown>
+          sent.push(line)
+          sentTo.set(agent.name, [...(sentTo.get(agent.name) ?? []), line])
+        }
+        onEvent(event)
+      },
+    })
+    session.start()
+    return session
+  }
+  const server = createServer({ store, startSession })
+  const address = await server.listen(0)
+  const stop = async () => {
+    await server.close()
+    store.close()
+  }
+  cleanups.push(stop)
+  const { agent, conversation } = members ?? directMessage(store)
+  const base = `http://${address.host}:${address.port}`
+  return {
+    base,
+    store,
+    started,
+    startedAgents,
+    sent,
+    sentTo,
+    agent,
+    conversation,
+    address,
+    stop,
+  }
+}
+
+export function directMessage(store: Store): Members {
+  const agent = store.createAgent({
+    name: "reviewer-bot",
+    colour: "aqua",
+    model: "claude-haiku-5-5",
+    permissionMode: "default",
+    cwd: process.cwd(),
+    autostart: false,
+    allowedTools: [],
+    disallowedTools: [],
+    systemPrompt: null,
+  })
+  const conversation = store.createConversation({
+    kind: "dm",
+    name: "reviewer-bot",
+    topic: null,
+    private: true,
+    replyMode: "every",
+    members: ["user:me", `agent:${agent.id}`],
+  })
+  return { agent, conversation }
+}
+
+export async function sendMessage(
+  base: string,
+  conversationId: string,
+  text: string
+) {
+  return fetch(`${base}/api/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function timeline(base: string, conversationId: string) {
+  const response = await fetch(
+    `${base}/api/conversations/${conversationId}/timeline`
+  )
+  return (await response.json()) as {
+    items: { authorKey: string; item: Record<string, unknown> }[]
+    lastEventId: number
+  }
+}
+
+export type StreamEvent = { id: number; data: Record<string, unknown> }
+
+export function openEvents(
+  base: string,
+  conversationId: string,
+  lastEventId?: number,
+  sendIdIn: "header" | "query" = "header"
+) {
+  const events: StreamEvent[] = []
+  const abort = new AbortController()
+  const headers: Record<string, string> = {}
+  let address = `${base}/api/conversations/${conversationId}/events`
+  if (lastEventId !== undefined && sendIdIn === "header") {
+    headers["last-event-id"] = String(lastEventId)
+  }
+  if (lastEventId !== undefined && sendIdIn === "query") {
+    address += `?lastEventId=${lastEventId}`
+  }
+  const response = fetch(address, {
+    headers,
+    signal: abort.signal,
+  })
+  const opened = response.then(async (response) => {
+    const reader = response.body
+      ?.pipeThrough(new TextDecoderStream())
+      .getReader()
+    let buffer = ""
+    for (;;) {
+      const chunk = await reader?.read()
+      if (!chunk || chunk.done) return
+      buffer += chunk.value
+      const blocks = buffer.split("\n\n")
+      buffer = blocks.pop() ?? ""
+      for (const block of blocks) {
+        const fields = Object.fromEntries(
+          block
+            .split("\n")
+            .filter((line) => line.includes(": "))
+            .map((line) => [
+              line.slice(0, line.indexOf(": ")),
+              line.slice(line.indexOf(": ") + 2),
+            ])
+        )
+        if (fields.data) {
+          events.push({ id: Number(fields.id), data: JSON.parse(fields.data) })
+        }
+      }
+    }
+  })
+  const close = async () => {
+    abort.abort()
+    await opened.catch(() => undefined)
+  }
+  cleanups.push(close)
+  return { events, close, ready: response.then(() => undefined) }
+}
+
+export function agentStates(events: StreamEvent[]) {
+  return events.flatMap(({ data }) =>
+    data.type === "agent_state" ? [data.state] : []
+  )
+}
+
+export function streamedItems(events: StreamEvent[]) {
+  return events.flatMap(({ data }) => {
+    if (data.type !== "item") return []
+    const entry = data.entry as { item: Record<string, unknown> }
+    return [[entry.item.kind, entry.item.status, entry.item.text]]
+  })
+}
+
+export async function postJson(base: string, route: string, body: unknown) {
+  return fetch(`${base}${route}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+export const testRunner = {
+  name: "test-runner",
+  colour: "aqua",
+  model: "claude-sonnet-5-5",
+  permissionMode: "acceptEdits",
+  cwd: "/home/user/code/web-app",
+  autostart: true,
+  allowedTools: ["Read", "Bash(pnpm test:*)"],
+  disallowedTools: ["WebFetch"],
+  systemPrompt: "You run and fix the Vitest tests.",
+}
+
+export async function answerRequest(
+  base: string,
+  requestId: string,
+  body: Record<string, unknown>
+) {
+  return fetch(`${base}/api/requests/${requestId}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+export async function nextPendingCard(base: string, conversationId: string) {
+  let requestId = ""
+  await vi.waitFor(async () => {
+    const { items } = await timeline(base, conversationId)
+    const card = items.find(({ item }) => item.status === "pending")
+    expect(card).toBeDefined()
+    requestId = String(card?.item.requestId)
+  })
+  return requestId
+}
+
+export function promptsTo(
+  sentTo: Map<string, Record<string, unknown>[]>,
+  agentName: string
+): string[] {
+  return (sentTo.get(agentName) ?? [])
+    .filter((line) => line.type === "user")
+    .map((line) => {
+      const message = line.message as { content: { text: string }[] }
+      return message.content.map((block) => block.text).join("")
+    })
+}

@@ -1,0 +1,244 @@
+import { afterEach, describe, expect, test, vi } from "vitest"
+import {
+  postJson,
+  promptsTo,
+  runCleanups,
+  sendMessage,
+  startServer,
+  testRunner,
+  timeline,
+} from "../test/http.ts"
+
+afterEach(runCleanups)
+
+async function createAgent(base: string, name: string) {
+  const response = await postJson(base, "/api/agents", {
+    ...testRunner,
+    name,
+  })
+  return ((await response.json()) as { agent: { id: string } }).agent
+}
+
+async function groupChat(base: string, agentIds: string[]) {
+  const response = await postJson(base, "/api/conversations", {
+    kind: "group",
+    agentIds,
+  })
+  return ((await response.json()) as { conversation: { id: string } })
+    .conversation
+}
+
+async function untilTurns(base: string, conversationId: string, count: number) {
+  await vi.waitFor(async () => {
+    const { items } = await timeline(base, conversationId)
+    expect(items.filter(({ item }) => item.kind === "turn")).toHaveLength(count)
+  })
+}
+
+describe("group chats and channels", () => {
+  test("a group chat with two agents takes their names, and its reply mode is mention", async () => {
+    const { base } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+
+    const response = await postJson(base, "/api/conversations", {
+      kind: "group",
+      agentIds: [reviewer.id, runner.id],
+    })
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual({
+      conversation: expect.objectContaining({
+        kind: "group",
+        name: "reviewer-bot, test-runner",
+        private: true,
+        replyMode: "mention",
+        members: ["user:me", `agent:${reviewer.id}`, `agent:${runner.id}`],
+      }),
+    })
+  })
+
+  test("a channel takes the name, topic, privacy and reply mode that the user gives", async () => {
+    const { base } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+
+    const response = await postJson(base, "/api/conversations", {
+      kind: "channel",
+      name: "release-train",
+      topic: "Ship v2.4 on Friday.",
+      private: false,
+      replyMode: "every",
+      agentIds: [runner.id],
+    })
+    const missingName = await postJson(base, "/api/conversations", {
+      kind: "channel",
+      name: " ",
+      agentIds: [runner.id],
+    })
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual({
+      conversation: expect.objectContaining({
+        kind: "channel",
+        name: "release-train",
+        topic: "Ship v2.4 on Friday.",
+        private: false,
+        replyMode: "every",
+        members: ["user:me", `agent:${runner.id}`],
+      }),
+    })
+    expect(missingName.status).toBe(400)
+  })
+
+  test("in a group chat, only the agent that the message mentions gets a turn", async () => {
+    const { base, startedAgents } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@test-runner run the tests.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "Thank you, both.")
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    expect(startedAgents).toEqual(["test-runner"])
+  })
+
+  test("in a channel with every message mode, each agent gets a turn for a message with no mention", async () => {
+    const { base, startedAgents } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const created = await postJson(base, "/api/conversations", {
+      kind: "channel",
+      name: "release-train",
+      replyMode: "every",
+      agentIds: [reviewer.id, runner.id],
+    })
+    const { conversation } = (await created.json()) as {
+      conversation: { id: string }
+    }
+
+    await sendMessage(base, conversation.id, "The release branch is cut.")
+    await untilTurns(base, conversation.id, 2)
+
+    expect([...startedAgents].sort()).toEqual(["reviewer-bot", "test-runner"])
+  })
+
+  test("a mentioned agent gets each message since its last turn, each with its author", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      (name) =>
+        name === "reviewer-bot"
+          ? { reply: "The key is on a fragment." }
+          : { reply: "I added the test." }
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot look at PR 212.")
+    await untilTurns(base, group.id, 1)
+    await sendMessage(base, group.id, "@test-runner add a test for it.")
+    await untilTurns(base, group.id, 2)
+    await sendMessage(base, group.id, "@test-runner thank you.")
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "test-runner")).toHaveLength(2)
+    )
+
+    expect(promptsTo(sentTo, "test-runner")).toEqual([
+      [
+        "[User] @reviewer-bot look at PR 212.",
+        "[reviewer-bot] The key is on a fragment.",
+        "[User] @test-runner add a test for it.",
+      ].join("\n"),
+      "[User] @test-runner thank you.",
+    ])
+  })
+
+  test("a mention in the reply of an agent starts a turn for the other agent", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      (name) =>
+        name === "reviewer-bot"
+          ? { reply: "@test-runner please add a test for the 404 page." }
+          : { reply: "I added the test." }
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await untilTurns(base, group.id, 2)
+
+    expect(promptsTo(sentTo, "test-runner")).toEqual([
+      [
+        "[User] @reviewer-bot review PR 212.",
+        "[reviewer-bot] @test-runner please add a test for the 404 page.",
+      ].join("\n"),
+    ])
+  })
+
+  test("stop removes a prompt that the mention of an agent put in the queue of a busy agent", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      (name) =>
+        name === "reviewer-bot"
+          ? { reply: "@test-runner add a test for the 404 page." }
+          : { fixture: "interrupt" }
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+    await sendMessage(base, group.id, "@test-runner write a long story.")
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "test-runner")).toHaveLength(1)
+    )
+    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await untilTurns(base, group.id, 1)
+
+    await postJson(base, `/api/conversations/${group.id}/stop`, {})
+
+    await untilTurns(base, group.id, 2)
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(promptsTo(sentTo, "test-runner")).toHaveLength(1)
+    const { items } = await timeline(base, group.id)
+    expect(
+      items
+        .filter(({ item }) => item.kind === "turn")
+        .map(({ item }) => item.status)
+    ).toEqual(["done", "stopped"])
+  })
+
+  test("the list of agents gives the most urgent state of each agent over its conversations", async () => {
+    const { base } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      (name) => (name === "test-runner" ? { fixture: "interrupt" } : {})
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [reviewer.id, runner.id])
+
+    await sendMessage(base, group.id, "@test-runner @reviewer-bot start.")
+    await untilTurns(base, group.id, 1)
+
+    const listed = (await (await fetch(`${base}/api/agents`)).json()) as {
+      agents: { id: string; name: string; state: string }[]
+    }
+    expect(
+      listed.agents
+        .filter(({ id }) => id === reviewer.id || id === runner.id)
+        .map(({ name, state }) => ({ name, state }))
+    ).toEqual([
+      { name: "reviewer-bot", state: "idle" },
+      { name: "test-runner", state: "busy" },
+    ])
+  })
+})

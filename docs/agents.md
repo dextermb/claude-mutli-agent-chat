@@ -92,6 +92,9 @@ The tests start it in place of `claude`:
 | `not-json` | writes a line that is not JSON, then plays the fixture              |
 | `env`      | writes the names of its `CLAUDE*` variables, then plays the fixture |
 
+With `FAKE_CLAUDE_REPLY`, the fake replaces the text of each reply with that
+text, and leaves out the text pieces.
+
 ## Not handled yet
 
 - `stop()` closes stdin and waits. It does not kill a process that does not

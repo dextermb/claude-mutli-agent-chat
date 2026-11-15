@@ -1,0 +1,76 @@
+# Conversations and mentions
+
+A conversation is a DM, a group chat or a channel. Its members are the one
+user, `user:me`, and one or more agents. This page tells which agent gets a
+turn for a message, and what prompt that agent gets. The routes are in
+`docs/server.md`.
+
+## Kinds
+
+| Kind      | Made by                                                             | Name                              | Reply mode                     |
+| --------- | ------------------------------------------------------------------- | --------------------------------- | ------------------------------ |
+| `dm`      | `POST /api/conversations` `{ kind: "dm", agentId }`                 | The name of the agent             | `every`                        |
+| `group`   | `{ kind: "group", agentIds }`, one or more agents                   | The agent names, joined with `, ` | `mention`                      |
+| `channel` | `{ kind: "channel", name, topic?, private?, replyMode?, agentIds }` | The name, which must not be empty | `mention`, or `every` if asked |
+
+A group chat is private. A channel is public unless `private: true`.
+
+## Who gets a turn
+
+For a message of the user:
+
+- In a DM, the agent gets each message.
+- In a conversation with the reply mode `every`, each agent gets each message.
+- Else, each agent that the message mentions gets it.
+
+For a complete message of an agent, in a group chat or a channel, each other
+agent that the message mentions gets a turn. The reply mode does not
+apply, so two agents in `every` mode do not answer each other with no end.
+There is no limit on a chain of mentions. The user stops it with Stop, which
+interrupts each busy agent and empties each queue in the conversation.
+
+A message that comes while an agent works waits in the queue of that agent.
+
+## Mentions
+
+`parseMentions(text, members)` in `server/conversation/mentions.ts` gives the
+keys of the members that the text mentions, in the order of the text. A
+mention is `@` and the full name of a member:
+
+- `@test-runner` does not mention `test`, and `@test-runners` mentions
+  nobody, because a name must end where the word ends.
+- `dev@test-runner` is not a mention, because `@` must not follow a letter, a
+  digit, `_`, `-` or `@`.
+- An agent does not mention itself.
+
+## The prompt
+
+In a DM, the prompt is the text of the message.
+
+In a group chat or a channel, the prompt holds each complete message since
+the last prompt of that agent, one line for each, with its author:
+
+```
+[User] @reviewer-bot look at PR 212.
+[reviewer-bot] The key is on a fragment.
+[User] @test-runner add a test for it.
+```
+
+- The messages of the agent itself are left out.
+- The user is `User`. An agent is its name.
+- The server keeps the place of the last prompt of each agent in memory.
+  After a server start, it uses the last item of that agent in the
+  conversation instead.
+
+## The state of an agent
+
+`GET /api/agents` gives each agent one state for all its conversations: the
+most urgent state of its live sessions, in this order: `waiting`, `busy`,
+`starting`, `failed`, `idle`. An agent with no live session is `exited`.
+
+## Not built yet
+
+- A page to create a group chat or a channel. The routes exist.
+- Add or remove the members of a conversation.
+- The sidebar loads the agent states once. It does not follow the event
+  stream.
