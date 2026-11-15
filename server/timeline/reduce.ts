@@ -25,7 +25,7 @@ export type ToolCallItem = {
   toolUseId: string
   name: string
   input: Json
-  status: "running" | "done" | "error"
+  status: "running" | "done" | "error" | "stopped"
   result: ToolCallResult | null
   decision: PermissionDecision | null
   job: { taskId: string; status: string } | null
@@ -280,7 +280,11 @@ function reducePermissionAnswer(
 }
 
 function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
-  const step = add({ state, changes: [] }, (id) => ({
+  const start =
+    line.terminalReason === "aborted_tools"
+      ? stopLastToolCall({ state, changes: [] })
+      : { state, changes: [] }
+  const step = add(start, (id) => ({
     kind: "turn",
     id,
     status: INTERRUPTED.includes(line.terminalReason) ? "stopped" : "done",
@@ -289,6 +293,16 @@ function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
     numTurns: line.numTurns,
   }))
   return { ...step, state: { ...step.state, costSoFar: line.totalCostUsd } }
+}
+
+function stopLastToolCall(step: TimelineStep): TimelineStep {
+  const items = step.state.items
+  const turnStart = items.findLastIndex((item) => item.kind === "turn") + 1
+  const call = items
+    .slice(turnStart)
+    .findLast((item) => item.kind === "tool_call")
+  if (call?.kind !== "tool_call" || call.status !== "error") return step
+  return replace(step, { ...call, status: "stopped", result: null })
 }
 
 function reduceRateLimit(

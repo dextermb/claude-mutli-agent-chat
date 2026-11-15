@@ -140,6 +140,19 @@ export const pushCall = agentEntry(7, {
   parentToolUseId: null,
 })
 
+export const stoppedCall = agentEntry(7, {
+  kind: "tool_call",
+  id: "item-6",
+  toolUseId: "toolu_ping",
+  name: "Bash",
+  input: { command: "ping -c 30 127.0.0.1" },
+  status: "stopped",
+  result: null,
+  decision: null,
+  job: null,
+  parentToolUseId: null,
+})
+
 export const pushRequest = agentEntry(8, {
   kind: "permission",
   id: "item-7",

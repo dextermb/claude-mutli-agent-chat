@@ -48,8 +48,9 @@ Each gap has one of three kinds:
 - **Stop in a DM header:** keep it, before the tabs, as DmQuestion shows.
 - **New session confirm:** keep `AlertDialog`. A confirm of an action that
   stops a turn is what an alert dialog is for.
-- **The count badge in the sidebar** counts the unread agent messages of a
-  conversation (not the tool calls). The board calls it a mention count, but
+- **The count badge in the sidebar** counts the unread agent items for the
+  user to read: messages, notices, permission requests and questions (not
+  the tool calls). A failed process adds a notice, so it counts too. The board calls it a mention count, but
   the user has no name, so no message can mention the user. A DM counts the
   same way.
 
@@ -231,14 +232,13 @@ The button in the header (S5) opens it at the right, 360 px wide. Below
   `SidebarMenuBadge` in the mention colour, and a screen reader hears "3
   unread".
 
-### T2. Counts on Grep and Glob
+### T2. Counts on Grep and Glob: dropped
 
-- `toolCallResult()` gets a result kind `{ kind: "count", count, unit }`,
-  with `unit` `"matches"` for Grep and `"files"` for Glob. The value comes from
-  the `tool_use_result` of a recorded fixture. If no fixture holds Grep or
-  Glob, record one with `pnpm fixtures:record` (about 0.01 USD) before the
-  reducer test.
-- The tool-call card shows "3 matches" or "6 files" in `muted-foreground`.
+Claude Code 2.1.311 has no Grep tool and no Glob tool. The `init` line of
+each fixture lists the tools, and neither is there. A recording on
+2026-11-15 asked for both: the answer was "No such tool available: Grep",
+and the agent used `grep` and `find` through Bash. So no tool call can show
+"3 matches" or "6 files". The boards show tools that the agents do not have.
 
 ### T3. A stopped tool call
 
@@ -277,7 +277,7 @@ These need a feature, not a design pass. Each one gets its own plan.
 
 ## How it is built and checked
 
-- One worktree, `design-boards`. One commit for each slice: T1 to T4 first,
+- One worktree, `design-boards`. One commit for each slice: T1, T3 and T4 first,
   because S2 and S6 show their data, then S1 to S11.
 - Test-first where a behaviour changes, with the `tdd` skill. Each seam
   below already has a test file (`docs/testing.md`), except `pages/index.tsx`,
@@ -288,8 +288,8 @@ These need a feature, not a design pass. Each one gets its own plan.
 | `Store`                             | T1: the count of unread agent messages, and 0 after a read            |
 | `createServer()`                    | T1: the counts in `GET /api/conversations` and the `unread` event      |
 | `useWorkspace()`                    | T1: the counts change with the events                                |
-| `reduceTimeline()`, a fixture       | T2: the Grep and Glob counts. T3: the `stopped` call                  |
-| The DM page, fake network           | T2, T3, T4 on the cards. S5: Configure. S6: the intro, the status lines |
+| `reduceTimeline()`, a fixture       | T3: the `stopped` call                                               |
+| The DM page, fake network           | T3, T4 on the cards. S5: Configure. S6: the intro, the status lines |
 | The channel page, fake network      | S11: the aside, one row open, Stop all, the line "X is working."      |
 | `<App />` at `/`                    | S2: the rail, the count badge. S3: search, summary, empty state         |
 | The agent page, fake network        | S4: the sidebar on both screens, the breadcrumb, "Create agent", the status, the Base UI selects |
@@ -302,5 +302,5 @@ These need a feature, not a design pass. Each one gets its own plan.
   390 px, compared with the boards.
 - Docs: update `docs/web-app/sidebar.md`, `conversation.md`,
   `session-panel.md` and `agent-page.md`, and `docs/server.md`,
-  `docs/store.md` and `docs/timeline.md` for T1 to T3, in the same slices.
+  `docs/store.md` and `docs/timeline.md` for T1 and T3, in the same slices.
 - When the change is merged, this plan holds only Tier 3, or it is deleted.

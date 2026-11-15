@@ -16,6 +16,7 @@ import {
   finishedTurn,
   localTime,
   pushCall,
+  stoppedCall,
   pushRequest,
   rateLimitNotice,
   sessionStart,
@@ -496,6 +497,15 @@ describe("the DM page", () => {
     expect(
       within(denied).getByText("The user denied this.")
     ).toBeInTheDocument()
+  })
+
+  test("a tool call that a stop ended says Stopped", async () => {
+    openConversation([userMessage, stoppedCall])
+
+    const ping = await screen.findByRole("region", {
+      name: "Bash ping -c 30 127.0.0.1",
+    })
+    expect(within(ping).getByText("Stopped")).toBeInTheDocument()
   })
 
   test("the tool calls of a subagent show inside its Agent card, behind a button", async () => {

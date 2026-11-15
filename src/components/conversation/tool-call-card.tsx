@@ -9,6 +9,7 @@ const DOT: Record<ToolCallItem["status"], string> = {
   running: "bg-status-working",
   done: "bg-status-online",
   error: "bg-status-error",
+  stopped: "bg-status-idle",
 }
 
 export function ToolCallCard({
@@ -62,6 +63,9 @@ export function ToolCallCard({
         />
         <span className="text-foreground-strong">{call.name}</span>
         <span className="min-w-0 flex-1 truncate text-link">{target}</span>
+        {call.status === "stopped" && (
+          <span className="font-sans text-muted-foreground">Stopped</span>
+        )}
         {result?.kind === "lines" && (
           <span className="text-muted-foreground">{result.count} lines</span>
         )}

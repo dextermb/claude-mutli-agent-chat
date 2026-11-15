@@ -35,7 +35,7 @@ Each item has an `id` (`item-1`, `item-2`, …), unique in its session, and a
 | `kind`       | From                                                          | Statuses                                  |
 | ------------ | ------------------------------------------------------------- | ----------------------------------------- |
 | `message`    | `text_delta` pieces, then the `assistant` text block          | `streaming`, `done`                       |
-| `tool_call`  | An `assistant` `tool_use` block, then its `tool_results`      | `running`, `done`, `error`                |
+| `tool_call`  | An `assistant` `tool_use` block, then its `tool_results`      | `running`, `done`, `error`, `stopped`     |
 | `permission` | A `permission_request`, then its `permission_answer`          | `pending`, `allowed`, `denied`, `expired` |
 | `question`   | A `permission_request` for `AskUserQuestion`, then its answer | `pending`, `answered`, `expired`          |
 | `turn`       | A `result` line                                               | `done`, `stopped`                         |
@@ -86,8 +86,11 @@ the turn before it in the same process. A turn item that was stored before
 this rule holds the process total until `rebuildTimeline()` runs on its
 session. A turn that ends with `terminal_reason: "aborted_streaming"` (an
 interrupt while text arrives, F10) or `"aborted_tools"` (an interrupt while a
-tool runs, F28) is `stopped`. The tool call that ran gets the status `error`,
-with the text of its `tool_result`.
+tool runs, F28) is `stopped`. Claude Code first answers the tool
+call that ran with an error `tool_result`. When the `aborted_tools` result
+comes, the reducer gives the last tool call of the turn the status
+`stopped`, if its status is `error`, and drops its result. The browser shows
+a grey dot and "Stopped".
 
 A turn does not need a prompt. A background job that ends after the turn
 starts a new turn (F11). Its message and its summary come after the summary of
