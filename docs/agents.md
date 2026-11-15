@@ -45,7 +45,7 @@ parent Claude Code session from `env` before it starts the process (see
 start()                      -> starting
 answer to initialize         -> idle      (F25: before any prompt)
 prompt()                     -> busy
-permission_request           -> waiting   (a permission or a question)
+permission_request           -> waiting   (a permission or a question, one at a time: F26)
 echo of the answer           -> busy
 result                       -> idle      (also after an interrupt)
 exit with code 0             -> exited    (for example after stop())
@@ -99,8 +99,6 @@ text, and leaves out the text pieces.
 
 - `stop()` closes stdin and waits. It does not kill a process that does not
   stop.
-- If two requests are open at the same time, the first answer sets the state
-  to `busy`. This case is not measured.
 - A `failed` session does not keep the stderr of the process.
 - `--max-turns` is not on the command line, because the help of 2.1.311 does
   not list it.

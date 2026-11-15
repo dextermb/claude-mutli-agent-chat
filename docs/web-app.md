@@ -69,6 +69,16 @@ one card, as in the design. Always allow tells what each suggestion grants. A
 rule for `localSettings` stays in the folder of the agent, so the text says
 so.
 
+The card of an `Agent` call names the task of the subagent (its
+`description`). The tool calls of the subagent are inside that card, behind
+a button such as "3 tool calls". The list opens by itself while one of those
+calls waits for an approval, so the approval card is always visible.
+
+A rate-limit notice is one line with a warning icon: "The five-hour rate
+limit is reached. It resets at 14:00." A limit that is near, but not reached,
+says "near". A reset on a later day names the day: "It resets on Tuesday 17
+November at 09:00."
+
 Each block shows the time of its first entry next to the author, as 24-hour
 `HH:MM` ("14:03") in the local time zone. A level 2 heading names the day
 before the first block of each day: "Today", "Yesterday", or "Friday 13

@@ -80,6 +80,7 @@ export const readCall = agentEntry(3, {
   result: { kind: "lines", count: 4 },
   decision: null,
   job: null,
+  parentToolUseId: null,
 })
 
 export const editCall = agentEntry(4, {
@@ -96,6 +97,7 @@ export const editCall = agentEntry(4, {
   result: { kind: "diff", added: 1, removed: 1 },
   decision: null,
   job: null,
+  parentToolUseId: null,
 })
 
 export const bashCall = agentEntry(5, {
@@ -108,6 +110,7 @@ export const bashCall = agentEntry(5, {
   result: { kind: "output", stdout: "hello", stderr: "" },
   decision: null,
   job: null,
+  parentToolUseId: null,
 })
 
 export const deniedCall = agentEntry(6, {
@@ -120,6 +123,7 @@ export const deniedCall = agentEntry(6, {
   result: { kind: "error", message: "The user denied this." },
   decision: { decision: "reject", source: "user_reject" },
   job: null,
+  parentToolUseId: null,
 })
 
 export const pushCall = agentEntry(7, {
@@ -132,6 +136,7 @@ export const pushCall = agentEntry(7, {
   result: null,
   decision: null,
   job: null,
+  parentToolUseId: null,
 })
 
 export const pushRequest = agentEntry(8, {
@@ -220,3 +225,42 @@ export const squadGroup: Conversation = {
   members: ["user:me", "agent:a2", "agent:a1"],
   createdAt: "2026-11-15T09:30:00.000Z",
 }
+
+export const agentCall = agentEntry(12, {
+  kind: "tool_call",
+  id: "item-12",
+  toolUseId: "toolu_agent",
+  name: "Agent",
+  input: {
+    description: "Read notes.txt first line",
+    prompt: "Read notes.txt and report its first line.",
+    subagent_type: "general-purpose",
+  },
+  status: "done",
+  result: null,
+  decision: null,
+  job: null,
+  parentToolUseId: null,
+})
+
+export const subagentRead = agentEntry(13, {
+  kind: "tool_call",
+  id: "item-13",
+  toolUseId: "toolu_subagent_read",
+  name: "Read",
+  input: { file_path: "/home/user/code/web-app/src/notes.txt" },
+  status: "done",
+  result: null,
+  decision: null,
+  job: null,
+  parentToolUseId: "toolu_agent",
+})
+
+export const rateLimitNotice = agentEntry(14, {
+  kind: "notice",
+  id: "item-14",
+  reason: "rate_limit",
+  status: "rejected",
+  rateLimitType: "five_hour",
+  resetsAt: new Date(localTime(15, 14, 0)).getTime() / 1000,
+})

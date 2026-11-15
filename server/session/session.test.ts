@@ -125,6 +125,45 @@ describe("AgentSession", () => {
     )
   })
 
+  test("two tool calls in one message ask for permission one after the other", async () => {
+    const { session, events } = startFake("two-requests")
+    await untilIdle(events, 1)
+    const pending = () =>
+      latestItems(events).filter(
+        (item) => item.kind === "permission" && item.status === "pending"
+      )
+
+    session.prompt(
+      "In one message, make two Write tool calls in parallel: write a.txt that holds the word one, and write b.txt that holds the word two. Then reply in one short sentence."
+    )
+    for (const requestId of ["b5dd8886", "d0812ad4"]) {
+      await vi.waitFor(() =>
+        expect(pending()).toEqual([
+          expect.objectContaining({
+            requestId: expect.stringMatching(new RegExp(`^${requestId}`)),
+          }),
+        ])
+      )
+      const [card] = pending()
+      session.answer(card.kind === "permission" ? card.requestId : "", {
+        behavior: "allow",
+        updatedInput: card.kind === "permission" ? card.input : {},
+      })
+    }
+    await untilIdle(events, 2)
+
+    expect(states(events)).toEqual([
+      "starting",
+      "idle",
+      "busy",
+      "waiting",
+      "busy",
+      "waiting",
+      "busy",
+      "idle",
+    ])
+  })
+
   test("an interrupt stops the turn and the session stays ready for the next prompt", async () => {
     const { session, events } = startFake("interrupt")
     await untilIdle(events, 1)

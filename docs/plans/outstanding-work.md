@@ -1,10 +1,10 @@
 # The outstanding work of the agent chat app
 
 **Status:** in progress. The user agreed the plan, the order and the seams
-on 2026-11-15. Step 1 is built, and its result is in `docs/*.md`. Step 2 is
-next. Nothing below is built. The decisions stand as written. Each open
-question at the end keeps the decision of its step as the default, until the
-user answers it.
+on 2026-11-15. Steps 1 and 2 are built, and their result is in `docs/*.md`.
+Slice 2.3 waits for the answer to Q15. Step 3 is next. Nothing below is
+built. The decisions stand as written. Each open question at the end keeps
+the decision of its step as the default, until the user answers it.
 
 ## The steps
 
@@ -14,7 +14,7 @@ merges into `master` before the next step starts.
 | Step | Name                           | Items                                                                                                  | Schema       |
 | ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------ |
 | 1    | Small fixes and message times  | Built                                                                                                  | none         |
-| 2    | The stream                     | Subagent lines, rate-limit notice, interrupt during a tool call, two open requests                     | none         |
+| 2    | The stream                     | Built, except the interrupt during a tool call (2.3)                                                   | none         |
 | 3    | The process                    | Kill a process that does not stop, keep and show stderr                                                | migration v2 |
 | 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                                          | none         |
 | 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart                     | migration v3 |
@@ -36,7 +36,6 @@ These facts shape the plan. They are not in the docs yet.
 - **F-d. `--max-turns` is still not in the help.** The design shows "Turns
   7 of 30". The "of 30" has no flag to come from. `--max-budget-usd` is in the
   help.
-- **F-e. No fixture has a `rate_limit` line that is not `allowed`.**
 - **F-f. The design does not show the Files tab, the Session log tab, the
   divider, a remove button for a member, or any notice.** The plan proposes
   each one.
@@ -135,91 +134,26 @@ turn items get the per-turn cost that step 1 added to the reducer. See Q1.
 
 ## Step 2: The stream
 
-### 2.1 Subagent lines inside the Agent card
-
-**Decisions:**
-
-- The reducer puts `parentToolUseId` on each `tool_call` and `message` item.
-  The decoder already reads `parent_tool_use_id` (F22).
-- The browser shows each item with a `parentToolUseId` inside the card of the
-  `Agent` call with that `toolUseId`, as a short list of tool calls. It does
-  not show it at the top level.
-- The text messages of a subagent are hidden. The result of the `Agent` call
-  already carries the summary of the subagent, and a terminal session of
-  Claude Code also hides that text. See Q3.
-- The `Agent` card shows "3 tool calls" when it is closed, and the list when
-  it is open.
-
-**Data flow:** `subagent.jsonl` line → `decodeLine()` (has
-`parentToolUseId`) → `reduceTimeline()` puts it on the item → stored payload
-→ `Timeline` groups the children under their parent card.
-
-**Seams:**
-
-- `reduceTimeline()` with `subagent.jsonl`: the tool call of the subagent has
-  the `parentToolUseId` of the `Agent` call, as the recorded line gives it.
-- The DM page: the subagent call shows inside the `Agent` card and not as its
-  own block.
-
-### 2.2 A notice for a `rate_limit` line that is not `allowed`
-
-**Decisions:**
-
-- A new item kind, `notice`:
-  `{ kind: "notice", id, tone: "warning" | "error", reason: "rate_limit" | "failed", text, detail }`.
-- The reducer adds a notice when a `rate_limit` line has a status other than
-  `allowed`, and only when the status differs from the status of the last
-  `rate_limit` line. So a run of the same status gives one notice.
-- `rejected` gives the tone `error`: "The five-hour rate limit is reached.
-  It resets at 14:00." Any other status gives the tone `warning`: "The
-  five-hour rate limit is near. It resets at 14:00."
-- The timeline shows a notice as one line with an icon, in the colours of the
-  tone. The design has no notice (F-f).
-
-No fixture has such a line (F-e). The test changes the status of the
-recorded line from `question.jsonl` to a literal. The status names
-`allowed_warning` and `rejected` come from the Agent SDK types, not from a
-measurement. See Q4.
-
-**Seam:** `reduceTimeline()`: the recorded `rate_limit` line with the status
-`rejected` adds one notice. A second line with the same status adds nothing.
-
 ### 2.3 Measure an interrupt during a tool call
 
 **Decision:** record a new fixture, `interrupt-tool.jsonl`. The prompt makes
-the agent run `sleep 30` with Bash, and the recorder sends `interrupt` after
-the `tool_use` line. Then compare its `result` line with F10. If the
+the agent run `ping -c 30 127.0.0.1` with Bash, and the recorder sends
+`interrupt` 3 s after the `tool_use` line. The first try used `sleep 30`, and
+Claude Code blocked it (F27 in `docs/protocol.md`), so the turn ended before
+the interrupt. The recorder now holds the `ping` scenario. Then compare its `result` line with F10. If the
 `terminal_reason` is not `aborted_streaming`, the reducer marks that value
 `stopped` too, and the running tool call becomes `error` or `stopped` as the
 line tells.
 
-This costs about 0.01 USD. See Q5.
+This costs about 0.008 USD more. See Q15.
 
 **Seam:** `reduceTimeline()` with `interrupt-tool.jsonl`: the turn is
 `stopped`, and the tool call does not stay `running`.
 
-### 2.4 Measure two permission requests that are open at the same time
-
-**Decision:** record `two-requests.jsonl`. The prompt asks for two new files
-with two `Write` calls in one message. The recorder answers the second
-request first. This tells whether Claude Code sends the second request before
-the first answer.
-
-If it does, `AgentSession` keeps a set of open request IDs. An answer echo
-removes one ID, and the state becomes `busy` only when the set is empty. Now
-the first answer sets `busy` while the second card still waits.
-
-This costs about 0.01 USD. See Q5.
-
-**Seam:** `AgentSession` with the fake `claude` and `two-requests.jsonl`:
-after the first answer, the state stays `waiting`. After the second answer,
-the state is `busy`.
-
 ### Docs when step 2 lands
 
-`docs/protocol.md` (two fixtures, the new findings, the rate-limit statuses),
-`docs/timeline.md` (subagent items, notices), `docs/agents.md` (open
-requests), `docs/web-app.md` (the Agent card, notices).
+`docs/protocol.md` (the fixture, F10 compared), `docs/timeline.md` (remove
+the "Not handled yet" item).
 
 ---
 
@@ -626,6 +560,10 @@ Schema), and whether the browser and the server share one schema.
   calls? Or show its text inside the card too?
 - **Q4.** The rate-limit notice uses status names from the SDK types, not
   from a recorded line. Is that acceptable until a real line is seen?
+- **Q15.** Slice 2.3 needs one more recording of about 0.008 USD, because
+  the first try hit F27. With it, the total is about 0.024 USD so far, and
+  the live check of step 5 (about 0.02 USD) makes about 0.044 USD. That is a
+  little more than the 0.04 USD that you agreed. May I spend it?
 - **Q6.** Unread rows and mention counts in the sidebar are in the design.
   Add them as a later step, or leave them out?
 - **Q7.** A change to the model or the mode reaches only the next process.

@@ -1,3 +1,4 @@
+import { TriangleAlertIcon } from "lucide-react"
 import { Fragment } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -13,9 +14,11 @@ import type {
   AgentWithState,
   PermissionItem,
   TimelineEntry,
+  ToolCallItem,
 } from "@/lib/agent-api"
 import { Separator } from "@/components/ui/separator"
-import { clockTime, dayKey, dayName } from "@/lib/time"
+import { clockTime, dayKey, dayName, longDay } from "@/lib/time"
+import { cn } from "@/lib/utils"
 
 type Answer = (requestId: string, answer: RequestAnswer) => void
 
@@ -29,10 +32,12 @@ type Group = { authorKey: string; entries: TimelineEntry[] }
 
 export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
   const requests = requestsByToolUse(entries)
+  const subagentCalls = subagentCallsByParent(entries)
   const shown = entries.filter(
     (entry) =>
-      entry.item.kind !== "permission" ||
-      !hasToolCall(entries, entry.item.toolUseId)
+      !(entry.item.kind === "tool_call" && entry.item.parentToolUseId) &&
+      (entry.item.kind !== "permission" ||
+        !hasToolCall(entries, entry.item.toolUseId))
   )
   return (
     <div className="flex flex-col gap-1 py-3">
@@ -50,6 +55,7 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
                 (agent) => `agent:${agent.id}` === group.authorKey
               )}
               requests={requests}
+              subagentCalls={subagentCalls}
               onAnswer={onAnswer}
             />
           </Fragment>
@@ -75,11 +81,13 @@ function AuthorGroup({
   group,
   agent,
   requests,
+  subagentCalls,
   onAnswer,
 }: {
   group: Group
   agent: AgentWithState | undefined
   requests: Map<string, PermissionItem>
+  subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
 }) {
   const name = agent ? agent.name : "You"
@@ -109,6 +117,7 @@ function AuthorGroup({
             entry={entry}
             agent={agent}
             requests={requests}
+            subagentCalls={subagentCalls}
             onAnswer={onAnswer}
           />
         ))}
@@ -121,11 +130,13 @@ function EntryBody({
   entry,
   agent,
   requests,
+  subagentCalls,
   onAnswer,
 }: {
   entry: TimelineEntry
   agent: AgentWithState | undefined
   requests: Map<string, PermissionItem>
+  subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
 }) {
   const { item } = entry
@@ -137,6 +148,8 @@ function EntryBody({
         request={requests.get(item.toolUseId)}
         agentName={agent?.name ?? "the agent"}
         onAnswer={onAnswer}
+        subagentCalls={subagentCalls.get(item.toolUseId)}
+        requests={requests}
       />
     )
   }
@@ -153,6 +166,29 @@ function EntryBody({
       </p>
     )
   }
+  if (item.kind === "notice") {
+    const limit = item.rateLimitType.replaceAll("_", "-")
+    const resetsAt = new Date(item.resetsAt * 1000).toISOString()
+    const resets =
+      dayKey(resetsAt) === new Date().toDateString()
+        ? `at ${clockTime(resetsAt)}`
+        : `on ${longDay(resetsAt)} at ${clockTime(resetsAt)}`
+    return (
+      <p
+        className={cn(
+          "m-0 flex items-center gap-2 text-[13px]",
+          item.status === "rejected"
+            ? "text-status-error"
+            : "text-status-working"
+        )}
+      >
+        <TriangleAlertIcon aria-hidden="true" className="size-4 flex-none" />
+        {`The ${limit} rate limit is ${
+          item.status === "rejected" ? "reached" : "near"
+        }. It resets ${resets}.`}
+      </p>
+    )
+  }
   if (item.kind === "message") {
     return (
       <p
@@ -164,6 +200,20 @@ function EntryBody({
     )
   }
   return null
+}
+
+function subagentCallsByParent(
+  entries: TimelineEntry[]
+): Map<string, ToolCallItem[]> {
+  const calls = new Map<string, ToolCallItem[]>()
+  for (const { item } of entries) {
+    if (item.kind !== "tool_call" || !item.parentToolUseId) continue
+    calls.set(item.parentToolUseId, [
+      ...(calls.get(item.parentToolUseId) ?? []),
+      item,
+    ])
+  }
+  return calls
 }
 
 function requestsByToolUse(

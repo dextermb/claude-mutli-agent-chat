@@ -91,10 +91,23 @@ A turn does not need a prompt. A background job that ends after the turn
 starts a new turn (F11). Its message and its summary come after the summary of
 the first turn.
 
+### Subagents
+
+Each tool call has a `parentToolUseId` (F22). It is `null` for a call of the
+main agent. For a call of a subagent, it is the `toolUseId` of the `Agent`
+call that started the subagent. The browser shows such a call inside the card
+of its `Agent` call, not at the top level. The tool results of a subagent
+have no `tool_use_result`, so their `result` is `null`.
+
+### Notices
+
+A `rate_limit` line with a status other than `allowed` adds a `notice` item
+with `reason: "rate_limit"`, the `status`, the `rateLimitType` (for example
+`five_hour`) and `resetsAt` (seconds since 1970). It adds a notice only when
+the status differs from the status of the last `rate_limit` line, so a run of
+the same status gives one notice. The browser makes the text, because only
+the browser knows the local time zone.
+
 ## Not handled yet
 
-- The lines of a subagent show at the top level, as if the main agent sent
-  them. The subagent's tool results have no `tool_use_result`, so their
-  `result` is `null`.
-- A `rate_limit` line with a status other than `allowed` does not add a
-  notice.
+- An interrupt while a tool runs is not measured (`docs/protocol.md`).

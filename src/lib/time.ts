@@ -14,6 +14,10 @@ const DAY = new Intl.DateTimeFormat("en-GB", {
   month: "long",
 })
 
+export function longDay(iso: string): string {
+  return DAY.format(new Date(iso))
+}
+
 export function dayKey(iso: string): string {
   return new Date(iso).toDateString()
 }
@@ -23,5 +27,5 @@ export function dayName(iso: string, now = new Date()): string {
   yesterday.setDate(now.getDate() - 1)
   if (dayKey(iso) === now.toDateString()) return "Today"
   if (dayKey(iso) === yesterday.toDateString()) return "Yesterday"
-  return DAY.format(new Date(iso))
+  return longDay(iso)
 }

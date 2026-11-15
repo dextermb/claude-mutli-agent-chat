@@ -33,6 +33,17 @@ function ofKind<K extends TimelineItem["kind"]>(
   )
 }
 
+function rateLimitLine(status: string): DecodedLine {
+  const recorded = stdoutLines("question").find((text) =>
+    text.includes('"type":"rate_limit_event"')
+  )
+  const line = JSON.parse(recorded ?? "{}") as {
+    rate_limit_info: Record<string, unknown>
+  }
+  line.rate_limit_info.status = status
+  return decodeLine(JSON.stringify(line))
+}
+
 function toolCall(items: TimelineItem[], toolUseId: string) {
   return items.find(
     (item) => item.kind === "tool_call" && item.toolUseId === toolUseId
@@ -207,6 +218,36 @@ describe("reduceTimeline", () => {
     expect(ofKind(items, "message").at(-1)?.text).toBe(
       "The background command finished with exit code 0."
     )
+  })
+
+  test("a tool call of a subagent names the Agent call that it belongs to", () => {
+    const items = replay("subagent")
+
+    expect(toolCall(items, "toolu_01N4sUJpcvkcd7HQqhvj9dhk")).toMatchObject({
+      name: "Agent",
+      parentToolUseId: null,
+    })
+    expect(toolCall(items, "toolu_01NDPJmX9RP42ecvoqNrzZ8w")).toMatchObject({
+      name: "Read",
+      parentToolUseId: "toolu_01N4sUJpcvkcd7HQqhvj9dhk",
+    })
+  })
+
+  test("a rate limit that is reached adds one notice, and the same status again adds none", () => {
+    const first = reduceTimeline(emptyTimeline(), rateLimitLine("rejected"))
+    const second = reduceTimeline(first.state, rateLimitLine("rejected"))
+
+    expect(first.changes).toEqual([
+      {
+        kind: "notice",
+        id: "item-1",
+        reason: "rate_limit",
+        status: "rejected",
+        rateLimitType: "five_hour",
+        resetsAt: 1794751800,
+      },
+    ])
+    expect(second.changes).toEqual([])
   })
 
   test("each turn shows its own cost, not the cost of the process so far", () => {
