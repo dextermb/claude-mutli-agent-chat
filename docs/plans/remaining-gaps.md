@@ -2,16 +2,15 @@
 
 **Status:** in progress. The user agreed the steps and the seams of step 1
 to step 6 on 2026-11-15, and answered G1 to G9 (see "Resolved"). Step 1 to
-step 4 are built. Step 5 is closed: Claude Code sends no text of a subagent
-(F32 in `docs/protocol.md`), so the reducer needs no change. Step 6 to step 8
-are ahead, in that order. The seams of
+step 4 and step 6 are built. Step 5 is closed: Claude Code sends no text of a
+subagent (F32 in `docs/protocol.md`), so the reducer needs no change. Step 7
+and step 8 are ahead, in that order. The seams of
 step 7 and step 8 are proposed, and need the agreement of the user.
 
 ## The gaps, and what to do with each
 
 | Gap                                                        | Where it is listed              | Action          | Step |
 | ---------------------------------------------------------- | ------------------------------- | --------------- | ---- |
-| Unread rows of the sidebar                                 | `docs/web-app/sidebar.md`       | Build           | 6    |
 | A `rate_limit_event` that is not `allowed` is not measured | `docs/protocol.md`              | Wait for a line | none |
 | `set_model` and `set_permission_mode` are not measured     | `docs/protocol.md`              | No action       | none |
 | `--max-turns` is not on the command line                   | `docs/agents.md`, `protocol`    | No action       | none |
@@ -35,49 +34,6 @@ step 7 and step 8 are proposed, and need the agreement of the user.
   check the names in `docs/protocol.md`.
 - **Two sessions in the same folder.** The user chooses the folder of each
   agent. `docs/architecture.md` lists it as a risk.
-
-## Step 6: Unread rows
-
-This is the largest step, and it changes the schema.
-
-**Decisions (G4, G6):**
-
-- Unread rows only. No mention count, because an agent cannot address the
-  user.
-- The store keeps, for each conversation, the `seq` that the user saw last.
-- A row in the sidebar is bold when the conversation has an item of an agent
-  after that `seq`.
-- A conversation counts as seen when its page is open and the window has
-  the focus. The page then sends the `seq` of its last entry.
-- The app stream sends a new event, `unread`, so the sidebar of each window
-  follows.
-
-```
-conversations                      conversation_reads   NEW (migration v5)
-+--------------------+             +-------------------------------+
-| id            PK   |──1:1───────▶| conversation_id  PK, FK       |
-| kind               |             |   ON DELETE CASCADE           |
-| name               |             | last_read_seq    INTEGER      |
-| ...                |             | read_at          TEXT         |
-+--------------------+             +-------------------------------+
-```
-
-A conversation with no row has not been read: each item is unread.
-
-**Data flow:**
-
-```
-open page, window focused ─▶ POST /api/conversations/:id/read { seq }
-   ─▶ store.markRead(id, seq) ─▶ app stream { type: "unread", conversationId,
-      unread: false }
-new agent item ─▶ store ─▶ app stream { type: "unread", conversationId,
-      unread: true }
-GET /api/conversations ─▶ each conversation with { unread }
-```
-
-**Seams:** `Store` (`markRead()`, and the `unread` flag of
-`listConversations()`), `createServer()` (the route and the `unread` event),
-`useWorkspace()`, and the sidebar.
 
 ## Step 7: The sidebar on a narrow screen
 

@@ -16,12 +16,16 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
   - `server`: the files `server/**/*.test.ts`, in Node.
 - Run one project with `pnpm test --project server`.
 - `src/test/setup.ts` loads the `jest-dom` matchers. Before each test, it
-  sets a screen 1280 px wide. After each test, it removes the rendered DOM,
-  then the stubbed globals. So a test file does not call
-  `vi.unstubAllGlobals()` itself.
-- jsdom has no `matchMedia`. `screenWidth(width)` in `src/test/fake-screen.ts`
-  stubs it, and answers each `(max-width: …px)` query for that width. A test
-  calls `screenWidth(375)` to show the page on a phone.
+  sets a screen 1280 px wide and a window without the focus. After each
+  test, it removes the rendered DOM, then the stubbed globals and the spies.
+  So a test file does not call `vi.unstubAllGlobals()` or
+  `vi.restoreAllMocks()` itself.
+- `src/test/fake-screen.ts` holds the screen of the user:
+  - jsdom has no `matchMedia`. `screenWidth(width)` stubs it, and answers
+    each `(max-width: …px)` query for that width. A test calls
+    `screenWidth(375)` to show the page on a phone.
+  - `windowFocus(focused)` sets what `document.hasFocus()` answers. A test
+    of a read calls `windowFocus(true)`.
 
 ## The seams under test
 

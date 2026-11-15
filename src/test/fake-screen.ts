@@ -11,3 +11,7 @@ export function screenWidth(width: number) {
     }
   })
 }
+
+export function windowFocus(focused: boolean) {
+  vi.spyOn(document, "hasFocus").mockReturnValue(focused)
+}

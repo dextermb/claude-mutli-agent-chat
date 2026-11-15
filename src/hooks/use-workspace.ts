@@ -9,12 +9,14 @@ import type {
 type Workspace = {
   conversations: Conversation[]
   agents: AgentWithState[]
+  unread: string[]
 }
 
 export function useWorkspace() {
   const [workspace, setWorkspace] = useState<Workspace>({
     conversations: [],
     agents: [],
+    unread: [],
   })
 
   useEffect(() => {
@@ -49,10 +51,16 @@ export function useWorkspace() {
 
 async function load(): Promise<Workspace> {
   const [listed, team] = await Promise.all([
-    getJson<{ conversations: Conversation[] }>("/api/conversations"),
+    getJson<{ conversations: Conversation[]; unread?: string[] }>(
+      "/api/conversations"
+    ),
     getJson<{ agents: AgentWithState[] }>("/api/agents"),
   ])
-  return { conversations: listed.conversations, agents: team.agents }
+  return {
+    conversations: listed.conversations,
+    agents: team.agents,
+    unread: listed.unread ?? [],
+  }
 }
 
 function applyMessage(workspace: Workspace, message: StreamMessage): Workspace {
@@ -64,6 +72,15 @@ function applyMessage(workspace: Workspace, message: StreamMessage): Workspace {
           ? { ...agent, state: message.state }
           : agent
       ),
+    }
+  }
+  if (message.type === "unread") {
+    const others = workspace.unread.filter(
+      (id) => id !== message.conversationId
+    )
+    return {
+      ...workspace,
+      unread: message.unread ? [...others, message.conversationId] : others,
     }
   }
   if (message.type === "conversation") {

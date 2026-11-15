@@ -30,6 +30,7 @@ import {
 } from "@/components/conversation/session-panel"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline"
 import { useConversation } from "@/hooks/use-conversation"
+import { useMarkRead } from "@/hooks/use-mark-read"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useSessionCard } from "@/hooks/use-session-card"
 import type { Conversation } from "@/lib/agent-api"
@@ -42,6 +43,7 @@ export default function ConversationPage() {
   const [adding, setAdding] = useState(false)
   const [showingSheet, setShowingSheet] = useState(false)
   const isMobile = useIsMobile()
+  useMarkRead(params.id, conversation.entries.at(-1)?.seq)
   const [refusal, setRefusal] = useState<{
     conversationId: string
     reason: string

@@ -457,3 +457,49 @@ describe("Store", () => {
     expect(after.getSession(session.id)?.state).toBe("exited")
   })
 })
+
+describe("Store: unread conversations", () => {
+  test("a conversation is unread when an agent wrote in it, and a message of the user alone does not make it unread", () => {
+    const store = memoryStore()
+    const { conversation, session } = directMessage(store)
+
+    store.addUserMessage(conversation.id, "Remember the word kiwi.")
+    expect(store.listUnread()).toEqual([])
+
+    playLive(store, session.id, "resume-1")
+    expect(store.listUnread()).toEqual([conversation.id])
+  })
+
+  test("a conversation that the user read is not unread, until an agent writes after that place", () => {
+    const { before, restart } = restartableStore()
+    const { conversation, session } = directMessage(before)
+    playLive(before, session.id, "resume-1")
+    const last = before.listTimeline(conversation.id).at(-1)?.seq ?? 0
+
+    before.markRead(conversation.id, last)
+    const after = restart()
+    expect(after.listUnread()).toEqual([])
+
+    playLive(
+      after,
+      after.createSession({
+        agentId: session.agentId,
+        conversationId: conversation.id,
+      }).id,
+      "resume-2"
+    )
+    expect(after.listUnread()).toEqual([conversation.id])
+  })
+
+  test("a read of an older place does not make a read conversation unread again", () => {
+    const store = memoryStore()
+    const { conversation, session } = directMessage(store)
+    playLive(store, session.id, "resume-1")
+    const last = store.listTimeline(conversation.id).at(-1)?.seq ?? 0
+
+    store.markRead(conversation.id, last)
+    store.markRead(conversation.id, 0)
+
+    expect(store.listUnread()).toEqual([])
+  })
+})

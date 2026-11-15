@@ -77,6 +77,7 @@ export function createServer({
   const channels = new Map<string, Channel>()
   const appChannel: Channel = { nextId: 1, log: [], clients: new Set() }
   const sentAgentStates = new Map<string, SessionState>()
+  const sentUnread = new Map<string, boolean>()
   const promptCursors = new Map<string, number>()
   const openRequests = new Map<
     string,
@@ -107,6 +108,13 @@ export function createServer({
     channel.log.push(event)
     if (channel.log.length > eventLogSize) channel.log.shift()
     for (const client of channel.clients) writeEvent(client, event)
+  }
+
+  function publishUnread(conversationId: string) {
+    const unread = store.listUnread().includes(conversationId)
+    if (sentUnread.get(conversationId) === unread) return
+    sentUnread.set(conversationId, unread)
+    publishTo(appChannel, { type: "unread", conversationId, unread })
   }
 
   function findLive(agentId: string, conversationId: string) {
@@ -183,6 +191,7 @@ export function createServer({
         event.items,
         session.lastOutSeq
       )
+      if (entries.length > 0) publishUnread(session.conversationId)
       for (const entry of entries) {
         publish(session.conversationId, { type: "item", entry })
         if (entry.item.kind === "message" && entry.item.status === "done") {
@@ -308,6 +317,7 @@ export function createServer({
       },
     ])
     if (entry) publish(session.conversationId, { type: "item", entry })
+    publishUnread(session.conversationId)
   }
 
   function agentState(agentId: string): SessionState {
@@ -425,6 +435,23 @@ export function createServer({
     const route = (method: string, pattern: string) =>
       matchRoute(request.method, parts, method, pattern)
     let params: Record<string, string> | null
+
+    if ((params = route("POST", "api/conversations/:id/read"))) {
+      const conversationId = params.id
+      if (!store.getConversation(conversationId)) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      const body = await readJson(request)
+      if (!Number.isInteger(body.seq)) {
+        return send(response, 400, {
+          error: "Give the seq of the last item that the user saw.",
+        })
+      }
+      store.markRead(conversationId, Number(body.seq))
+      publishUnread(conversationId)
+      response.writeHead(204).end()
+      return
+    }
 
     if ((params = route("POST", "api/conversations/:id/messages"))) {
       const conversationId = params.id
@@ -640,7 +667,10 @@ export function createServer({
     }
 
     if (route("GET", "api/conversations")) {
-      return send(response, 200, { conversations: store.listConversations() })
+      return send(response, 200, {
+        conversations: store.listConversations(),
+        unread: store.listUnread(),
+      })
     }
 
     if (route("POST", "api/conversations")) {

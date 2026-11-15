@@ -91,4 +91,15 @@ export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
         ADD COLUMN joined_seq INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 5,
+    sql: `
+      CREATE TABLE conversation_reads (
+        conversation_id TEXT PRIMARY KEY
+          REFERENCES conversations (id) ON DELETE CASCADE,
+        last_read_seq INTEGER NOT NULL,
+        read_at TEXT NOT NULL
+      );
+    `,
+  },
 ]

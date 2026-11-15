@@ -23,6 +23,14 @@ message box of a group chat or a channel.
 It gives `status`, `conversation`, `agents`, `entries`, and three actions:
 `send(text)`, `answer(requestId, body)` and `stop()`.
 
+## The read of a conversation
+
+`useMarkRead(id, lastSeq)` (`src/hooks/use-mark-read.ts`) sends
+`POST /api/conversations/:id/read` with the `seq` of the last entry. It sends
+it when the page opens or a new entry comes, and when the window gets the
+focus. It sends nothing while `document.hasFocus()` is false, so a
+conversation in a background window stays unread.
+
 ## The DM page
 
 `src/components/conversation/` holds the parts of the timeline:

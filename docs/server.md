@@ -22,27 +22,28 @@ in `server/http/server.ts` does the work, so a test can give it a
 
 ## Routes
 
-| Route                                                  | Body                            | Result                                                                                             |
-| ------------------------------------------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `GET /api/agents`                                      |                                 | `{ agents }`, by name                                                                              |
-| `POST /api/agents`                                     | The agent                       | `201 { agent }`. `400` if a field is empty                                                         |
-| `GET /api/agents/:id`                                  |                                 | `{ agent }`. `404` for an unknown agent                                                            |
-| `PATCH /api/agents/:id`                                | Some fields of the agent        | `{ agent }`. The other fields stay                                                                 |
-| `GET /api/conversations`                               |                                 | `{ conversations }`                                                                                |
-| `POST /api/conversations`                              | A DM, a group chat or a channel | `201 { conversation }`, or `200` with the DM that exists                                           |
-| `GET /api/conversations/:id`                           |                                 | `{ conversation, agents }`, each agent with its `state`                                            |
-| `POST /api/conversations/:id/messages`                 | `{ text }`                      | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation                     |
-| `GET /api/conversations/:id/timeline`                  |                                 | `{ items, lastEventId }`                                                                           |
-| `GET /api/conversations/:id/events`                    |                                 | The event stream (SSE)                                                                             |
-| `GET /api/events`                                      |                                 | The app stream (SSE)                                                                               |
-| `POST /api/conversations/:id/stop`                     |                                 | `202`. Interrupts each busy agent                                                                  |
-| `GET /api/conversations/:id/agents/:agentId/session`   |                                 | `{ session }`, the session card, or `null` before the first process                                |
-| `POST /api/conversations/:id/agents/:agentId/stop`     |                                 | `202`. Interrupts that agent and empties its queue                                                 |
-| `POST /api/conversations/:id/agents/:agentId/sessions` |                                 | `201 { session }`. New session. `404` if the agent is not a member                                 |
-| `POST /api/conversations/:id/members`                  | `{ agentIds }`                  | `{ conversation }`. `400` for a DM. See `docs/conversations.md`                                    |
-| `DELETE /api/conversations/:id/members/:agentId`       |                                 | `{ conversation }`. `400` for a DM or the last agent of a group chat                               |
-| `GET /api/conversations/:id/agents/:agentId/log`       | `?before=<seq>`                 | `{ lines }`: the last 200 stored lines of that agent in that conversation, or the 200 before `seq` |
-| `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                                            |
+| Route                                                  | Body                            | Result                                                                                                           |
+| ------------------------------------------------------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `GET /api/agents`                                      |                                 | `{ agents }`, by name                                                                                            |
+| `POST /api/agents`                                     | The agent                       | `201 { agent }`. `400` if a field is empty                                                                       |
+| `GET /api/agents/:id`                                  |                                 | `{ agent }`. `404` for an unknown agent                                                                          |
+| `PATCH /api/agents/:id`                                | Some fields of the agent        | `{ agent }`. The other fields stay                                                                               |
+| `GET /api/conversations`                               |                                 | `{ conversations, unread }`. `unread` holds the IDs of the unread conversations                                  |
+| `POST /api/conversations`                              | A DM, a group chat or a channel | `201 { conversation }`, or `200` with the DM that exists                                                         |
+| `GET /api/conversations/:id`                           |                                 | `{ conversation, agents }`, each agent with its `state`                                                          |
+| `POST /api/conversations/:id/messages`                 | `{ text }`                      | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation                                   |
+| `POST /api/conversations/:id/read`                     | `{ seq }`                       | `204`. The user saw the conversation up to `seq`. `400` with no integer `seq`. `404` for an unknown conversation |
+| `GET /api/conversations/:id/timeline`                  |                                 | `{ items, lastEventId }`                                                                                         |
+| `GET /api/conversations/:id/events`                    |                                 | The event stream (SSE)                                                                                           |
+| `GET /api/events`                                      |                                 | The app stream (SSE)                                                                                             |
+| `POST /api/conversations/:id/stop`                     |                                 | `202`. Interrupts each busy agent                                                                                |
+| `GET /api/conversations/:id/agents/:agentId/session`   |                                 | `{ session }`, the session card, or `null` before the first process                                              |
+| `POST /api/conversations/:id/agents/:agentId/stop`     |                                 | `202`. Interrupts that agent and empties its queue                                                               |
+| `POST /api/conversations/:id/agents/:agentId/sessions` |                                 | `201 { session }`. New session. `404` if the agent is not a member                                               |
+| `POST /api/conversations/:id/members`                  | `{ agentIds }`                  | `{ conversation }`. `400` for a DM. See `docs/conversations.md`                                                  |
+| `DELETE /api/conversations/:id/members/:agentId`       |                                 | `{ conversation }`. `400` for a DM or the last agent of a group chat                                             |
+| `GET /api/conversations/:id/agents/:agentId/log`       | `?before=<seq>`                 | `{ lines }`: the last 200 stored lines of that agent in that conversation, or the 200 before `seq`               |
+| `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }` | `202`. `404` if the request is not open                                                                          |
 
 An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
 `cwd` would start `claude` in the folder of the server, so the server refuses
@@ -132,10 +133,18 @@ these lines would push the other events out of the log of 500.
 `GET /api/events` is one more stream, for the whole app. It works in the
 same way, with its own counter and log. It sends:
 
-| Event                                     | When                                                   |
-| ----------------------------------------- | ------------------------------------------------------ |
-| `{ type: "agent_state", agentId, state }` | The state of an agent over all its sessions changes    |
-| `{ type: "conversation", conversation }`  | The server makes a conversation, or its members change |
+| Event                                        | When                                                   |
+| -------------------------------------------- | ------------------------------------------------------ |
+| `{ type: "agent_state", agentId, state }`    | The state of an agent over all its sessions changes    |
+| `{ type: "conversation", conversation }`     | The server makes a conversation, or its members change |
+| `{ type: "unread", conversationId, unread }` | A conversation becomes unread, or the user reads it    |
+
+A conversation is unread when an agent item comes after the place that the
+user saw last (`docs/store.md`). The server checks it after it saves the items
+of an agent, after the notice of a failed process, and after a read. It keeps
+the last value that it sent for each conversation, so a turn of many items
+sends one `unread` event. The divider of a new session sends none, because
+the user starts it from the open page.
 
 The state of an agent follows the rule of `GET /api/agents`
 (`docs/conversations.md`). The server sends it before it gives the next

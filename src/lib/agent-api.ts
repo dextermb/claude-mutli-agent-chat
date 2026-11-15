@@ -33,5 +33,6 @@ export type StreamMessage =
   | { type: "item"; entry: TimelineEntry }
   | { type: "agent_state"; agentId: string; state: SessionState }
   | { type: "conversation"; conversation: Conversation }
+  | { type: "unread"; conversationId: string; unread: boolean }
   | { type: "reset" }
   | { type: "line"; agentId: string; line: LogLine }

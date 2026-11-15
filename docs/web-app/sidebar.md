@@ -20,8 +20,15 @@ The sidebar gets its lists from `useWorkspace()` (`src/hooks/use-workspace.ts`).
 The hook opens the app stream (`/api/events`), then loads
 `GET /api/conversations` and `GET /api/agents`. An `agent_state` event
 changes the state of that agent. A `conversation` event adds the
-conversation, or replaces it if the list holds it. A `reset` event loads the
+conversation, or replaces it if the list holds it. An `unread` event adds the
+conversation to the unread IDs, or removes it. A `reset` event loads the
 lists again.
+
+A row is bold when an agent wrote in its conversation after the last visit
+of the user (`docs/server.md`). A screen reader hears "unread" after its
+name: "release-train unread". The row of the open conversation is never
+bold, because the page reads each new item at once
+(`docs/web-app/conversation.md`).
 
 When an agent works or waits, a footer counts them: "2 agents working · 1
 needs approval". With no such agent, the footer is not there.
@@ -55,6 +62,5 @@ server did not answer." when no answer came.
 
 ## Not built yet
 
-- The unread rows of the sidebar in the design.
 - On a narrow screen, the sidebar stays open at its full width. At 375 px,
   the conversation gets about 120 px.
