@@ -30,7 +30,8 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
 - **File sharing** (the boards FileDrop, FileChips and FileInThread): a drop
   zone and chips in the composer, a link by path or by hash to a file in the
   folder of an agent, else a copy to the uploads of the conversation with
-  `--add-dir`, and the shared files of a message in the thread.
+  `--add-dir`, and the shared files of a message in the thread. The plan
+  is written and waits for review: `docs/plans/file-sharing.md`.
 - **People**: other humans, their names and presence, a name in place of
   "You", and people in Start a chat and Add members.
 - **The rail pages** Direct messages and Activity. Their buttons are
