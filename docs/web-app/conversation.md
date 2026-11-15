@@ -128,9 +128,21 @@ alert (`docs/web-app/session-panel.md`).
 
 ## A group chat or a channel
 
-The header shows the name, the topic, "Stop all" while an agent works, and
-the members button (`docs/web-app/session-panel.md`). Each message shows its
-author. The message box of a channel is "Message #<name>".
+The header shows the name, "Stop all" while an agent works, and the members
+button (`docs/web-app/session-panel.md`). Each message shows its author. The
+message box of a channel is "Message #<name>".
+
+The header of a channel also shows its topic, then when the agents reply:
+"Agents reply when you @mention them." or "Agents reply to every message."
+At the end, a ghost icon button "Channel settings" opens
+`src/components/channel-settings-dialog.tsx`, with the title "Channel
+settings" and "#<name>". It has the Topic, Private and reply-mode fields of
+Create a channel (`src/components/channel-fields.tsx`). Save sends only the
+fields that changed to `PATCH /api/conversations/:id`, and closes the dialog.
+With no change, Save closes it with no request. The header, the icon and the
+sidebar follow the `conversation` event of the stream. A refusal shows "The
+server did not save the settings." and the reason, and the dialog stays open.
+A group chat and a DM have no settings.
 
 While an agent works or waits, one line at the end of the thread gives the
 state of each agent: "test-runner is working. reviewer-bot is idle." Over

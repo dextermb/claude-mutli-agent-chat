@@ -44,6 +44,10 @@ The rule starts with a block that the server makes for the conversation:
 These lines follow the rules in `docs/conversations.md`. When those rules
 change, change `environmentPrompt()` and `agent/environment.md` too.
 
+The block tells what was true when the process started. A change to the
+members or to the channel settings does not reach a process that runs. The
+next process of the agent gets the new values.
+
 ## The data flow
 
 ```

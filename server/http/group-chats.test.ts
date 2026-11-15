@@ -30,6 +30,28 @@ async function groupChat(base: string, agentIds: string[]) {
     .conversation
 }
 
+async function channel(base: string, body: Record<string, unknown>) {
+  const response = await postJson(base, "/api/conversations", {
+    kind: "channel",
+    name: "release-train",
+    ...body,
+  })
+  return ((await response.json()) as { conversation: { id: string } })
+    .conversation
+}
+
+async function changeSettings(
+  base: string,
+  conversationId: string,
+  body: unknown
+) {
+  return fetch(`${base}/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
 async function untilTurns(base: string, conversationId: string, count: number) {
   await vi.waitFor(async () => {
     const { items } = await timeline(base, conversationId)
@@ -497,5 +519,104 @@ describe("group chats and channels", () => {
     expect(await again.json()).toEqual({
       error: "A channel with the name release-train exists.",
     })
+  })
+
+  test("a change to the settings of a channel keeps the fields that it does not name, and both streams say so", async () => {
+    const { base } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const created = await channel(base, {
+      topic: "Ship v2.4 on Friday.",
+      agentIds: [runner.id],
+    })
+    const stream = openEvents(base, created.id)
+    const app = openAppEvents(base)
+    await Promise.all([stream.ready, app.ready])
+
+    const response = await changeSettings(base, created.id, {
+      private: true,
+      replyMode: "every",
+    })
+
+    expect(response.status).toBe(200)
+    const { conversation } = (await response.json()) as {
+      conversation: Record<string, unknown>
+    }
+    expect(conversation).toMatchObject({
+      kind: "channel",
+      name: "release-train",
+      topic: "Ship v2.4 on Friday.",
+      private: true,
+      replyMode: "every",
+      members: ["user:me", `agent:${runner.id}`],
+    })
+    await vi.waitFor(() => {
+      expect(stream.events.map(({ data }) => data)).toEqual([
+        { type: "conversation", conversation },
+      ])
+      expect(app.events.map(({ data }) => data)).toEqual([
+        { type: "conversation", conversation },
+      ])
+    })
+  })
+
+  test("a DM and a group chat refuse a change to the settings", async () => {
+    const { base } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const group = await groupChat(base, [runner.id])
+    const dm = await postJson(base, "/api/conversations", {
+      kind: "dm",
+      agentId: runner.id,
+    })
+    const { conversation: direct } = (await dm.json()) as {
+      conversation: { id: string }
+    }
+
+    const toGroup = await changeSettings(base, group.id, { replyMode: "every" })
+    const toDirect = await changeSettings(base, direct.id, { topic: "Tests" })
+
+    for (const response of [toGroup, toDirect]) {
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({
+        error: "Only a channel has settings.",
+      })
+    }
+    expect(
+      await (await fetch(`${base}/api/conversations/${group.id}`)).json()
+    ).toMatchObject({
+      conversation: { replyMode: "mention" },
+    })
+  })
+
+  test("a channel refuses a reply mode that does not exist, and keeps its settings", async () => {
+    const { base } = await startServer()
+    const created = await channel(base, { agentIds: [] })
+
+    const response = await changeSettings(base, created.id, {
+      replyMode: "sometimes",
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: "Pick a reply mode.",
+      fields: { replyMode: "Pick a reply mode." },
+    })
+    expect(
+      await (await fetch(`${base}/api/conversations/${created.id}`)).json()
+    ).toMatchObject({ conversation: { replyMode: "mention" } })
+  })
+
+  test("after a change to every message, each agent gets the next message with no mention", async () => {
+    const { base, startedAgents } = await startServer()
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const created = await channel(base, {
+      agentIds: [reviewer.id, runner.id],
+    })
+
+    await changeSettings(base, created.id, { replyMode: "every" })
+    await sendMessage(base, created.id, "The release branch is cut.")
+    await untilTurns(base, created.id, 2)
+
+    expect([...startedAgents].sort()).toEqual(["reviewer-bot", "test-runner"])
   })
 })

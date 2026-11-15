@@ -15,6 +15,20 @@ turn for a message, and what prompt that agent gets. The routes are in
 
 A group chat is private. A channel is public unless `private: true`.
 
+## Channel settings
+
+`PATCH /api/conversations/:id` changes the topic, the privacy and the reply
+mode of a channel. The server merges the body onto the stored values and
+checks the result with `channelSettingsSchema` (`docs/forms.md`). A DM or a
+group chat answers `400` "Only a channel has settings.", because a group chat
+is always private and always `mention`. The name does not change.
+
+- The server reads the reply mode at each message. So a change applies to the
+  next message of the user, with no restart.
+- The rule of a process that runs keeps the topic and the reply mode of its
+  start (`docs/agent-environment.md`). The agent can read the new values with
+  `read_conversation` (`docs/mcp.md`).
+
 A channel name has lowercase letters, numbers and hyphens only, else the
 server answers `400`. Two channels cannot have the same name: the second one
 gets `409`.

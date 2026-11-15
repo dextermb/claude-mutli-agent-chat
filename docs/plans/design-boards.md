@@ -32,8 +32,6 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
   "You", and people in Start a chat and Add members.
 - **The rail pages** Direct messages and Activity. Their buttons are
   disabled with the tooltip "Not built yet".
-- **Channel settings** (the `more` button of the channel header): a `PATCH`
-  route for the topic, the privacy and the reply mode.
 - **The composer buttons** Attach a file and Run a slash command.
 - **The agent page**: Description, Maximum turns, the Command preview, Browse
   for the working directory, and Stop agent and Restart session at the level
