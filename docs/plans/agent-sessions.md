@@ -1,7 +1,8 @@
 # Headless agent sessions in the web app
 
-**Status:** awaiting go-ahead to build. The measurements are complete. The
-user answered each open question, so each decision below is final.
+**Status:** in progress. Step 1 is done: the fixtures and the findings are in
+`docs/protocol.md`. Steps 2 to 8 are still ahead. Each decision below is
+final.
 
 ## The goal
 
@@ -17,59 +18,10 @@ The screens are the seven artboards of the "Agent Chat" design canvas.
 
 ## What I measured
 
-The multiplexer docs (`~/projects/go/claude-multiplexer/docs`) describe Claude
-Code 2.1.176 to 2.1.231, as seen from Go. This machine runs Claude Code
-**2.1.311**, and the latest TypeScript Agent SDK is **0.3.325** (it bundles
-Claude Code 2.1.325). So I did not copy the multiplexer findings. I ran six
-probes from Node 24 against the installed `claude`, with the Haiku model. The
-probes cost less than 0.02 USD in total.
-
-The probe script and the recorded lines are in the session scratchpad, not in
-the repository. The build records new, cleaned fixtures (see "The build").
-
-The command line of each probe:
-
-```
-claude -p --input-format stream-json --output-format stream-json --verbose
-  --include-partial-messages --replay-user-messages
-  --permission-prompt-tool stdio
-  --strict-mcp-config --setting-sources project
-  --model haiku --permission-mode default [--resume <session_id>]
-```
-
-The probes did not load the user settings. The app loads them (D13), so
-step 1 of the build records the fixtures again with the user settings.
-
-### Findings
-
-| # | Finding | Evidence |
-|---|---|---|
-| F1 | The multiplexer findings about the line protocol still hold: one JSON object for each line, `system/init` after the first input, `assistant`, `user`, `result`, and `stream_event`. | All probes |
-| F2 | With `--permission-prompt-tool stdio`, Claude Code sends a `control_request` with the subtype `can_use_tool` on stdout, and the turn waits for a `control_response` on stdin. The multiplexer does not use this channel. | Probe "tools" |
-| F3 | The request carries `tool_name`, `input`, `tool_use_id`, `description` and `permission_suggestions`. The answer is `{behavior: "allow", updatedInput, updatedPermissions?}` or `{behavior: "deny", message}`. | Probes "tools" and "ask" |
-| F4 | **"Always allow" can grant more than the user sees.** For a `Write`, the only suggestion was `setMode acceptEdits`. After that, a later `rm` ran with no request. | Probe "tools" |
-| F5 | Read-only commands (`echo`, `Read`) need no request in the `default` mode. `Write`, `Edit` and `rm` sent a request. | Probes "tools" and "ask" |
-| F6 | **`AskUserQuestion` also goes through `can_use_tool`.** The host answers with `updatedInput.answers` (question text to label), and the model gets the answer. So the multiplexer interrupt for questions is not necessary with this flag. | Probe "ask" |
-| F7 | Each tool result line carries `tool_use_result`, a structured result. `Read` gives `numLines`. `Edit` gives `structuredPatch` (hunks with `+` and `-` lines). `Write` gives `type: "create"`. `Bash` gives `stdout`, `stderr` and `interrupted`. | Probes "tools" and "ask" |
-| F8 | Each tool result line carries `tool_result_meta[].permission_decision`: `accept` or `reject`, and the source (`config`, `user_temporary`, `user_reject`). | Probes "tools" and "ask" |
-| F9 | A denied call returns a `tool_result` with `is_error: true` and the deny message. The `result` line lists it in `permission_denials`. | Probe "ask" |
-| F10 | The `interrupt` control request works. The response is `{still_queued: []}`. The turn ends with `result` subtype `error_during_execution`, `is_error: true` and `terminal_reason: "aborted_streaming"`. The process stays alive. | Probe "interrupt2" |
-| F11 | **A turn can start with no prompt.** Claude Code moved a `sleep 30` into a background job. When the job completed, it ran a new turn (`init`, `assistant`, `result`) by itself. | Probe "interrupt" |
-| F12 | `--resume <session_id>` in a new process keeps the memory and the session ID. It does not write the old messages to stdout again. | Probe "resume" |
-| F13 | The transcript of Claude Code (`~/.claude/projects/<dir>/<id>.jsonl`) has a different, internal shape (`api-request`, `attachment`, `queue-operation`). It is not the stream-json shape. | Probe "resume" |
-| F14 | Text arrives in small pieces: 70 `text_delta` pieces of 8 characters on average, in 1.4 s. The multiplexer measured 150 characters for each piece on an older version. | Probe "interrupt2" |
-| F15 | Claude Code sends `system/init` again at the start of each turn, not only once. | Probe "ask" |
-| F16 | With `--replay-user-messages`, Claude Code also writes back each `control_response` that the host sent. | Probes "tools" and "ask" |
-| F17 | The stream has many line types that the multiplexer does not list: `system/status`, `system/thinking_tokens`, `system/background_tasks_changed`, `rate_limit_event`. The SDK type `SDKMessage` is a union of 40 shapes. | All probes, `sdk.d.ts` |
-| F18 | `total_cost_usd` on a `result` counts from the start of the process. A resumed process starts again from zero. | Probes "ask" and "resume" |
-| F19 | The Agent SDK package is 5.4 MB, and its macOS binary package is 347 MB. It can run the installed `claude` with `pathToClaudeCodeExecutable`. | `npm view` |
-| F20 | **A `can_use_tool` request has no time limit.** The probe answered after 12 minutes. The turn then continued and completed. | Probe "wait" |
-
-### Not measured
-
-- The turns of a subagent (`parent_tool_use_id`). The multiplexer describes
-  them. I did not measure them again.
-- Two sessions that write to the same folder at the same time.
+The findings (F1 to F24), the command line and the fixtures are in
+[docs/protocol.md](../protocol.md). The multiplexer docs
+(`~/projects/go/claude-multiplexer/docs`) describe an older Claude Code, so
+each finding there comes from a measurement against Claude Code 2.1.311.
 
 ## Decisions
 
@@ -116,9 +68,11 @@ context of one conversation does not go into another.
 | Allow once | `{behavior: "allow", updatedInput: input}` |
 | Always allow | `{behavior: "allow", updatedInput: input, updatedPermissions: suggestions}` |
 
-Because of F4, the "Always allow" button shows what each suggestion grants,
-for example "Lets this agent edit files with no request until the session
-ends". If there is no suggestion, the button does not show.
+Because of F4 and F21, the "Always allow" button shows what each suggestion
+grants, for example "Lets this agent edit files with no request until the
+session ends". A suggestion with the destination `localSettings` writes a rule
+into the agent's folder, so the button says that the rule stays. If there is
+no suggestion, the button does not show.
 
 **D8. Questions go through `can_use_tool` too (F6).** The question card sends
 `updatedInput.answers`. The turn continues, and there is no interrupt.
@@ -374,8 +328,8 @@ Each step is a vertical slice with tests first. The seams:
 
 The order:
 
-1. Record the fixtures again with a probe script in `scripts/`. Remove the
-   paths of this machine.
+1. Done. Record the fixtures again with a probe script in `scripts/`. Remove
+   the paths of this machine.
 2. `server/protocol`: the decoder and the encoder.
 3. `server/timeline`: the reducer.
 4. `server/session`: `AgentSession` and the fake `claude`.
