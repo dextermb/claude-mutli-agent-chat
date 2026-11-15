@@ -32,7 +32,9 @@ manager is pnpm.
 - `docs/store.md`: the SQLite tables and the queries.
 - `docs/server.md`: the routes and the event stream of the agent server.
 - `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.
-- `docs/web-app.md`: the pages, the conversation hook and the DM parts.
+- `docs/web-app.md`: the pages of the web app. It is the index of
+  `docs/web-app/`: the conversation, the session panel, the sidebar and the
+  agent page.
 - `docs/forms.md`: the two forms, the shared Zod schema in
   `server/schemas.ts`, and the shape of a refused body.
 

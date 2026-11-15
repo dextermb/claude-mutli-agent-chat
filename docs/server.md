@@ -200,5 +200,3 @@ For each agent with `autostart` that has a DM, it starts the process of that
 DM with no prompt. It costs nothing (F25), but the `SessionStart` hooks of
 the user run (F23). An agent with no DM does not start, and the server does
 not make a DM for it.
-
-## Not handled yet

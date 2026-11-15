@@ -102,5 +102,8 @@ the request cannot get an answer. The next prompt resumes the session.
   until the user clicks Stop. The header shows the busy agents.
 - **User hooks run in each agent.** A slow or failing user hook makes each
   agent slow or makes it fail.
+- **Two agents in one folder.** Two agents with the same `cwd` can edit the
+  same files at the same time. The app does not warn. The user chooses the
+  folder of each agent.
 - **The prompt cache.** A request that waits for more than one hour loses the
   cache, so the next call costs more.
