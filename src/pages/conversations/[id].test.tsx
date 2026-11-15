@@ -548,6 +548,67 @@ describe("the DM page", () => {
     )
   })
 
+  test("while an agent works, a line at the end of the thread says so", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(localTime(15, 14, 3)))
+    openConversation([userMessage], "busy")
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "test-runner is working"
+    )
+  })
+
+  test("the working line names the tool call that runs, and then says when the agent writes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(localTime(15, 14, 3)))
+    openConversation([userMessage, pushCall], "busy")
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "test-runner is running Bash git push origin release-train"
+    )
+    const piece = {
+      ...agentMessage,
+      id: "s1/item-9",
+      item: { ...agentMessage.item, text: "I pushed", status: "streaming" },
+    } as TimelineEntry
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "item", entry: piece })
+    )
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "test-runner is writing"
+    )
+  })
+
+  test("a tool call that runs shows that it runs, and a finished call does not", async () => {
+    openConversation([userMessage, bashCall, pushCall], "busy")
+
+    const push = await screen.findByRole("region", {
+      name: "Bash git push origin release-train",
+    })
+    expect(
+      within(push).getByRole("img", { name: "Running" })
+    ).toBeInTheDocument()
+    const done = screen.getByRole("region", { name: "Bash echo hello" })
+    expect(
+      within(done).queryByRole("img", { name: "Running" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("after 3 seconds, the working line shows the time since the message of the user", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] })
+    vi.setSystemTime(new Date(localTime(15, 14, 3)).getTime() + 2_000)
+    openConversation([userMessage], "busy")
+
+    const line = await screen.findByRole("status")
+    expect(line).toHaveTextContent(/^test-runner is working$/)
+    act(() => vi.advanceTimersByTime(10_000))
+    expect(line).toHaveTextContent("test-runner is working · 12 s")
+    act(() => vi.advanceTimersByTime(140_000))
+    expect(line).toHaveTextContent("test-runner is working · 2 min 32 s")
+  })
+
   test("shows each tool call with its main input and its result", async () => {
     openConversation([userMessage, readCall, editCall, bashCall, deniedCall])
 
@@ -1164,7 +1225,7 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
-  test("a channel shows its topic, each agent with its status, and the author of each message", async () => {
+  test("a channel shows its topic, a working line for each agent that works, and the author of each message", async () => {
     network.on("GET", "/api/conversations", {
       conversations: [releaseChannel, squadGroup, directMessage],
     })
@@ -1201,9 +1262,10 @@ describe("the DM page", () => {
       header.getByRole("button", { name: "Members: 1 person, 2 agents" })
     ).toBeInTheDocument()
     expect(header.getByRole("button", { name: "Stop all" })).toBeInTheDocument()
-    expect(
-      screen.getByText("test-runner is working. reviewer-bot is idle.")
-    ).toBeInTheDocument()
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "test-runner is working"
+    )
+    expect(screen.queryByText(/reviewer-bot is idle/)).not.toBeInTheDocument()
     const messages = screen.getAllByRole("article")
     expect(within(messages[1]).getByText("reviewer-bot")).toBeInTheDocument()
     expect(within(messages[2]).getByText("test-runner")).toBeInTheDocument()
