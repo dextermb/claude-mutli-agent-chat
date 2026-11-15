@@ -13,15 +13,34 @@ export function SessionLogTab({
   conversationId: string
   agentId: string
 }) {
-  const { lines, more, loadEarlier } = useSessionLog(conversationId, agentId)
+  const { lines, more, live, loadEarlier } = useSessionLog(
+    conversationId,
+    agentId
+  )
   return (
     <div className="flex flex-col gap-3 px-5 py-4">
-      <p className="m-0 text-[13px] text-muted-foreground">
-        Each line that the app wrote to the process (
-        <code className="font-mono text-agent-yellow">in</code>) or read from it
-        (<code className="font-mono text-agent-blue">out</code>). Select a line
-        to see its JSON.
-      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p className="m-0 min-w-60 flex-1 text-[13px] text-muted-foreground">
+          Each line that the app wrote to the process (
+          <code className="font-mono text-agent-yellow">in</code>) or read from
+          it (<code className="font-mono text-agent-blue">out</code>). Select a
+          line to see its JSON.
+        </p>
+        <p
+          role="status"
+          aria-label="Stream"
+          className="m-0 inline-flex items-center gap-1.5 text-xs text-foreground-faint"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "size-2 rounded-full",
+              live ? "bg-status-online" : "bg-status-idle"
+            )}
+          />
+          {live ? "Live" : "Connecting"}
+        </p>
+      </div>
       {more && (
         <Button
           variant="outline"

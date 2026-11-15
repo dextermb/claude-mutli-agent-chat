@@ -83,4 +83,7 @@ it.
   summary such as `system/init` or `control_request can_use_tool`. A click opens the full JSON. A row marks
   the start of each process. `useSessionLog()` opens its own stream for the
   live `line` events, then loads the last 200 lines. "Load earlier lines"
-  loads the page before them.
+  loads the page before them. A status next to the line over the log, named
+  "Stream", says "Live" with a green dot while that stream is open, and
+  "Connecting" with a grey dot before it opens and while the browser
+  connects it again (`live` of the hook: the route of the open stream, set by `onopen` and cleared by `onerror`).
