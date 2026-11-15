@@ -241,4 +241,32 @@ describe("group chats and channels", () => {
       { name: "test-runner", state: "busy" },
     ])
   })
+
+  test("a channel name with other characters than lowercase letters, numbers and hyphens is refused", async () => {
+    const { base } = await startServer()
+
+    const response = await postJson(base, "/api/conversations", {
+      kind: "channel",
+      name: "Release Train",
+      agentIds: [],
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: "Use only lowercase letters, numbers and hyphens in a channel name.",
+    })
+  })
+
+  test("a second channel with the name of a channel that exists is refused", async () => {
+    const { base } = await startServer()
+    const channel = { kind: "channel", name: "release-train", agentIds: [] }
+    await postJson(base, "/api/conversations", channel)
+
+    const again = await postJson(base, "/api/conversations", channel)
+
+    expect(again.status).toBe(409)
+    expect(await again.json()).toEqual({
+      error: "A channel with the name release-train exists.",
+    })
+  })
 })

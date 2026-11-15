@@ -15,6 +15,10 @@ turn for a message, and what prompt that agent gets. The routes are in
 
 A group chat is private. A channel is public unless `private: true`.
 
+A channel name has lowercase letters, numbers and hyphens only, else the
+server answers `400`. Two channels cannot have the same name: the second one
+gets `409`.
+
 ## Who gets a turn
 
 For a message of the user:
@@ -70,7 +74,6 @@ most urgent state of its live sessions, in this order: `waiting`, `busy`,
 
 ## Not built yet
 
-- A page to create a group chat or a channel. The routes exist.
 - Add or remove the members of a conversation.
 - The sidebar loads the agent states once. It does not follow the event
   stream.

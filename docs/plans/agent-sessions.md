@@ -14,8 +14,7 @@ agreed for a build yet.
   above a divider.
 - **The session card.** Model, permission mode, folder, Claude session ID,
   turns and cost of the session, with Stop turn and New session.
-- **Start a chat and Create a channel.** The two pages of the design. The
-  routes exist (`docs/conversations.md`). Add and remove members.
+- **Members.** Add and remove the members of a conversation.
 - **The Files and Session log tabs** of the DM header.
 - **The time of each message.**
 - **Live status in the sidebar.** It loads the agent states once.

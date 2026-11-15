@@ -51,7 +51,7 @@ export function ToolRules({
                     onChange(rules.filter((item) => item !== rule))
                   }
                 >
-                  <XIcon />
+                  <XIcon className="size-3" />
                 </button>
               </Badge>
             </li>
