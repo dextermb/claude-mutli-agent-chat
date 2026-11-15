@@ -109,3 +109,7 @@ with `reason: "rate_limit"`, the `status`, the `rateLimitType` (for example
 the status differs from the status of the last `rate_limit` line, so a run of
 the same status gives one notice. The browser makes the text, because only
 the browser knows the local time zone.
+
+The server adds the other kind of notice, `reason: "failed"`, when a process
+fails (`docs/server.md`). It holds the `exitCode` and the `stderr`. The
+reducer never adds it.

@@ -38,6 +38,7 @@ type LiveSession = {
   state: SessionState
   queue: string[]
   lastOutSeq: number
+  exit: { code: number | null; stderr: string } | null
 }
 
 type StreamEvent = { id: number; data: string }
@@ -122,6 +123,7 @@ export function createServer({ store, startSession }: ServerOptions) {
       state: "starting",
       queue: [],
       lastOutSeq: 0,
+      exit: null,
     }
     live.set(session.id, session)
     session.handle = startSession({
@@ -165,6 +167,14 @@ export function createServer({ store, startSession }: ServerOptions) {
         }
       }
     }
+    if (event.type === "exit") {
+      session.exit = { code: event.code, stderr: event.stderr }
+      store.updateSession(session.id, {
+        endedAt: new Date().toISOString(),
+        exitCode: event.code,
+        stderr: event.stderr === "" ? null : event.stderr,
+      })
+    }
     if (event.type === "claude_session") {
       store.updateSession(session.id, {
         claudeSessionId: event.claudeSessionId,
@@ -179,10 +189,25 @@ export function createServer({ store, startSession }: ServerOptions) {
         state: event.state,
       })
       if (event.state === "idle") deliverNext(session)
+      if (event.state === "failed") addFailedNotice(session)
       if (event.state === "exited" || event.state === "failed") {
         live.delete(session.id)
       }
     }
+  }
+
+  function addFailedNotice(session: LiveSession) {
+    const [entry] = store.saveItems(session.id, [
+      {
+        kind: "notice",
+        id: "exit",
+        reason: "failed",
+        status: "failed",
+        exitCode: session.exit?.code ?? null,
+        stderr: session.exit?.stderr ?? "",
+      },
+    ])
+    if (entry) publish(session.conversationId, { type: "item", entry })
   }
 
   function agentState(agentId: string): SessionState {

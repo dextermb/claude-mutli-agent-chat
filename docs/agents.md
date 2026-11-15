@@ -48,7 +48,8 @@ prompt()                     -> busy
 permission_request           -> waiting   (a permission or a question, one at a time: F26)
 echo of the answer           -> busy
 result                       -> idle      (also after an interrupt)
-exit with code 0             -> exited    (for example after stop())
+exit after stop()            -> exited    (also after a signal)
+exit with code 0             -> exited
 exit with another code       -> failed
 ```
 
@@ -65,9 +66,21 @@ interrupt. It does not write to the closed stdin of the process.
 | `{ type: "line", direction, text }`           | Each line that the session writes (`in`) or reads (`out`)         |
 | `{ type: "changes", items }`                  | A stdout line adds or changes timeline items (`docs/timeline.md`) |
 | `{ type: "claude_session", claudeSessionId }` | `system/init` gives the Claude session ID                         |
+| `{ type: "exit", code, signal, stderr }`      | The process ended. It comes before the last `state` event         |
 
 The `line` events go to `session_events` without a change, also a line that
 is not JSON. So the timeline can be built again from the stored lines.
+
+### Stop and stderr
+
+`stop()` closes stdin and waits for the exit. After `stopTimeoutMs` (default
+5000), it sends `SIGTERM`. After `stopTimeoutMs` again, it sends `SIGKILL`.
+So a process that does not stop delays the shutdown of the server by 10 s at
+most.
+
+The session reads stderr all the time, so a process that writes much to
+stderr cannot block on a full pipe. It keeps the last 4 KB for the `exit`
+event. The event comes on `close`, not on `exit`, so it holds the last bytes.
 
 `system/init` comes only after the first prompt, and again at the start of
 each turn (F15). Store the Claude session ID from the first one, so that the
@@ -85,20 +98,18 @@ The tests start it in place of `claude`:
 
 `FAKE_CLAUDE_FIXTURE` names the fixture. `FAKE_CLAUDE_MODE` selects a mode:
 
-| Mode       | At the first prompt, the fake …                                     |
-| ---------- | ------------------------------------------------------------------- |
-| `play`     | plays the fixture                                                   |
-| `crash`    | exits with code 1                                                   |
-| `not-json` | writes a line that is not JSON, then plays the fixture              |
-| `env`      | writes the names of its `CLAUDE*` variables, then plays the fixture |
+| Mode       | At the first prompt, the fake …                                                           |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `play`     | plays the fixture                                                                         |
+| `crash`    | writes `fake claude (crash): crash on the first prompt` to stderr, then exits with code 1 |
+| `not-json` | writes a line that is not JSON, then plays the fixture                                    |
+| `env`      | writes the names of its `CLAUDE*` variables, then plays the fixture                       |
+| `hang`     | plays the fixture, but ignores the end of stdin and `SIGTERM`                             |
 
 With `FAKE_CLAUDE_REPLY`, the fake replaces the text of each reply with that
 text, and leaves out the text pieces.
 
 ## Not handled yet
 
-- `stop()` closes stdin and waits. It does not kill a process that does not
-  stop.
-- A `failed` session does not keep the stderr of the process.
 - `--max-turns` is not on the command line, because the help of 2.1.311 does
   not list it.

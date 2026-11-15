@@ -18,7 +18,7 @@ export async function runCleanups() {
 
 export type Members = { agent: Agent; conversation: Conversation }
 
-export type FakeAgent = { fixture?: string; reply?: string }
+export type FakeAgent = { fixture?: string; reply?: string; mode?: string }
 
 export async function startServer(
   fixture = "resume-1",
@@ -42,7 +42,7 @@ export async function startServer(
       env: {
         ...process.env,
         FAKE_CLAUDE_FIXTURE: fake.fixture ?? fixture,
-        FAKE_CLAUDE_MODE: "play",
+        FAKE_CLAUDE_MODE: fake.mode ?? "play",
         ...(fake.reply === undefined ? {} : { FAKE_CLAUDE_REPLY: fake.reply }),
       },
       onEvent: (event) => {

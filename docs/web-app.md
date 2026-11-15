@@ -74,6 +74,9 @@ The card of an `Agent` call names the task of the subagent (its
 a button such as "3 tool calls". The list opens by itself while one of those
 calls waits for an approval, so the approval card is always visible.
 
+A failed process shows one line: "test-runner stopped with an error (exit code
+1)." "Show details" opens the stderr of the process.
+
 A rate-limit notice is one line with a warning icon: "The five-hour rate
 limit is reached. It resets at 14:00." A limit that is near, but not reached,
 says "near". A reset on a later day names the day: "It resets on Tuesday 17

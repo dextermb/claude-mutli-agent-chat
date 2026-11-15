@@ -70,14 +70,23 @@ export type TurnItem = {
   numTurns: number
 }
 
-export type NoticeItem = {
-  kind: "notice"
-  id: string
-  reason: "rate_limit"
-  status: string
-  rateLimitType: string
-  resetsAt: number
-}
+export type NoticeItem =
+  | {
+      kind: "notice"
+      id: string
+      reason: "rate_limit"
+      status: string
+      rateLimitType: string
+      resetsAt: number
+    }
+  | {
+      kind: "notice"
+      id: string
+      reason: "failed"
+      status: "failed"
+      exitCode: number | null
+      stderr: string
+    }
 
 export type TimelineItem =
   | ToolCallItem

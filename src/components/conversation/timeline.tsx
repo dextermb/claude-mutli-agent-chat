@@ -1,5 +1,5 @@
 import { TriangleAlertIcon } from "lucide-react"
-import { Fragment } from "react"
+import { Fragment, useState } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -166,7 +166,16 @@ function EntryBody({
       </p>
     )
   }
-  if (item.kind === "notice") {
+  if (item.kind === "notice" && item.reason === "failed") {
+    return (
+      <FailedNotice
+        agentName={agent?.name ?? "The agent"}
+        exitCode={item.exitCode}
+        stderr={item.stderr}
+      />
+    )
+  }
+  if (item.kind === "notice" && item.reason === "rate_limit") {
     const limit = item.rateLimitType.replaceAll("_", "-")
     const resetsAt = new Date(item.resetsAt * 1000).toISOString()
     const resets =
@@ -200,6 +209,43 @@ function EntryBody({
     )
   }
   return null
+}
+
+function FailedNotice({
+  agentName,
+  exitCode,
+  stderr,
+}: {
+  agentName: string
+  exitCode: number | null
+  stderr: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="flex flex-col gap-1.5 text-[13px] text-status-error">
+      <p className="m-0 flex items-center gap-2">
+        <TriangleAlertIcon aria-hidden="true" className="size-4 flex-none" />
+        {exitCode === null
+          ? `${agentName} stopped with an error.`
+          : `${agentName} stopped with an error (exit code ${exitCode}).`}
+        {stderr !== "" && (
+          <button
+            type="button"
+            aria-expanded={open}
+            className="text-muted-foreground underline hover:text-foreground"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? "Hide details" : "Show details"}
+          </button>
+        )}
+      </p>
+      {open && (
+        <pre className="m-0 max-w-[640px] overflow-x-auto rounded-[14px] border bg-rail px-3 py-2 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
+          {stderr}
+        </pre>
+      )}
+    </div>
+  )
 }
 
 function subagentCallsByParent(

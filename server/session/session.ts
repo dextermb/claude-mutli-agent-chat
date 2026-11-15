@@ -24,6 +24,12 @@ export type SessionEvent =
   | { type: "claude_session"; claudeSessionId: string }
   | { type: "changes"; items: TimelineItem[] }
   | { type: "line"; direction: "in" | "out"; text: string }
+  | {
+      type: "exit"
+      code: number | null
+      signal: NodeJS.Signals | null
+      stderr: string
+    }
 
 export type SessionOptions = {
   command: string
@@ -31,9 +37,12 @@ export type SessionOptions = {
   cwd: string
   env: NodeJS.ProcessEnv
   onEvent: (event: SessionEvent) => void
+  stopTimeoutMs?: number
 }
 
 const INITIALIZE_REQUEST = "initialize-1"
+const STOP_TIMEOUT_MS = 5000
+const STDERR_BYTES = 4096
 
 export class AgentSession {
   private readonly options: SessionOptions
@@ -42,6 +51,8 @@ export class AgentSession {
   private state: SessionState | null = null
   private timeline: TimelineState = emptyTimeline()
   private interrupts = 0
+  private stopping = false
+  private stderr = ""
 
   constructor(options: SessionOptions) {
     this.options = options
@@ -54,11 +65,21 @@ export class AgentSession {
     })
     this.child = child
     this.exited = new Promise((resolve) =>
-      child.on("exit", (code) => {
-        this.setState(code === 0 ? "exited" : "failed")
+      child.on("close", (code, signal) => {
+        this.options.onEvent({
+          type: "exit",
+          code,
+          signal,
+          stderr: this.stderr,
+        })
+        this.setState(code === 0 || this.stopping ? "exited" : "failed")
         resolve()
       })
     )
+    child.stderr.setEncoding("utf8")
+    child.stderr.on("data", (text: string) => {
+      this.stderr = (this.stderr + text).slice(-STDERR_BYTES)
+    })
     createInterface({ input: child.stdout }).on("line", (text) => {
       this.options.onEvent({ type: "line", direction: "out", text })
       this.read(decodeLine(text))
@@ -81,7 +102,15 @@ export class AgentSession {
   }
 
   async stop() {
-    this.child?.stdin.end()
+    const child = this.child
+    if (!child || this.ended()) return
+    this.stopping = true
+    child.stdin.end()
+    const timeout = this.options.stopTimeoutMs ?? STOP_TIMEOUT_MS
+    for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+      if (await exitsWithin(this.exited, timeout)) return
+      child.kill(signal)
+    }
     await this.exited
   }
 
@@ -121,6 +150,19 @@ export class AgentSession {
     this.state = state
     this.options.onEvent({ type: "state", state })
   }
+}
+
+async function exitsWithin(
+  exited: Promise<void>,
+  timeoutMs: number
+): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined
+  const timedOut = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), timeoutMs)
+  })
+  const result = await Promise.race([exited.then(() => true), timedOut])
+  clearTimeout(timer)
+  return result
 }
 
 function isInitializeAnswer(raw: Record<string, unknown>): boolean {

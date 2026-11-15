@@ -1,10 +1,10 @@
 # The outstanding work of the agent chat app
 
 **Status:** in progress. The user agreed the plan, the order and the seams
-on 2026-11-15. Steps 1 and 2 are built, and their result is in `docs/*.md`.
-Step 3 is next. Nothing below is
-built. The decisions stand as written. Each open question at the end keeps
-the decision of its step as the default, until the user answers it.
+on 2026-11-15. Steps 1 to 3 are built, and their result is in `docs/*.md`.
+Step 4 is next. Nothing below is built. The decisions stand as written. Each
+open question at the end keeps the decision of its step as the default,
+until the user answers it.
 
 ## The steps
 
@@ -15,7 +15,7 @@ merges into `master` before the next step starts.
 | ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------ |
 | 1    | Small fixes and message times  | Built                                                                                                  | none         |
 | 2    | The stream                     | Built                                                                                                  | none         |
-| 3    | The process                    | Kill a process that does not stop, keep and show stderr                                                | migration v2 |
+| 3    | The process                    | Built                                                                                                  | migration v2 |
 | 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                                          | none         |
 | 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart                     | migration v3 |
 | 6    | Members                        | Add and remove the members of a conversation                                                           | migration v4 |
@@ -45,14 +45,10 @@ These facts shape the plan. They are not in the docs yet.
 
 ## Schema changes
 
-The store makes each table with `CREATE TABLE IF NOT EXISTS`. That does not
-add a column to a table that exists. So step 3 adds a migration loop.
-
-**Decision: `PRAGMA user_version` and a list of migrations.** The schema of
-today is version 1. `openStore()` reads `user_version`, runs each later
-migration in one transaction, then sets `user_version`. A new database runs
-the full list. Rejected: a check of `PRAGMA table_info` for each column,
-because it grows with each column and cannot run data changes.
+Step 3 built the migration loop and version 2 (`docs/store.md`). Steps 5
+and 6 add versions 3 and 4 to `MIGRATIONS`. Rejected for the loop: a check
+of `PRAGMA table_info` for each column, because it grows with each column
+and cannot run data changes.
 
 ```
 agents                                conversations
@@ -84,33 +80,24 @@ agent_sessions                                    1:N CASCADE from conversations
 | claude_session_id          |
 | state                      |
 | started_at                 |
-| ended_at          NEW (v2) |
-| exit_code         NEW (v2) |
-| stderr            NEW (v2) |
+| ended_at          (v2)     |
+| exit_code         (v2)     |
+| stderr            (v2)     |
 | config            NEW (v3) |
 +------+---------------+-----+
        | 1:N CASCADE   | 1:N  ON DELETE SET NULL
        v               v
 session_events     timeline_items
-(no change)        (no new column, two new kinds:
-                    session_start and notice)
+(no change)        (no new column, a new kind:
+                    session_start)
 ```
 
-- `agent_sessions.ended_at` (TEXT, null while the process runs): the time of
-  the exit.
-- `agent_sessions.exit_code` (INTEGER, null): the exit code, or null after a
-  signal.
-- `agent_sessions.stderr` (TEXT, null): the last 4 KB of stderr.
 - `agent_sessions.config` (TEXT, JSON, null for the rows before v3): the
   model, permission mode, folder, tool lists and system prompt that the
   process started with.
 - `conversation_members.joined_seq` (INTEGER NOT NULL DEFAULT 0): the `seq`
   when the member joined. The prompt of a new member starts after it.
-- `timeline_items.kind` gets two values. `session_start` is the divider of
-  New session. `notice` is a rate-limit notice or a failed process.
-
-Migration v2 also runs `rebuildTimeline()` for each session, so the stored
-turn items get the per-turn cost that step 1 added to the reducer. See Q1.
+- `timeline_items.kind` gets `session_start`, the divider of New session.
 
 ## The new routes and events
 
@@ -129,65 +116,6 @@ turn items get the per-turn cost that step 1 added to the reducer. See Q1.
 | `{ type: "reset" }`                       | both   | 4    | The browser asks for an event that is gone   |
 | `{ type: "agent_state", agentId, state }` | app    | 4    | The state of an agent (all its sessions)     |
 | `{ type: "conversation", conversation }`  | both   | 4, 6 | A conversation is made or its members change |
-
----
-
-## Step 3: The process
-
-### 3.1 Kill a process that does not stop
-
-**Decisions:**
-
-- `stop()` closes stdin and waits. After `stopTimeoutMs` (default 5000), it
-  sends `SIGTERM`. After `stopTimeoutMs` again, it sends `SIGKILL`.
-- An exit after `stop()` is `exited`, also after a signal, because the server
-  asked for it. An exit that the server did not ask for keeps the current
-  rule: code 0 is `exited`, any other exit is `failed`.
-- `server.close()` already awaits `stop()` of each session, so a hung process
-  can delay the shutdown by 10 s at most.
-
-**Seam:** `AgentSession` with a new fake mode, `hang`, which ignores the end
-of stdin and `SIGTERM`. A test gives `stopTimeoutMs: 50`, calls `stop()`, and
-expects the promise to resolve with the state `exited`.
-
-### 3.2 Keep the stderr of a failed process, and show it
-
-**Decisions:**
-
-- `AgentSession` keeps the last 4 KB of stderr in memory. On exit it sends a
-  new event: `{ type: "exit", code, signal, stderr }`.
-- The server writes `ended_at`, `exit_code` and `stderr` to the session row
-  (migration v2).
-- When the state is `failed`, the server adds a `notice` item with the tone
-  `error`: "test-runner stopped with an error (exit code 1)." The `detail`
-  holds the stderr. The item ID is `<session id>/exit`.
-- The notice shows the first line of `detail`, with "Show details" to open
-  the rest in a `<pre>`.
-- The stderr is never sent to an agent in a prompt.
-
-Warning: stderr can hold a secret, for example a token in an error message
-of a hook. The server keeps it only in the local database and the local
-browser. It is not sent to any other service.
-
-**Data flow:** child stderr → `AgentSession` buffer → `exit` event → server →
-`updateSession({ endedAt, exitCode, stderr })` and `saveItems()` with the
-notice → `item` event → `Timeline`.
-
-**Seams:**
-
-- `AgentSession`: the fake mode `crash` also writes `FAKE_CLAUDE_STDERR` to
-  stderr. A test expects the `exit` event with code 1 and that text.
-- `createServer()`: a crash adds a notice with that text, and the session row
-  keeps it.
-- `Store`: `openStore()` of a file with `user_version` 1 adds the v2 columns
-  and keeps the rows. The test writes the version 1 schema as a literal.
-- The DM page: a notice shows its text, and "Show details" shows the stderr.
-
-### Docs when step 3 lands
-
-`docs/agents.md` (stop, stderr, the `exit` event, the `hang` mode),
-`docs/store.md` (migrations, new columns, "Not stored yet"),
-`docs/web-app.md` (the notice).
 
 ---
 
@@ -530,11 +458,12 @@ Schema), and whether the browser and the server share one schema.
   The three recordings of step 2 cost 0.0209 USD in total. The live check
   of step 5 (about 0.02 USD) is still ahead.
 
+- **Q1 (2026-11-15).** Step 3 shipped migration v2 with a rebuild of each
+  stored timeline, as the plan proposed. The user can still ask for a
+  change.
+
 ## Open questions
 
-- **Q1.** Migration v2 rebuilds each stored timeline, so old turn items get
-  the correct cost. Is a rebuild of the whole database at the first start
-  acceptable? The alternative: keep the old costs as they are.
 - **Q3.** Hide the text messages of a subagent, and show only its tool
   calls? Or show its text inside the card too?
 - **Q4.** The rate-limit notice uses status names from the SDK types, not
