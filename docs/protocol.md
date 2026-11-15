@@ -107,6 +107,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F29 | **`--session-id <uuid>` starts a session with that ID.** The process answers `initialize`, and the `system/init` of the first turn gives the same ID. | Probe, live check |
 | F30 | **A session ID has no transcript until its first turn.** `--resume` of an ID that has had no turn writes `result/error_during_execution`, prints "No conversation found with session ID: …" to stderr, and exits with code 1, with no answer to `initialize`. `--session-id` of the same ID works again. | Probe |
 | F31 | **`--session-id` refuses an ID that has a transcript.** It prints "Error: Session ID … is already in use." and exits with code 1 before `initialize`. `--resume` of that ID works. | Probe |
+| F32 | **Claude Code sends only the tool calls of a subagent.** A subagent that writes text, and then a `Read` call, gives one `assistant` line with `parent_tool_use_id` that holds the `tool_use` block only. Its text and its last answer are in its transcript, but not on stdout, and it sends no `stream_event` line. Its last answer reaches the main agent in the `tool_result` of the `Agent` call. Measured with 2.1.311. | `subagent-text` |
 
 ## The decoder and the encoders
 
@@ -150,6 +151,7 @@ to stdout.
 | `resume-1.jsonl`, `resume-2.jsonl` | A first process, and a second process with `--resume` |
 | `background.jsonl` | A background `Bash` job, and the turn that it starts with no prompt |
 | `subagent.jsonl` | An `Agent` call and the lines of the subagent |
+| `subagent-text.jsonl` | An `Agent` call whose subagent writes text before its `Read` call (F32) |
 | `interrupt-tool.jsonl` | A `Bash` call of `ping -c 30 127.0.0.1`, interrupted 3 s after the `tool_use` line |
 | `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
 
