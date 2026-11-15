@@ -24,6 +24,7 @@ adds the rest:
 | `systemPrompt`     | `--append-system-prompt <rule>\n\n<prompt>`, or the rule only        |
 | `claudeSessionId`  | `--resume <id>`, if the session has one                              |
 | `claudeSessionNew` | With a Claude session ID: `--session-id <id>` in place of `--resume` |
+| `maxTurns`         | `--max-turns <n>`, if the agent has a limit (F36)                    |
 
 `claudeSessionNew` is true for an ID that the server chose and that has had
 no turn yet. Before the first turn, `--resume` of that ID fails (F30). After
@@ -123,8 +124,3 @@ The tests start it in place of `claude`:
 
 With `FAKE_CLAUDE_REPLY`, the fake replaces the text of each reply with that
 text, and leaves out the text pieces.
-
-## Not handled yet
-
-- `--max-turns` is not on the command line, because the help of 2.1.311 does
-  not list it.

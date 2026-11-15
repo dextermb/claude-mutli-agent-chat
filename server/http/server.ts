@@ -952,6 +952,7 @@ function configOf(agent: Agent): SessionConfig {
     allowedTools: agent.allowedTools,
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt,
+    maxTurns: agent.maxTurns,
   }
 }
 

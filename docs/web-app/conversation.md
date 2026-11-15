@@ -80,7 +80,9 @@ two blocks. `src/lib/time.ts` holds the formats.
 A message that is still arriving has `aria-busy="true"`. Text between two
 backticks on one line shows as `code`, in mono on the `muted` ground. The
 timeline renders no other markdown. A turn summary shows
-`Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`.
+`Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`, or, at the
+turn limit of the agent, `Stopped at the turn limit after 9.2 s · $0.012 · 7
+turns. Send a message to continue.`
 
 The status of an agent:
 

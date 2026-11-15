@@ -22,6 +22,12 @@ export const agentSchema = z.object({
   disallowedTools: z.array(z.string()).default([]),
   systemPrompt: emptyAsNull(),
   description: emptyAsNull(),
+  maxTurns: z
+    .number({ error: "Give a whole number of 1 or more, or leave it empty." })
+    .int("Give a whole number of 1 or more, or leave it empty.")
+    .positive("Give a whole number of 1 or more, or leave it empty.")
+    .nullable()
+    .default(null),
 })
 
 export const channelSchema = z.object({

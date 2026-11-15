@@ -17,6 +17,7 @@ export const testRunner: AgentWithState = {
   disallowedTools: [],
   systemPrompt: null,
   description: null,
+  maxTurns: null,
   createdAt: "2026-11-15T10:00:00.000Z",
   state: "idle",
 }
@@ -197,6 +198,15 @@ export const finishedTurn = agentEntry(10, {
   kind: "turn",
   id: "item-9",
   status: "done",
+  durationMs: 9161,
+  costUsd: 0.01164317,
+  numTurns: 7,
+})
+
+export const limitTurn = agentEntry(10, {
+  kind: "turn",
+  id: "item-9",
+  status: "limit",
   durationMs: 9161,
   costUsd: 0.01164317,
   numTurns: 7,

@@ -85,6 +85,7 @@ const EMPTY: Draft = {
   disallowedTools: [],
   systemPrompt: "",
   description: "",
+  maxTurns: null,
 }
 
 export default function AgentPage() {
@@ -459,6 +460,47 @@ export default function AgentPage() {
                       </Field>
                     )}
                   </form.Field>
+                  <form.Field name="maxTurns">
+                    {(field) => (
+                      <Field data-invalid={invalid(field.state.meta)}>
+                        <FieldLabel htmlFor="agent-turns">
+                          Maximum turns
+                        </FieldLabel>
+                        <Input
+                          id="agent-turns"
+                          type="number"
+                          min={1}
+                          step={1}
+                          className="w-36 font-mono"
+                          value={field.state.value ?? ""}
+                          aria-invalid={invalid(field.state.meta)}
+                          aria-describedby={
+                            invalid(field.state.meta)
+                              ? "agent-turns-error"
+                              : "agent-turns-description"
+                          }
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(
+                              event.currentTarget.value === ""
+                                ? null
+                                : Number(event.currentTarget.value)
+                            )
+                          }
+                        />
+                        {!invalid(field.state.meta) && (
+                          <FieldDescription id="agent-turns-description">
+                            The most turns for each message. Leave it empty for
+                            no limit.
+                          </FieldDescription>
+                        )}
+                        <FieldError
+                          id="agent-turns-error"
+                          errors={shown(field.state.meta)}
+                        />
+                      </Field>
+                    )}
+                  </form.Field>
                   <form.Field name="autostart">
                     {(field) => (
                       <Field orientation="horizontal">
@@ -566,6 +608,7 @@ export default function AgentPage() {
                   allowedTools: values.allowedTools ?? [],
                   disallowedTools: values.disallowedTools ?? [],
                   systemPrompt: values.systemPrompt || null,
+                  maxTurns: values.maxTurns ?? null,
                 }}
                 cwd={values.cwd}
               />
@@ -589,6 +632,7 @@ function draftOf(agent: Agent): Draft {
     disallowedTools: agent.disallowedTools,
     systemPrompt: agent.systemPrompt ?? "",
     description: agent.description ?? "",
+    maxTurns: agent.maxTurns,
   }
 }
 

@@ -94,6 +94,7 @@ export function directMessage(store: Store): Members {
     disallowedTools: [],
     systemPrompt: null,
     description: null,
+    maxTurns: null,
   })
   const conversation = store.createConversation({
     kind: "dm",
@@ -237,6 +238,7 @@ export const testRunner = {
   disallowedTools: ["WebFetch"],
   systemPrompt: "You run and fix the Vitest tests.",
   description: null,
+  maxTurns: null,
 }
 
 export async function answerRequest(

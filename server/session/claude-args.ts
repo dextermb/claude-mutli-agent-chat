@@ -6,6 +6,7 @@ export type AgentConfig = {
   allowedTools: string[]
   disallowedTools: string[]
   systemPrompt: string | null
+  maxTurns: number | null
 }
 
 export type SessionRef = {
@@ -51,6 +52,9 @@ export function claudeArgs(
   ]
   if (agent.disallowedTools.length > 0) {
     args.push("--disallowedTools", ...agent.disallowedTools)
+  }
+  if (agent.maxTurns !== null) {
+    args.push("--max-turns", String(agent.maxTurns))
   }
   args.push("--append-system-prompt", values.systemPrompt)
   if (session.claudeSessionId) {

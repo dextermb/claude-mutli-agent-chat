@@ -108,4 +108,10 @@ export const MIGRATIONS: { version: number; sql: string; rebuild?: true }[] = [
       ALTER TABLE agents ADD COLUMN description TEXT;
     `,
   },
+  {
+    version: 7,
+    sql: `
+      ALTER TABLE agents ADD COLUMN max_turns INTEGER;
+    `,
+  },
 ]

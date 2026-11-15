@@ -55,6 +55,13 @@ describe("the agent configuration page", () => {
       screen.getByLabelText("Working directory"),
       "/home/user/code/web-app"
     )
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Maximum turns" }),
+      "30"
+    )
+    expect(
+      within(screen.getByRole("region", { name: "Command" })).getByRole("code")
+    ).toHaveTextContent("--max-turns 30")
     await user.click(
       screen.getByRole("switch", { name: "Start when the app opens" })
     )
@@ -90,6 +97,7 @@ describe("the agent configuration page", () => {
         disallowedTools: ["WebFetch"],
         systemPrompt: "You run and fix the Vitest tests.",
         description: "Runs and fixes the Vitest tests.",
+        maxTurns: 30,
       },
     })
     expect(window.location.pathname).toBe("/agents/a1")
@@ -447,5 +455,21 @@ describe("the agent configuration page", () => {
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     )
+  })
+
+  test("a turn limit of 0 shows its message after the user leaves the field", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const turns = await screen.findByRole("spinbutton", {
+      name: "Maximum turns",
+    })
+
+    await user.type(turns, "0")
+    await user.tab()
+
+    expect(turns).toHaveAccessibleDescription(
+      "Give a whole number of 1 or more, or leave it empty."
+    )
+    expect(turns).toHaveAttribute("aria-invalid", "true")
   })
 })

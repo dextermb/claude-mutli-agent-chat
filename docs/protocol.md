@@ -118,6 +118,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F33 | **`--plugin-dir <dir>` loads a plugin in `-p` mode.** The `initialize` answer lists a skill of the plugin with the plugin name before it: the skill `chat-probe` of the plugin `chat-app` is `chat-app:chat-probe`. | Probe |
 | F34 | **An `http` MCP server in `--mcp-config` that does not answer does not stop the process.** The process answers `initialize` as before. | Probe |
 | F35 | **Claude Code connects to an `http` MCP server when the process starts, before the first prompt.** It sends `server/discover` with `MCP-Protocol-Version: 2026-07-28`. After the error `-32601` (or an empty result), it sends `initialize` with `2025-11-25`, then `notifications/initialized`, a `GET` for an event stream, and `tools/list`. Each request carries the headers of `--mcp-config`. | Probe |
+| F36 | **`--max-turns <n>` works with `stream-json` input, for each prompt.** The help of 2.1.311 does not list it, but the parser accepts it. A prompt that needs more turns ends with a `result` of `subtype: "error_max_turns"`, `is_error: true`, `terminal_reason: "max_turns"`, `errors: ["Reached maximum number of turns (1)"]` and no `result` text. The process stays alive, and the next prompt gets its own limit. | `max-turns` |
 
 ## The decoder and the encoders
 
@@ -164,6 +165,7 @@ to stdout.
 | `subagent-text.jsonl` | An `Agent` call whose subagent writes text before its `Read` call (F32) |
 | `interrupt-tool.jsonl` | A `Bash` call of `ping -c 30 127.0.0.1`, interrupted 3 s after the `tool_use` line |
 | `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
+| `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
 
 To record them again:
 
@@ -191,8 +193,6 @@ and the names of the user's plugins before the commit.
 - `set_model` and `set_permission_mode` on this version. A change to an
   agent reaches only its next process, and the session card says so. Measure
   these lines only when a live change is necessary.
-- `--max-turns`. The help of 2.1.311 does not list it. Look again after an
-  upgrade of Claude Code.
 - A `rate_limit_event` with a status other than `allowed`. The names
   `allowed_warning` and `rejected` come from the types of the Agent SDK. A
   test cannot make one without a real limit. The reducer adds a notice for

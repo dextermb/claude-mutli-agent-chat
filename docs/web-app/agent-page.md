@@ -66,6 +66,12 @@ the text on the clipboard.
 A change to an agent does not change a process that runs. The next process
 uses the new configuration.
 
+Maximum turns is a number input in the Runtime card. An empty field sends
+`null`, which means no limit. The limit applies to each message (F36 in
+`docs/protocol.md`), and the turn that reaches it ends with "Stopped at the
+turn limit" in the thread (`docs/web-app/conversation.md`). The design shows
+30 for a saved agent. A new agent starts with no limit, as before.
+
 "Start when the app opens" (`autostart`) is off for a new agent. The design
 shows it on. When it is on, the server starts the DM process of the agent at
 each server start (`docs/server.md`).

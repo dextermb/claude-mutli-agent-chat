@@ -15,6 +15,7 @@ type Run = {
   interruptAfterToolUseMs?: number
   answerTogetherInReverse?: boolean
   settleMs?: number
+  extraArgs?: string[]
 }
 
 type Scenario = {
@@ -113,6 +114,19 @@ const scenarios: Scenario[] = [
     ],
   },
   {
+    name: "max-turns",
+    permissionMode: "default",
+    runs: [
+      {
+        prompts: [
+          "Read notes.txt with the Read tool, then reply with its first line only.",
+          "Reply with the single word ok. Do not use any tools.",
+        ],
+        extraArgs: ["--max-turns", "1"],
+      },
+    ],
+  },
+  {
     name: "two-requests",
     permissionMode: "default",
     runs: [
@@ -203,6 +217,7 @@ function record(
     "--permission-mode",
     scenario.permissionMode,
     ...(sessionId ? ["--resume", sessionId] : []),
+    ...(run.extraArgs ?? []),
   ]
   const child = spawn("claude", args, {
     cwd: workDir,

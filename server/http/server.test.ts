@@ -251,6 +251,7 @@ describe("createServer", () => {
       disallowedTools: [],
       systemPrompt: null,
       description: null,
+      maxTurns: null,
     })
     store.createConversation({
       kind: "dm",

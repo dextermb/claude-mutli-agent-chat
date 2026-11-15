@@ -39,6 +39,7 @@ runs in one transaction with its SQL, its rebuild and the new
 | 4       | `conversation_members` gets `joined_seq`, 0 for older rows                               |
 | 5       | New table `conversation_reads`                                                           |
 | 6       | `agents` gets `description`, null for older rows                                         |
+| 7       | `agents` gets `max_turns`, null (no limit) for older rows                                |
 
 A migration with `rebuild: true` builds the timeline of each session again
 from its stored lines. Use it when a change to the reducer must reach the
@@ -59,15 +60,15 @@ conversations ──1:N── conversation_members
       └──────1:1── conversation_reads
 ```
 
-| Table                  | Holds                                                                                                                                                                                                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agents`               | The configuration and the description of each agent. The tool lists are JSON arrays                                                                                                                                                                         |
-| `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                             |
-| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                              |
-| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`) |
-| `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                   |
-| `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                                                                                                                |
-| `conversation_reads`   | For each conversation, the `last_read_seq` that the user saw and the time (`read_at`). No row: the user saw nothing                                                                                                                                         |
+| Table                  | Holds                                                                                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents`               | The configuration, the description and the turn limit (`max_turns`, null for none) of each agent. The tool lists are JSON arrays. The `config` of a session row from before version 7 reads with `maxTurns: null`, so the session card does not say that it changed |
+| `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                                     |
+| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                                      |
+| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`)         |
+| `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                           |
+| `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                                                                                                                        |
+| `conversation_reads`   | For each conversation, the `last_read_seq` that the user saw and the time (`read_at`). No row: the user saw nothing                                                                                                                                                 |
 
 A delete of an agent or a conversation deletes its sessions, members and
 items. A delete of a conversation also deletes its read. A delete of a session keeps its items, with `session_id` set to null.

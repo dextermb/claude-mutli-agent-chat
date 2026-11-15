@@ -205,6 +205,16 @@ describe("reduceTimeline", () => {
     })
   })
 
+  test("a turn that reaches the turn limit ends at the limit, and the next prompt runs as usual", () => {
+    const items = replay("max-turns")
+
+    expect(ofKind(items, "turn")).toEqual([
+      expect.objectContaining({ status: "limit", numTurns: 2 }),
+      expect.objectContaining({ status: "done", numTurns: 1 }),
+    ])
+    expect(ofKind(items, "message").at(-1)?.text).toBe("ok")
+  })
+
   test("a background job that ends after the turn starts a new turn with no prompt", () => {
     const items = replay("background")
 
