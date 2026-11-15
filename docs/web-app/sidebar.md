@@ -56,3 +56,5 @@ server did not answer." when no answer came.
 ## Not built yet
 
 - The unread rows of the sidebar in the design.
+- On a narrow screen, the sidebar stays open at its full width. At 375 px,
+  the conversation gets about 120 px.

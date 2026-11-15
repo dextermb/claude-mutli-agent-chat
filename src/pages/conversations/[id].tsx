@@ -1,6 +1,7 @@
 import {
   HashIcon,
   LockIcon,
+  PanelRightIcon,
   SquareIcon,
   UserPlusIcon,
   UsersIcon,
@@ -23,9 +24,13 @@ import { Composer } from "@/components/conversation/composer"
 import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
-import { SessionPanel } from "@/components/conversation/session-panel"
+import {
+  SessionPanel,
+  SessionSheet,
+} from "@/components/conversation/session-panel"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline"
 import { useConversation } from "@/hooks/use-conversation"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useSessionCard } from "@/hooks/use-session-card"
 import type { Conversation } from "@/lib/agent-api"
 
@@ -35,6 +40,8 @@ export default function ConversationPage() {
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [showingSheet, setShowingSheet] = useState(false)
+  const isMobile = useIsMobile()
   const [refusal, setRefusal] = useState<{
     conversationId: string
     reason: string
@@ -85,6 +92,22 @@ export default function ConversationPage() {
       ? "Invite agents"
       : "Add people or agents"
   const status = agent ? statusOf(agent.state) : null
+  const panel = panelAgent && {
+    agentId: panelAgent.id,
+    label: isDirect ? "Session" : `Session of ${panelAgent.name}`,
+    card,
+    working: panelAgent.state === "busy" || panelAgent.state === "waiting",
+    agentName: panelAgent.name,
+    onStopTurn: () => conversation.stopAgent(panelAgent.id),
+    onNewSession: () => conversation.newSession(panelAgent.id),
+    onRemove: isDirect
+      ? undefined
+      : async () => {
+          const refusal = await conversation.removeMember(panelAgent.id)
+          if (!refusal) setPickedId(null)
+          return refusal
+        },
+  }
   const working = conversation.agents.filter(
     (member) => member.state === "busy" || member.state === "waiting"
   )
@@ -165,6 +188,16 @@ export default function ConversationPage() {
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="log">Session log</TabsTrigger>
             </TabsList>
+          )}
+          {isDirect && isMobile && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowingSheet(true)}
+            >
+              <PanelRightIcon />
+              Session
+            </Button>
           )}
           {working.length > 0 && (
             <Button
@@ -248,29 +281,24 @@ export default function ConversationPage() {
           onOpenChange={setAdding}
         />
       )}
-      {panelAgent && (
-        <SessionPanel
-          key={panelAgent.id}
-          label={isDirect ? "Session" : `Session of ${panelAgent.name}`}
-          card={card}
-          working={
-            panelAgent.state === "busy" || panelAgent.state === "waiting"
-          }
-          agentName={panelAgent.name}
-          onStopTurn={() => conversation.stopAgent(panelAgent.id)}
-          onNewSession={() => conversation.newSession(panelAgent.id)}
-          onClose={isDirect ? undefined : () => setPickedId(null)}
-          onRemove={
-            isDirect
-              ? undefined
-              : async () => {
-                  const refusal = await conversation.removeMember(panelAgent.id)
-                  if (!refusal) setPickedId(null)
-                  return refusal
-                }
-          }
-        />
-      )}
+      {panel &&
+        (isMobile ? (
+          <SessionSheet
+            key={panel.agentId}
+            {...panel}
+            open={isDirect ? showingSheet : true}
+            onOpenChange={(open) => {
+              if (isDirect) setShowingSheet(open)
+              else if (!open) setPickedId(null)
+            }}
+          />
+        ) : (
+          <SessionPanel
+            key={panel.agentId}
+            {...panel}
+            onClose={isDirect ? undefined : () => setPickedId(null)}
+          />
+        ))}
     </div>
   )
 }

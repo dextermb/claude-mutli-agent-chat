@@ -10,7 +10,7 @@ function subscribe(onChange: () => void) {
 }
 
 function getSnapshot() {
-  return window.innerWidth < MOBILE_BREAKPOINT
+  return window.matchMedia(MOBILE_QUERY).matches
 }
 
 function getServerSnapshot() {

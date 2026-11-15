@@ -15,8 +15,13 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
   - `app`: the files `src/**/*.test.{ts,tsx}`, in jsdom.
   - `server`: the files `server/**/*.test.ts`, in Node.
 - Run one project with `pnpm test --project server`.
-- `src/test/setup.ts` loads the `jest-dom` matchers and removes the rendered
-  DOM after each test.
+- `src/test/setup.ts` loads the `jest-dom` matchers. Before each test, it
+  sets a screen 1280 px wide. After each test, it removes the rendered DOM,
+  then the stubbed globals. So a test file does not call
+  `vi.unstubAllGlobals()` itself.
+- jsdom has no `matchMedia`. `screenWidth(width)` in `src/test/fake-screen.ts`
+  stubs it, and answers each `(max-width: …px)` query for that width. A test
+  calls `screenWidth(375)` to show the page on a phone.
 
 ## The seams under test
 
