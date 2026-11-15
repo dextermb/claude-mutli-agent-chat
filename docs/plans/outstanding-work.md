@@ -2,7 +2,7 @@
 
 **Status:** in progress. The user agreed the plan, the order and the seams
 on 2026-11-15. Steps 1 and 2 are built, and their result is in `docs/*.md`.
-Slice 2.3 waits for the answer to Q15. Step 3 is next. Nothing below is
+Step 3 is next. Nothing below is
 built. The decisions stand as written. Each open question at the end keeps
 the decision of its step as the default, until the user answers it.
 
@@ -14,7 +14,7 @@ merges into `master` before the next step starts.
 | Step | Name                           | Items                                                                                                  | Schema       |
 | ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------ |
 | 1    | Small fixes and message times  | Built                                                                                                  | none         |
-| 2    | The stream                     | Built, except the interrupt during a tool call (2.3)                                                   | none         |
+| 2    | The stream                     | Built                                                                                                  | none         |
 | 3    | The process                    | Kill a process that does not stop, keep and show stderr                                                | migration v2 |
 | 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                                          | none         |
 | 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart                     | migration v3 |
@@ -129,31 +129,6 @@ turn items get the per-turn cost that step 1 added to the reducer. See Q1.
 | `{ type: "reset" }`                       | both   | 4    | The browser asks for an event that is gone   |
 | `{ type: "agent_state", agentId, state }` | app    | 4    | The state of an agent (all its sessions)     |
 | `{ type: "conversation", conversation }`  | both   | 4, 6 | A conversation is made or its members change |
-
----
-
-## Step 2: The stream
-
-### 2.3 Measure an interrupt during a tool call
-
-**Decision:** record a new fixture, `interrupt-tool.jsonl`. The prompt makes
-the agent run `ping -c 30 127.0.0.1` with Bash, and the recorder sends
-`interrupt` 3 s after the `tool_use` line. The first try used `sleep 30`, and
-Claude Code blocked it (F27 in `docs/protocol.md`), so the turn ended before
-the interrupt. The recorder now holds the `ping` scenario. Then compare its `result` line with F10. If the
-`terminal_reason` is not `aborted_streaming`, the reducer marks that value
-`stopped` too, and the running tool call becomes `error` or `stopped` as the
-line tells.
-
-This costs about 0.008 USD more. See Q15.
-
-**Seam:** `reduceTimeline()` with `interrupt-tool.jsonl`: the turn is
-`stopped`, and the tool call does not stay `running`.
-
-### Docs when step 2 lands
-
-`docs/protocol.md` (the fixture, F10 compared), `docs/timeline.md` (remove
-the "Not handled yet" item).
 
 ---
 
@@ -551,6 +526,10 @@ What is decided:
 What is still open: the schema library (for example Zod, through Standard
 Schema), and whether the browser and the server share one schema.
 
+- **Q15 (2026-11-15).** The user agreed one more recording for slice 2.3.
+  The three recordings of step 2 cost 0.0209 USD in total. The live check
+  of step 5 (about 0.02 USD) is still ahead.
+
 ## Open questions
 
 - **Q1.** Migration v2 rebuilds each stored timeline, so old turn items get
@@ -560,10 +539,6 @@ Schema), and whether the browser and the server share one schema.
   calls? Or show its text inside the card too?
 - **Q4.** The rate-limit notice uses status names from the SDK types, not
   from a recorded line. Is that acceptable until a real line is seen?
-- **Q15.** Slice 2.3 needs one more recording of about 0.008 USD, because
-  the first try hit F27. With it, the total is about 0.024 USD so far, and
-  the live check of step 5 (about 0.02 USD) makes about 0.044 USD. That is a
-  little more than the 0.04 USD that you agreed. May I spend it?
 - **Q6.** Unread rows and mention counts in the sidebar are in the design.
   Add them as a later step, or leave them out?
 - **Q7.** A change to the model or the mode reaches only the next process.

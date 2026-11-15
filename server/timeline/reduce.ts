@@ -88,6 +88,7 @@ export type TimelineItem =
   | NoticeItem
 
 const QUESTION_TOOL = "AskUserQuestion"
+const INTERRUPTED = ["aborted_streaming", "aborted_tools"]
 
 export type TimelineState = {
   items: TimelineItem[]
@@ -265,7 +266,7 @@ function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
   const step = add({ state, changes: [] }, (id) => ({
     kind: "turn",
     id,
-    status: line.terminalReason === "aborted_streaming" ? "stopped" : "done",
+    status: INTERRUPTED.includes(line.terminalReason) ? "stopped" : "done",
     durationMs: line.durationMs,
     costUsd: line.totalCostUsd - state.costSoFar,
     numTurns: line.numTurns,

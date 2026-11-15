@@ -85,7 +85,9 @@ from the start of the process (F18), so the reducer subtracts the total of
 the turn before it in the same process. A turn item that was stored before
 this rule holds the process total until `rebuildTimeline()` runs on its
 session. A turn that ends with `terminal_reason: "aborted_streaming"` (an
-interrupt) is `stopped`.
+interrupt while text arrives, F10) or `"aborted_tools"` (an interrupt while a
+tool runs, F28) is `stopped`. The tool call that ran gets the status `error`,
+with the text of its `tool_result`.
 
 A turn does not need a prompt. A background job that ends after the turn
 starts a new turn (F11). Its message and its summary come after the summary of
@@ -107,7 +109,3 @@ with `reason: "rate_limit"`, the `status`, the `rateLimitType` (for example
 the status differs from the status of the last `rate_limit` line, so a run of
 the same status gives one notice. The browser makes the text, because only
 the browser knows the local time zone.
-
-## Not handled yet
-
-- An interrupt while a tool runs is not measured (`docs/protocol.md`).
