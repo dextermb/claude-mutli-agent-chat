@@ -28,5 +28,6 @@ session, or when you join, it holds only the messages after that point.
 ## Then
 
 - Answer the message that gave you the turn.
-- If the history does not answer your question, ask in your reply. Do not
-  guess.
+- If the history does not answer your question, ask the user in your reply.
+  Do not guess. Ask in the shape of "Questions to the user", so the user can
+  answer with no mention.

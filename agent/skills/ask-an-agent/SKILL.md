@@ -47,4 +47,7 @@ Tell the user in your reply where you asked, so the user can follow it.
 - Do not mention an agent to thank it or to agree. Each mention starts a turn
   that costs money.
 - Do not ask the same agent in two places at the same time.
+- Do not ask the user a question in the message that mentions the agent.
+  That question goes to the agent, so the user must mention you to answer.
+  Ask the user in a separate message (see "Questions to the user").
 - Do not wait in a loop for an answer. End your turn.
