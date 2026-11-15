@@ -226,8 +226,16 @@ The model and the permission mode use a native `<select>`
 A change to an agent does not change a process that runs. The next process
 uses the new configuration.
 
+"Start when the app opens" (`autostart`) is off for a new agent. The design
+shows it on. When it is on, the server starts the DM process of the agent at
+each server start (`docs/server.md`).
+
 ## Not built yet
 
 - When the server refuses Stop turn, New session or Remove, the page does
   not show the reason.
 - On a narrow screen, the session panel does not become a `Sheet`.
+- The unread rows and the mention counts of the sidebar in the design.
+- The status words of the design. The design says "Idle" for `idle`, "Needs
+  approval" for `waiting`, and "Stopped" for `exited`. The app says
+  "Online", "Waiting" and "Idle" (the table above).
