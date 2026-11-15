@@ -1,15 +1,14 @@
 # The remaining gaps
 
-**Status:** in progress. The user agreed the steps and the seams on
-2026-11-15, and answered G1 to G7 (see "Resolved"). Step 1 to step 3 are
-built. Step 4 to step 6 are ahead, in that order. The browser check of step 3
-found two new gaps, G8 and G9, which wait for an answer.
+**Status:** in progress. The user agreed the steps and the seams of step 1
+to step 6 on 2026-11-15, and answered G1 to G9 (see "Resolved"). Step 1 to
+step 4 are built. Step 5 to step 8 are ahead, in that order. The seams of
+step 7 and step 8 are proposed, and need the agreement of the user.
 
 ## The gaps, and what to do with each
 
 | Gap                                                        | Where it is listed              | Action          | Step |
 | ---------------------------------------------------------- | ------------------------------- | --------------- | ---- |
-| The status words differ from the design                    | `docs/web-app/conversation.md`  | Build           | 4    |
 | The text of a subagent shows at the top level              | `docs/timeline.md`              | Measure, build  | 5    |
 | Unread rows of the sidebar                                 | `docs/web-app/sidebar.md`       | Build           | 6    |
 | A `rate_limit_event` that is not `allowed` is not measured | `docs/protocol.md`              | Wait for a line | none |
@@ -17,8 +16,8 @@ found two new gaps, G8 and G9, which wait for an answer.
 | `--max-turns` is not on the command line                   | `docs/agents.md`, `protocol`    | No action       | none |
 | Two sessions in the same folder are not measured           | `docs/protocol.md`              | No action (G7)  | none |
 | The cost and the turns of a session are not stored         | `docs/store.md`                 | No action       | none |
-| The sidebar stays open at full width on a narrow screen    | `docs/web-app/sidebar.md`       | Ask (G8)        | none |
-| The Session card is empty before the first process         | `docs/web-app/session-panel.md` | Ask (G9)        | none |
+| The sidebar stays open at full width on a narrow screen    | `docs/web-app/sidebar.md`       | Build           | 7    |
+| The Session card is empty before the first process         | `docs/web-app/session-panel.md` | Build           | 8    |
 
 **No action, with the reason:**
 
@@ -35,23 +34,6 @@ found two new gaps, G8 and G9, which wait for an answer.
   check the names in `docs/protocol.md`.
 - **Two sessions in the same folder.** The user chooses the folder of each
   agent. `docs/architecture.md` lists it as a risk.
-
-## Step 4: The status words of the design
-
-**Decision (G1):** `src/components/conversation/agent-look.ts` changes three
-labels:
-
-| State     | Now     | Design         |
-| --------- | ------- | -------------- |
-| `idle`    | Online  | Idle           |
-| `waiting` | Waiting | Needs approval |
-| `exited`  | Idle    | Stopped        |
-
-The tests that read these words change with it, because the words are the
-behaviour that the user sees. The table in `docs/web-app/conversation.md`
-changes too.
-
-**Seams:** the DM page and the sidebar, with the fake network.
 
 ## Step 5: The text of a subagent
 
@@ -111,6 +93,27 @@ GET /api/conversations ─▶ each conversation with { unread }
 `listConversations()`), `createServer()` (the route and the `unread` event),
 `useWorkspace()`, and the sidebar.
 
+## Step 7: The sidebar on a narrow screen
+
+**Decision (G8):** below 768 px, the app sidebar is a `Sheet` from the left,
+not a column. A menu button, "Open the sidebar", in the header of each page
+opens it. A click on a conversation in the sheet closes it.
+
+**Seams (proposed):** the DM page and the home page at a narrow width, with
+`screenWidth(375)` and the fake network.
+
+**Check:** `agent-browser` at 375 px.
+
+## Step 8: The Session card before the first process
+
+**Decision (G9):** when an agent has no session in a conversation,
+`GET …/agents/:agentId/session` answers with a card made from the agent: its
+model, its permission mode, its folder and its allowed tools, with 0 turns,
+a cost of 0, and no session ID ("None yet").
+
+**Seams (proposed):** `createServer()` (the route), and the DM page with the
+fake network.
+
 ## Not in this plan
 
 - **The flaky server test.** "the user can allow once, deny, or always allow
@@ -118,14 +121,6 @@ GET /api/conversations ─▶ each conversation with { unread }
   2026-11-15, and then passed in more than ten full runs. Its error was not
   kept. If it fails again, keep the output of the run, and use the
   `diagnosing-bugs` skill.
-
-## Open questions
-
-- **G8.** On a phone, the sidebar takes about 255 px of 375 px. Should it
-  become a `Sheet` too, behind a menu button in the header?
-- **G9.** Before the first process, the Session card has no rows. Should the
-  server answer with the configuration of the agent (model, mode, folder)
-  until a session exists?
 
 ## Resolved
 
@@ -143,3 +138,7 @@ GET /api/conversations ─▶ each conversation with { unread }
   the focus.
 - **G7.** Should the app warn when two agents have the same `cwd`? No. It is
   the choice of the user, and `docs/architecture.md` lists it as a risk.
+- **G8.** On a phone, should the sidebar become a `Sheet`? Yes, behind a menu
+  button in the header (step 7).
+- **G9.** Before the first process, should the Session card show the
+  configuration of the agent? Yes (step 8).
