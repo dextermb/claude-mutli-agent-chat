@@ -143,4 +143,6 @@ in each replay.
 
 ## Not stored yet
 
-- The cost and the turns of a session. The `turn` items hold them.
+- The cost and the turns of a session. The `turn` items hold them, and the
+  session card adds them up. That is fast enough, so a stored copy would only
+  add a second truth.

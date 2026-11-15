@@ -31,6 +31,10 @@ header opens it. In a group chat or a channel, a click on an agent opens it.
 The Close button of the sheet closes it. `SessionPanel` and `SessionSheet`
 are the two wrappers, and both show the same content.
 
+Before the first process of an agent, the server has no session row. The
+card then shows the configuration of the agent, "None yet" as the Session
+ID, 0 turns and a cost of 0.
+
 In a group chat or a channel, the panel also has "Remove from conversation".
 After Remove, the panel closes.
 
@@ -62,9 +66,3 @@ it.
   the start of each process. `useSessionLog()` opens its own stream for the
   live `line` events, then loads the last 200 lines. "Load earlier lines"
   loads the page before them.
-
-## Not built yet
-
-- Before the first process of an agent, the server has no session, and
-  `GET …/session` answers `{ "session": null }`. The Session card then shows
-  no rows: no model, no mode and no folder.

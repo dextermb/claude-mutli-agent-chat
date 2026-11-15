@@ -84,3 +84,11 @@ To render the app at a URL, the `App` tests call
 so use a `findBy…` query for the first element on a page.
 
 The way to write a test is in `.claude/rules/test-driven-development.md`.
+
+## A flaky test
+
+The server test "the user can allow once, deny, or always allow a tool, and
+each card shows the answer" failed one time in a full run on 2026-11-15. It
+then passed in more than ten full runs, and its error was not kept. If it
+fails again, keep the output of the run, and use the `diagnosing-bugs`
+skill.
