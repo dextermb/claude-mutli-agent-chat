@@ -1,10 +1,9 @@
 # The outstanding work of the agent chat app
 
-**Status:** awaiting go-ahead. This plan holds each item that
-`docs/plans/agent-sessions.md` listed as still ahead, so that plan is deleted
-in the same change. Nothing below is built. The decisions are proposals,
-except the shape of New session, which the user decided. The open questions
-are at the end (Q1 to Q14).
+**Status:** in progress. The user agreed the plan, the order and the seams
+on 2026-11-15. Step 1 is next. Nothing below is built. The decisions stand as
+written. Q5 is resolved. Each other open question at the end keeps the
+decision of its step as the default, until the user answers it.
 
 ## The steps
 
@@ -691,6 +690,12 @@ store is.
 
 ---
 
+## Resolved
+
+- **Q5 (2026-11-15).** The user agreed to spend about 0.04 USD on three real
+  `claude` runs with Haiku: the two fixtures of step 2 (about 0.01 USD each)
+  and the live check of `--session-id` in step 5 (about 0.02 USD).
+
 ## Open questions
 
 - **Q1.** Migration v2 rebuilds each stored timeline, so old turn items get
@@ -702,10 +707,6 @@ store is.
   calls? Or show its text inside the card too?
 - **Q4.** The rate-limit notice uses status names from the SDK types, not
   from a recorded line. Is that acceptable until a real line is seen?
-- **Q5.** Steps 2 and 5 need three real `claude` runs with Haiku: two new
-  fixtures (about 0.01 USD each) and the live check of `--session-id` (about
-  0.02 USD). The total is about 0.04 USD. May I spend it when each step
-  starts?
 - **Q6.** Unread rows and mention counts in the sidebar are in the design.
   Add them as a later step, or leave them out?
 - **Q7.** A change to the model or the mode reaches only the next process.
