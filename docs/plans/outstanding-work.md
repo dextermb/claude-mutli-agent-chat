@@ -11,15 +11,16 @@ user answers it.
 Do the steps in this order. Each step is one worktree and one branch, and it
 merges into `master` before the next step starts.
 
-| Step | Name                           | Items                                                                              | Schema       |
-| ---- | ------------------------------ | ---------------------------------------------------------------------------------- | ------------ |
-| 1    | Small fixes and message times  | Built                                                                              | none         |
-| 2    | The stream                     | Subagent lines, rate-limit notice, interrupt during a tool call, two open requests | none         |
-| 3    | The process                    | Kill a process that does not stop, keep and show stderr                            | migration v2 |
-| 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                      | none         |
-| 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart | migration v3 |
-| 6    | Members                        | Add and remove the members of a conversation                                       | migration v4 |
-| 7    | The Files and Session log tabs | The two tabs of the DM header                                                      | none         |
+| Step | Name                           | Items                                                                                                  | Schema       |
+| ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------ |
+| 1    | Small fixes and message times  | Built                                                                                                  | none         |
+| 2    | The stream                     | Subagent lines, rate-limit notice, interrupt during a tool call, two open requests                     | none         |
+| 3    | The process                    | Kill a process that does not stop, keep and show stderr                                                | migration v2 |
+| 4    | Live status and the event log  | Live status in the sidebar, cut the event log                                                          | none         |
+| 5    | The session panel              | Session card, Stop turn, New session, a change reaches the next process, autostart                     | migration v3 |
+| 6    | Members                        | Add and remove the members of a conversation                                                           | migration v4 |
+| 7    | The Files and Session log tabs | The two tabs of the DM header                                                                          | none         |
+| 8    | TanStack Form                  | The agent page and Create a channel on TanStack Form, with validation in the browser and on the server | none         |
 
 Steps 2 and 3 make the session and the reducer correct before step 5 puts a
 card on them. Step 4 comes before step 5 because the card follows the live
@@ -600,6 +601,21 @@ store is.
 - **Q5 (2026-11-15).** The user agreed to spend about 0.04 USD on three real
   `claude` runs with Haiku: the two fixtures of step 2 (about 0.01 USD each)
   and the live check of `--session-id` in step 5 (about 0.02 USD).
+
+## Step 8: TanStack Form
+
+The user asked for this step on 2026-11-15, after step 1. It comes after
+step 7. It needs its own short plan, agreed with the user, before it starts.
+
+What is decided:
+
+- The agent page and the Create a channel dialog move from a `useState`
+  draft to TanStack Form.
+- The browser validates each field, and the server keeps its own
+  validation. Both apply.
+
+What is still open: the schema library (for example Zod, through Standard
+Schema), and whether the browser and the server share one schema.
 
 ## Open questions
 
