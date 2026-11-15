@@ -3,7 +3,8 @@
 **Status:** Tier 1 and Tier 2 are done and merged (2026-11-15). This plan
 holds only the boards that need a feature of their own (Tier 3). Each one
 needs its own plan before it is built. Done from Tier 3 on 2026-11-15:
-Channel settings, the agent page, and Browse for the working directory.
+Channel settings, the agent page, Browse for the working directory, and the
+Live mark of the Session log.
 
 Sources:
 
@@ -34,8 +35,6 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
 - **The rail pages** Direct messages and Activity. Their buttons are
   disabled with the tooltip "Not built yet".
 - **The composer buttons** Attach a file and Run a slash command.
-- **The Live mark of the Session log**: the hook does not expose the state
-  of its stream yet.
 - **The tabs on a phone**: the MobileSession board shows no tabs in the
   header of a DM. The app keeps them, so Files and Session log stay
   reachable on a phone. Decide where they go before the tabs are taken out.

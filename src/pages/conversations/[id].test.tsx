@@ -491,6 +491,22 @@ describe("the DM page", () => {
     expect(rows().at(-1)).toBe("14:05:09 out result/success")
   })
 
+  test("the session log says Live while its stream is open, and Connecting when it is not", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/agents/a1/log", { lines: [] })
+
+    await user.click(await screen.findByRole("tab", { name: "Session log" }))
+    const mark = await screen.findByRole("status", { name: "Stream" })
+    expect(mark).toHaveTextContent("Connecting")
+
+    act(() => network.stream("/api/conversations/c1/events").open())
+    expect(mark).toHaveTextContent("Live")
+
+    act(() => network.stream("/api/conversations/c1/events").fail())
+    expect(mark).toHaveTextContent("Connecting")
+  })
+
   test("the session log loads earlier lines when the first page is full", async () => {
     const user = userEvent.setup()
     const line = (seq: number) => ({

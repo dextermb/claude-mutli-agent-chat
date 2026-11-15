@@ -7,6 +7,7 @@ const PAGE = 200
 export function useSessionLog(conversationId: string, agentId: string) {
   const [lines, setLines] = useState<LogLine[]>([])
   const [more, setMore] = useState(false)
+  const [openRoute, setOpenRoute] = useState<string | null>(null)
   const route = `/api/conversations/${conversationId}/agents/${agentId}/log`
 
   useEffect(() => {
@@ -14,6 +15,8 @@ export function useSessionLog(conversationId: string, agentId: string) {
     const source = new EventSource(
       `/api/conversations/${conversationId}/events`
     )
+    source.onopen = () => setOpenRoute(route)
+    source.onerror = () => setOpenRoute(null)
     source.onmessage = (event: MessageEvent<string>) => {
       const message = JSON.parse(event.data) as StreamMessage
       if (message.type !== "line" || message.agentId !== agentId) return
@@ -42,7 +45,7 @@ export function useSessionLog(conversationId: string, agentId: string) {
     setMore(page.lines.length === PAGE)
   }
 
-  return { lines, more, loadEarlier }
+  return { lines, more, live: openRoute === route, loadEarlier }
 }
 
 function merge(first: LogLine[], second: LogLine[]): LogLine[] {

@@ -8,6 +8,8 @@ export class FakeEventSource {
   static opened: FakeEventSource[] = []
   readonly url: string
   onmessage: ((event: MessageEvent<string>) => void) | null = null
+  onopen: ((event: Event) => void) | null = null
+  onerror: ((event: Event) => void) | null = null
   closed = false
 
   constructor(url: string) {
@@ -22,6 +24,14 @@ export class FakeEventSource {
         lastEventId: String(id),
       })
     )
+  }
+
+  open() {
+    this.onopen?.(new Event("open"))
+  }
+
+  fail() {
+    this.onerror?.(new Event("error"))
   }
 
   close() {
