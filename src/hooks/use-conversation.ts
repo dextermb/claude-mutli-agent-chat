@@ -6,6 +6,7 @@ import type {
   StreamMessage,
   TimelineEntry,
 } from "@/lib/agent-api"
+import { refusalOf } from "@/lib/refusal"
 
 type ConversationView = {
   status: "loading" | "ready" | "error"
@@ -111,11 +112,12 @@ export function useConversation(conversationId: string) {
   )
 
   const removeMember = useCallback(
-    async (agentId: string) => {
-      const url = `/api/conversations/${conversationId}/members/${agentId}`
-      const response = await fetch(url, { method: "DELETE" })
-      if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-    },
+    (agentId: string) =>
+      refusalOf(
+        fetch(`/api/conversations/${conversationId}/members/${agentId}`, {
+          method: "DELETE",
+        })
+      ),
     [conversationId]
   )
 
@@ -164,13 +166,14 @@ function applyMessage(
   }
 }
 
-async function postJson(url: string, body: unknown): Promise<void> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  })
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`)
+function postJson(url: string, body: unknown): Promise<string | null> {
+  return refusalOf(
+    fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  )
 }
 
 async function getJson<T>(url: string): Promise<T> {

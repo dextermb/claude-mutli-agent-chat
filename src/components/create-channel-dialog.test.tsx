@@ -131,4 +131,19 @@ describe("the Create a channel dialog", () => {
     )
     expect(window.location.pathname).toBe("/conversations/c1")
   })
+
+  test("the dialog says that the server did not answer when no answer comes", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations")
+    const dialog = await openDialog(user)
+
+    await user.type(within(dialog).getByLabelText("Name"), "release-train")
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create channel" })
+    )
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "The server did not answer."
+    )
+  })
 })

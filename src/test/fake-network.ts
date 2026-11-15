@@ -58,6 +58,11 @@ export function fakeNetwork() {
     on(method: string, url: string, reply: unknown, status = 200) {
       routes.set(`${method} ${url}`, () => ({ status, body: reply }))
     },
+    fail(method: string, url: string) {
+      routes.set(`${method} ${url}`, () => {
+        throw new TypeError("Failed to fetch")
+      })
+    },
     stream(address?: string) {
       const source = FakeEventSource.opened.findLast(
         (opened) => address === undefined || opened.url.startsWith(address)

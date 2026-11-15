@@ -26,6 +26,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import { refusalOf } from "@/lib/refusal"
 
 export function AddMembersDialog({
   open,
@@ -65,17 +66,15 @@ export function AddMembersDialog({
   )
 
   async function add() {
-    const response = await fetch(
-      `/api/conversations/${conversation.id}/members`,
-      {
+    const refusal = await refusalOf(
+      fetch(`/api/conversations/${conversation.id}/members`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ agentIds: picked }),
-      }
+      })
     )
-    if (!response.ok) {
-      const body = (await response.json()) as { error?: string }
-      setError(body.error ?? "The server did not add the agents.")
+    if (refusal) {
+      setError(refusal)
       return
     }
     setPicked([])

@@ -960,3 +960,251 @@ describe("the DM page", () => {
     expect(box).toHaveValue("Please @test-runner and @reviewer-bot ")
   })
 })
+
+describe("a refused action", () => {
+  function openGroupOfOne() {
+    const group = { ...squadGroup, members: ["user:me", "agent:a1"] }
+    network.on("GET", "/api/conversations", { conversations: [group] })
+    network.on("GET", "/api/agents", { agents: [testRunner] })
+    network.on("GET", "/api/conversations/g1", {
+      conversation: group,
+      agents: [testRunner],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [userMessage],
+      lastEventId: 0,
+    })
+    network.on("GET", "/api/conversations/g1/agents/a1/session", {
+      session: testRunnerSession,
+    })
+    window.history.pushState({}, "", "/conversations/g1")
+    return render(<App />)
+  }
+
+  test("remove of the last agent of a group chat shows the reason of the server, and the panel stays", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "DELETE",
+      "/api/conversations/g1/members/a1",
+      { error: "A group chat needs one agent or more." },
+      400
+    )
+    openGroupOfOne()
+    const header = within(await screen.findByRole("banner"))
+    await user.click(header.getByRole("button", { name: "test-runner Online" }))
+    const panel = await screen.findByRole("complementary", {
+      name: "Session of test-runner",
+    })
+
+    await user.click(
+      within(panel).getByRole("button", { name: "Remove from conversation" })
+    )
+
+    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+      "A group chat needs one agent or more."
+    )
+  })
+  test("a refused stop turn shows the reason of the server in the session panel", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/conversations/c1/agents/a1/stop",
+      { error: "no such agent in this conversation" },
+      404
+    )
+    openConversation([userMessage], "busy")
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(
+      await within(panel).findByRole("button", { name: "Stop turn" })
+    )
+
+    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+      "no such agent in this conversation"
+    )
+  })
+
+  test("new session shows that the server did not answer when no answer comes", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations/c1/agents/a1/sessions")
+    openConversation([userMessage])
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(within(panel).getByRole("button", { name: "New session" }))
+    await user.click(
+      within(
+        await screen.findByRole("alertdialog", { name: "Start a new session?" })
+      ).getByRole("button", { name: "Start new session" })
+    )
+
+    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+      "The server did not answer."
+    )
+  })
+
+  test("the user can close the reason of a refused action", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations/c1/agents/a1/stop")
+    openConversation([userMessage], "busy")
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+    await user.click(
+      await within(panel).findByRole("button", { name: "Stop turn" })
+    )
+    const alert = await within(panel).findByRole("alert")
+
+    await user.click(within(alert).getByRole("button", { name: "Close" }))
+
+    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  test("the reason of a refused action closes when the next action works", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations/c1/agents/a1/stop")
+    openConversation([userMessage], "busy")
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+    const stopTurn = await within(panel).findByRole("button", {
+      name: "Stop turn",
+    })
+    await user.click(stopTurn)
+    await within(panel).findByRole("alert")
+
+    network.on("POST", "/api/conversations/c1/agents/a1/stop", {}, 202)
+    await user.click(stopTurn)
+
+    await waitFor(() =>
+      expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
+    )
+  })
+
+  test("the reason of a refused action stays with its agent", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("GET", "/api/conversations/ch1/agents/a1/session", {
+      session: testRunnerSession,
+    })
+    network.on("GET", "/api/conversations/ch1/agents/a2/session", {
+      session: testRunnerSession,
+    })
+    network.fail("DELETE", "/api/conversations/ch1/members/a2")
+    const header = within(await screen.findByRole("banner"))
+    await user.click(
+      header.getByRole("button", { name: "reviewer-bot Online" })
+    )
+    const panel = await screen.findByRole("complementary", {
+      name: "Session of reviewer-bot",
+    })
+    await user.click(
+      within(panel).getByRole("button", { name: "Remove from conversation" })
+    )
+    await within(panel).findByRole("alert")
+
+    await user.click(
+      header.getByRole("button", { name: "test-runner Working" })
+    )
+
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Session of test-runner" })
+      ).queryByRole("alert")
+    ).not.toBeInTheDocument()
+  })
+
+  test("a refused stop shows the reason of the server over the message box", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/conversations/c1/stop",
+      { error: "no such conversation" },
+      404
+    )
+    openConversation([userMessage], "busy")
+    await screen.findByRole("heading", { name: "test-runner" })
+
+    await user.click(screen.getByRole("button", { name: "Stop" }))
+
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent("no such conversation")
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Session" })
+      ).queryByRole("alert")
+    ).not.toBeInTheDocument()
+  })
+
+  test("a message that the server did not get shows that over the message box", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations/c1/messages")
+    openConversation([userMessage])
+    const box = await screen.findByRole("textbox", {
+      name: "Message test-runner",
+    })
+
+    await user.type(box, "Run the tests.{Enter}")
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server did not answer."
+    )
+  })
+
+  test("a refused answer to an approval shows the reason of the server over the message box", async () => {
+    const user = userEvent.setup()
+    network.on("POST", "/api/requests/r1", { error: "no open request" }, 404)
+    openConversation([userMessage, pushCall, pushRequest], "waiting")
+    const card = await screen.findByRole("region", {
+      name: "Approval for Bash git push origin release-train",
+    })
+
+    await user.click(within(card).getByRole("button", { name: "Allow once" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "no open request"
+    )
+  })
+
+  test("invite agents says that the server did not answer when no answer comes", async () => {
+    const user = userEvent.setup()
+    const docsWriter = { ...reviewerBot, id: "a3", name: "docs-writer" }
+    openChannel([userMessage])
+    network.on("GET", "/api/agents", {
+      agents: [docsWriter, reviewerBot, testRunner],
+    })
+    network.fail("POST", "/api/conversations/ch1/members")
+    const header = within(await screen.findByRole("banner"))
+    await user.click(header.getByRole("button", { name: "Invite agents" }))
+    const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
+
+    await user.click(
+      await within(dialog).findByRole("checkbox", { name: "Pick docs-writer" })
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Invite" }))
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "The server did not answer."
+    )
+  })
+
+  test("the reason of a refused action does not follow the user to another conversation", async () => {
+    const user = userEvent.setup()
+    network.fail("POST", "/api/conversations/c1/stop")
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: releaseChannel,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    openConversation([userMessage], "busy")
+    await screen.findByRole("heading", { name: "test-runner" })
+    await user.click(screen.getByRole("button", { name: "Stop" }))
+    await screen.findByRole("alert")
+
+    const sidebar = screen.getByRole("navigation", { name: "Conversations" })
+    await user.click(
+      within(sidebar).getByRole("link", { name: "release-train" })
+    )
+
+    await screen.findByRole("heading", { name: "release-train" })
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+})
