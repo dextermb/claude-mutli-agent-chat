@@ -1221,6 +1221,93 @@ describe("a refused action", () => {
 })
 
 describe("a narrow screen", () => {
+  test("a wide screen shows the sidebar as a column, with no button to open it", async () => {
+    screenWidth(1280)
+    openConversation([userMessage])
+    const header = within(await screen.findByRole("banner"))
+
+    expect(
+      screen.getByRole("navigation", { name: "Conversations" })
+    ).toBeInTheDocument()
+    expect(
+      header.queryByRole("button", { name: "Open the sidebar" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("a chat that the user starts from the sidebar closes the sidebar", async () => {
+    const user = userEvent.setup()
+    screenWidth(375)
+    network.on("POST", "/api/conversations", { conversation: squadGroup }, 201)
+    network.on("GET", "/api/conversations/g1", {
+      conversation: squadGroup,
+      agents: [reviewerBot, testRunner],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    openConversation([userMessage])
+    const header = within(await screen.findByRole("banner"))
+    await user.click(header.getByRole("button", { name: "Open the sidebar" }))
+    const sidebar = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+
+    await user.click(
+      within(sidebar).getByRole("button", { name: "Start a chat" })
+    )
+    const dialog = await screen.findByRole("dialog", { name: "Start a chat" })
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick reviewer-bot" })
+    )
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick test-runner" })
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start group chat" })
+    )
+
+    await screen.findByRole("heading", { name: "reviewer-bot, test-runner" })
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+  })
+
+  test("the sidebar opens from a button in the header, and closes when the user picks a conversation", async () => {
+    const user = userEvent.setup()
+    screenWidth(375)
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: releaseChannel,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    openConversation([userMessage])
+    const header = within(await screen.findByRole("banner"))
+    expect(
+      screen.queryByRole("navigation", { name: "Conversations" })
+    ).not.toBeInTheDocument()
+
+    await user.click(header.getByRole("button", { name: "Open the sidebar" }))
+    const sidebar = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+    await user.click(
+      await within(sidebar).findByRole("link", { name: "release-train" })
+    )
+
+    await screen.findByRole("heading", { name: "release-train" })
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+  })
+
   test("in a DM, the session button opens the session panel as a sheet", async () => {
     const user = userEvent.setup()
     screenWidth(375)
