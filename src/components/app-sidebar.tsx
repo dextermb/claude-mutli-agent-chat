@@ -12,6 +12,8 @@ import { statusOf } from "@/components/conversation/agent-look"
 import { CreateChannelDialog } from "@/components/create-channel-dialog"
 import { StartChatDialog } from "@/components/start-chat-dialog"
 import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
@@ -19,10 +21,24 @@ import { cn } from "@/lib/utils"
 const ROW =
   "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-sidebar-foreground hover:bg-sidebar-accent"
 
-export function AppSidebar({ currentId }: { currentId: string }) {
+export function AppSidebar({
+  currentId,
+  open = false,
+  onOpenChange = () => undefined,
+}: {
+  currentId: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
   const { conversations, agents, unread } = useWorkspace()
   const [dialog, setDialog] = useState<"chat" | "channel" | null>(null)
-  const [, navigate] = useLocation()
+  const [, setLocation] = useLocation()
+  const isMobile = useIsMobile()
+
+  function navigate(to: string) {
+    onOpenChange(false)
+    setLocation(to)
+  }
 
   async function openDirectMessage(agent: AgentWithState) {
     const response = await fetch("/api/conversations", {
@@ -43,6 +59,7 @@ export function AppSidebar({ currentId }: { currentId: string }) {
     return (
       <Link
         href={`/conversations/${conversation.id}`}
+        onClick={() => onOpenChange(false)}
         aria-current={conversation.id === currentId ? "page" : undefined}
         className={cn(
           ROW,
@@ -66,11 +83,8 @@ export function AppSidebar({ currentId }: { currentId: string }) {
   const groups = conversations.filter((item) => item.kind === "group")
   const directMessages = conversations.filter((item) => item.kind === "dm")
 
-  return (
-    <nav
-      aria-label="Conversations"
-      className="flex w-64 flex-none flex-col gap-4 overflow-y-auto border-r bg-sidebar px-2 py-3"
-    >
+  const content = (
+    <>
       <div className="flex items-center gap-1 pl-2">
         <Link
           href="/"
@@ -178,6 +192,31 @@ export function AppSidebar({ currentId }: { currentId: string }) {
         })}
       </Section>
       <WorkFooter agents={agents} />
+    </>
+  )
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="left" className="w-64 bg-sidebar p-0">
+          <SheetTitle className="sr-only">Sidebar</SheetTitle>
+          <nav
+            aria-label="Conversations"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pt-12 pb-3"
+          >
+            {content}
+          </nav>
+        </SheetContent>
+      </Sheet>
+    )
+  }
+
+  return (
+    <nav
+      aria-label="Conversations"
+      className="flex w-64 flex-none flex-col gap-4 overflow-y-auto border-r bg-sidebar px-2 py-3"
+    >
+      {content}
     </nav>
   )
 }

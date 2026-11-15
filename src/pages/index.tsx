@@ -1,4 +1,9 @@
-import { MessageSquareIcon, PlusIcon, SettingsIcon } from "lucide-react"
+import {
+  MenuIcon,
+  MessageSquareIcon,
+  PlusIcon,
+  SettingsIcon,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link, useLocation } from "wouter"
 
@@ -9,11 +14,14 @@ import {
 } from "@/components/conversation/agent-look"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { Agent, Conversation } from "@/lib/agent-api"
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[] | null>(null)
   const [, navigate] = useLocation()
+  const [showingSidebar, setShowingSidebar] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     let current = true
@@ -45,9 +53,23 @@ export default function AgentsPage() {
 
   return (
     <div className="flex h-svh bg-background text-sm text-foreground">
-      <AppSidebar currentId="" />
+      <AppSidebar
+        currentId=""
+        open={showingSidebar}
+        onOpenChange={setShowingSidebar}
+      />
       <main className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-6 overflow-y-auto px-6 py-8">
         <header className="flex items-center gap-4">
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Open the sidebar"
+              onClick={() => setShowingSidebar(true)}
+            >
+              <MenuIcon />
+            </Button>
+          )}
           <h1 className="m-0 flex-1 text-xl font-semibold text-foreground-strong">
             Agents
           </h1>

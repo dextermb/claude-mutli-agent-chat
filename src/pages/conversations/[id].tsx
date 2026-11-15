@@ -1,6 +1,7 @@
 import {
   HashIcon,
   LockIcon,
+  MenuIcon,
   PanelRightIcon,
   SquareIcon,
   UserPlusIcon,
@@ -42,6 +43,7 @@ export default function ConversationPage() {
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [showingSheet, setShowingSheet] = useState(false)
+  const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   useMarkRead(params.id, conversation.entries.at(-1)?.seq)
   const [refusal, setRefusal] = useState<{
@@ -115,7 +117,11 @@ export default function ConversationPage() {
   )
   return (
     <div className="flex h-svh bg-background text-sm text-foreground">
-      <AppSidebar currentId={params.id} />
+      <AppSidebar
+        currentId={params.id}
+        open={showingSidebar}
+        onOpenChange={setShowingSidebar}
+      />
       <Tabs
         value={isDirect ? tab : "messages"}
         onValueChange={(value: string) =>
@@ -129,6 +135,16 @@ export default function ConversationPage() {
         render={<main className="flex min-w-0 flex-1 flex-col" />}
       >
         <header className="flex flex-wrap items-center gap-3 border-b px-5 py-3">
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Open the sidebar"
+              onClick={() => setShowingSidebar(true)}
+            >
+              <MenuIcon />
+            </Button>
+          )}
           {isDirect && agent ? (
             <Avatar size="sm">
               <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>

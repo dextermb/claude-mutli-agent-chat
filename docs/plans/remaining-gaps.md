@@ -2,10 +2,9 @@
 
 **Status:** in progress. The user agreed the steps and the seams of step 1
 to step 6 on 2026-11-15, and answered G1 to G9 (see "Resolved"). Step 1 to
-step 4 and step 6 are built. Step 5 is closed: Claude Code sends no text of a
-subagent (F32 in `docs/protocol.md`), so the reducer needs no change. Step 7
-and step 8 are ahead, in that order. The seams of
-step 7 and step 8 are proposed, and need the agreement of the user.
+step 4, step 6 and step 7 are built. Step 5 is closed: Claude Code sends no
+text of a subagent (F32 in `docs/protocol.md`), so the reducer needs no
+change. Step 8 is ahead, and the user agreed its seams.
 
 ## The gaps, and what to do with each
 
@@ -16,7 +15,6 @@ step 7 and step 8 are proposed, and need the agreement of the user.
 | `--max-turns` is not on the command line                   | `docs/agents.md`, `protocol`    | No action       | none |
 | Two sessions in the same folder are not measured           | `docs/protocol.md`              | No action (G7)  | none |
 | The cost and the turns of a session are not stored         | `docs/store.md`                 | No action       | none |
-| The sidebar stays open at full width on a narrow screen    | `docs/web-app/sidebar.md`       | Build           | 7    |
 | The Session card is empty before the first process         | `docs/web-app/session-panel.md` | Build           | 8    |
 
 **No action, with the reason:**
@@ -35,17 +33,6 @@ step 7 and step 8 are proposed, and need the agreement of the user.
 - **Two sessions in the same folder.** The user chooses the folder of each
   agent. `docs/architecture.md` lists it as a risk.
 
-## Step 7: The sidebar on a narrow screen
-
-**Decision (G8):** below 768 px, the app sidebar is a `Sheet` from the left,
-not a column. A menu button, "Open the sidebar", in the header of each page
-opens it. A click on a conversation in the sheet closes it.
-
-**Seams (proposed):** the DM page and the home page at a narrow width, with
-`screenWidth(375)` and the fake network.
-
-**Check:** `agent-browser` at 375 px.
-
 ## Step 8: The Session card before the first process
 
 **Decision (G9):** when an agent has no session in a conversation,
@@ -53,7 +40,7 @@ opens it. A click on a conversation in the sheet closes it.
 model, its permission mode, its folder and its allowed tools, with 0 turns,
 a cost of 0, and no session ID ("None yet").
 
-**Seams (proposed):** `createServer()` (the route), and the DM page with the
+**Seams (agreed):** `createServer()` (the route), and the DM page with the
 fake network.
 
 ## Not in this plan

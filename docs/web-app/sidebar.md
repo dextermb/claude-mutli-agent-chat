@@ -16,6 +16,14 @@ conversation page. It lists:
 
 The current conversation has `aria-current="page"`.
 
+Below 768 px (`useIsMobile()`), the sidebar is a `Sheet` from the left, not
+a column. An "Open the sidebar" button in the header of the page opens it.
+The page holds the open state, and gives it to `AppSidebar` as `open` and
+`onOpenChange`. Each way to leave the sidebar closes the sheet: a row, an
+agent with no DM, Start a chat and Create a channel. The router keeps the
+conversation page when the address changes to another conversation, so the
+sheet must close itself.
+
 The sidebar gets its lists from `useWorkspace()` (`src/hooks/use-workspace.ts`).
 The hook opens the app stream (`/api/events`), then loads
 `GET /api/conversations` and `GET /api/agents`. An `agent_state` event
@@ -59,8 +67,3 @@ channel has "Invite agents", as in the design. Each opens
 each with its model and its mode, and a checkbox. Add or Invite sends the
 picked agents. If the server refuses, the dialog shows the reason, or "The
 server did not answer." when no answer came.
-
-## Not built yet
-
-- On a narrow screen, the sidebar stays open at its full width. At 375 px,
-  the conversation gets about 120 px.
