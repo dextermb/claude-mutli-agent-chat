@@ -1,7 +1,7 @@
 import { TriangleAlertIcon } from "lucide-react"
 import { useState } from "react"
 
-import { OutputBlock } from "@/components/conversation/tool-call/tool-call-line"
+import { OutputBlock } from "@/components/conversation/tool-call/output-block"
 
 export function FailedNotice({
   agentName,

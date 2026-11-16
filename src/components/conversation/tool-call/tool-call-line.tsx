@@ -11,50 +11,25 @@ import {
 import { useState } from "react"
 
 import { Approval } from "@/components/conversation/cards/approval"
-import {
-  CodeBlock,
-  CodeBlockContent,
-  CodeBlockFooter,
-  CodeBlockLine,
-} from "@/components/ui/code-block"
+import { DiffBlock } from "@/components/conversation/tool-call/diff-block"
+import { OutputBlock } from "@/components/conversation/tool-call/output-block"
+import { ToolDescription } from "@/components/conversation/tool-call/tool-description"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Trace,
   TraceCollapsible,
   TraceCollapsibleContent,
   TraceCollapsibleTrigger,
-  TraceDescription,
   TraceIcon,
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace"
 import type { RequestAnswer } from "@/hooks/use-conversation"
-import type {
-  DiffLine,
-  Json,
-  PermissionItem,
-  ToolCallItem,
-} from "@/lib/agent-api"
+import type { PermissionItem, ToolCallItem } from "@/lib/agent-api"
 import { endPathDrag, startPathDrag } from "@/lib/drag-path"
+import { mainInput } from "@/lib/tool-input"
+import { VERBS } from "@/lib/tool-verbs"
 import { cn } from "@/lib/utils"
-
-const VERBS: Record<string, { running: string; done: string; failed: string }> =
-  {
-    Read: { running: "Reading", done: "Read", failed: "Failed to read" },
-    Edit: { running: "Editing", done: "Edited", failed: "Failed to edit" },
-    Write: { running: "Writing", done: "Wrote", failed: "Failed to write" },
-    Bash: { running: "Running", done: "Ran", failed: "Failed to run" },
-    WebFetch: {
-      running: "Fetching",
-      done: "Fetched",
-      failed: "Failed to fetch",
-    },
-    Agent: {
-      running: "Running the subagent:",
-      done: "Ran the subagent:",
-      failed: "The subagent failed:",
-    },
-  }
 
 const ICONS: Record<string, LucideIcon> = {
   Read: FileIcon,
@@ -144,7 +119,7 @@ export function ToolCallLine({
           {target}
         </code>
       </TraceTitle>
-      <Description call={call} subagentCount={subagentCalls.length} />
+      <ToolDescription call={call} subagentCount={subagentCalls.length} />
     </TraceLine>
   )
   return (
@@ -191,98 +166,4 @@ export function ToolCallLine({
       )}
     </section>
   )
-}
-
-function Description({
-  call,
-  subagentCount,
-}: {
-  call: ToolCallItem
-  subagentCount: number
-}) {
-  const { result } = call
-  const parts = [
-    call.status === "stopped" && "Stopped",
-    result?.kind === "lines" && `${result.count} lines`,
-    result?.kind === "diff" &&
-      [
-        result.added > 0 && `+${result.added}`,
-        result.removed > 0 && `−${result.removed}`,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    subagentCount === 1 && "1 tool call",
-    subagentCount > 1 && `${subagentCount} tool calls`,
-  ].filter(Boolean)
-  if (parts.length === 0) return null
-  return (
-    <TraceDescription
-      className={cn(
-        "text-foreground-faint",
-        result?.kind === "diff" && "font-mono"
-      )}
-    >
-      {parts.join(" · ")}
-    </TraceDescription>
-  )
-}
-
-const LINE_VARIANT = {
-  add: "added",
-  remove: "removed",
-  same: "default",
-} as const
-
-function DiffBlock({ lines, more }: { lines: DiffLine[]; more: number }) {
-  return (
-    <CodeBlock size="sm">
-      <CodeBlockContent className="max-h-64">
-        {lines.map((line, index) => (
-          <CodeBlockLine key={index} variant={LINE_VARIANT[line.kind]}>
-            {line.text}
-          </CodeBlockLine>
-        ))}
-      </CodeBlockContent>
-      {more > 0 && (
-        <CodeBlockFooter className="text-xs text-foreground-faint">
-          {more} more lines
-        </CodeBlockFooter>
-      )}
-    </CodeBlock>
-  )
-}
-
-export function OutputBlock({
-  text,
-  failed,
-}: {
-  text: string
-  failed: boolean
-}) {
-  return (
-    <CodeBlock
-      size="sm"
-      className={cn(
-        failed && "border-transparent bg-error-soft text-foreground"
-      )}
-    >
-      <CodeBlockContent wrap className="max-h-64">
-        {text}
-      </CodeBlockContent>
-    </CodeBlock>
-  )
-}
-
-export function mainInput(name: string, input: Json, cwd: string): string {
-  const value =
-    input.file_path ??
-    input.command ??
-    input.pattern ??
-    input.url ??
-    input.description ??
-    ""
-  const text = typeof value === "string" ? value : ""
-  if (name === "Bash") return text
-  const prefix = cwd.endsWith("/") ? cwd : `${cwd}/`
-  return text.startsWith(prefix) ? text.slice(prefix.length) : text
 }
