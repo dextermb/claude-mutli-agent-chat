@@ -13,7 +13,7 @@ plugin tell the agent how to use them (`docs/agent-environment.md`).
 | Part                    | What it holds                                                             |
 | ----------------------- | ------------------------------------------------------------------------- |
 | `server/mcp/rpc.ts`     | JSON-RPC: `answerRpc(message, tools)`, `Tool`, `ToolError`                |
-| `server/mcp/tools.ts`   | `chatTools(chat, caller)`: the seven tools, and `READ_TOOLS`              |
+| `server/mcp/tools.ts`   | `chatTools(chat, caller)`: the eight tools, and `READ_TOOLS`              |
 | `server/http/server.ts` | The route, the tokens, and the `ChatServer` functions that the tools call |
 
 `answerRpc()` knows nothing about the chat. `chatTools()` knows nothing about
@@ -80,15 +80,16 @@ A Zod schema checks the input of each tool, and `z.toJSONSchema()` gives the
 An agent reads and writes only in a conversation where it is a member. With
 no `conversationId`, a tool uses the conversation of the session.
 
-| Tool                 | Input                                               | Result                                                                    | Card |
-| -------------------- | --------------------------------------------------- | ------------------------------------------------------------------------- | ---- |
-| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, members (`state` and `you` for an agent)   | No   |
-| `list_conversations` |                                                     | ID, kind, name, topic and `thisConversation` of each of its conversations | No   |
-| `list_agents`        |                                                     | Name, state over all conversations, folder with `~`, and `you`            | No   |
-| `read_messages`      | `conversationId?`, `before?`, `limit` (1 to 50, 20) | `messages` (`seq`, author, `at`, text), oldest first, and `more`          | No   |
-| `send_message`       | `conversationId?`, `text`                           | `{ seq }`                                                                 | Yes  |
-| `start_conversation` | `kind`, `agentNames`, `name?`, `topic?`, `text`     | `{ conversationId, kind, name, seq }`                                     | Yes  |
-| `add_members`        | `conversationId`, `agentNames`                      | `{ name, members }`, with names                                           | Yes  |
+| Tool                 | Input                                               | Result                                                                                                         | Card |
+| -------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---- |
+| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, members (`state` and `you` for an agent)                                        | No   |
+| `list_conversations` |                                                     | ID, kind, name, topic and `thisConversation` of each of its conversations                                      | No   |
+| `list_agents`        |                                                     | Name, state over all conversations, folder with `~`, and `you`                                                 | No   |
+| `read_messages`      | `conversationId?`, `before?`, `limit` (1 to 50, 20) | `messages` (`seq`, author, `at`, text, `files` if any), oldest first, and `more`                               | No   |
+| `list_files`         | `conversationId?`                                   | `files`: `id`, `name`, absolute `path`, `kind`, `size`, `sharedBy`, `sharedAt`, `exists`. Not the removed ones | No   |
+| `send_message`       | `conversationId?`, `text`                           | `{ seq }`                                                                                                      | Yes  |
+| `start_conversation` | `kind`, `agentNames`, `name?`, `topic?`, `text`     | `{ conversationId, kind, name, seq }`                                                                          | Yes  |
+| `add_members`        | `conversationId`, `agentNames`                      | `{ name, members }`, with names                                                                                | Yes  |
 
 - `read_messages` gives only complete messages, with no tool calls.
 - `start_conversation` makes the caller a member, after the user and before

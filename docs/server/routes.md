@@ -1,0 +1,45 @@
+# The routes
+
+Each route of the agent server, with its body and its result. The behaviour
+behind the routes is in `../server.md` and `files.md`.
+
+| Route                                                  | Body                                    | Result                                                                                                                                                |
+| ------------------------------------------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/agents`                                      |                                         | `{ agents }`, by name                                                                                                                                 |
+| `POST /api/agents`                                     | The agent                               | `201 { agent }`. `400` if a field is empty                                                                                                            |
+| `GET /api/agents/:id`                                  |                                         | `{ agent }`. `404` for an unknown agent                                                                                                               |
+| `PATCH /api/agents/:id`                                | Some fields of the agent                | `{ agent }`. The other fields stay                                                                                                                    |
+| `POST /api/agents/:id/stop`                            |                                         | `202`. Stops the agent in each conversation. `404` for an unknown agent                                                                               |
+| `POST /api/agents/:id/restart`                         |                                         | `202`. Starts each live process of the agent again, with `--resume`. `404` for an unknown agent                                                       |
+| `GET /api/folders`                                     | `?path=<absolute path>`                 | `{ path, parent, folders }`: the subfolders of that folder, or of the home folder with no `path`. See `files.md`                                      |
+| `GET /api/conversations`                               |                                         | `{ conversations, unread }`. `unread` gives the unread count of each conversation that has one                                                        |
+| `POST /api/conversations`                              | A DM, a group chat or a channel         | `201 { conversation }`, or `200` with the DM that exists                                                                                              |
+| `GET /api/conversations/:id`                           |                                         | `{ conversation, agents }`, each agent with its `state`                                                                                               |
+| `PATCH /api/conversations/:id`                         | Some of `topic`, `private`, `replyMode` | `{ conversation }`. The other fields stay. `400` for a DM, a group chat or a bad field. See `docs/conversations.md`                                   |
+| `POST /api/conversations/:id/messages`                 | `{ text }`                              | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation                                                                        |
+| `POST /api/conversations/:id/read`                     | `{ seq }`                               | `204`. The user saw the conversation up to `seq`. `400` with no integer `seq`. `404` for an unknown conversation                                      |
+| `GET /api/conversations/:id/timeline`                  |                                         | `{ items, lastEventId }`                                                                                                                              |
+| `GET /api/conversations/:id/events`                    |                                         | The event stream (SSE)                                                                                                                                |
+| `GET /api/events`                                      |                                         | The app stream (SSE)                                                                                                                                  |
+| `POST /api/conversations/:id/stop`                     |                                         | `202`. Interrupts each busy agent                                                                                                                     |
+| `GET /api/conversations/:id/agents/:agentId/session`   |                                         | `{ session }`, the session card. Before the first process, the card holds the configuration of the agent, with no session ID, 0 turns and a cost of 0 |
+| `POST /api/conversations/:id/agents/:agentId/stop`     |                                         | `202`. Interrupts that agent and empties its queue                                                                                                    |
+| `POST /api/conversations/:id/agents/:agentId/sessions` |                                         | `201 { session }`. New session. `404` if the agent is not a member                                                                                    |
+| `POST /api/conversations/:id/members`                  | `{ agentIds }`                          | `{ conversation }`. `400` for a DM. See `docs/conversations.md`                                                                                       |
+| `DELETE /api/conversations/:id/members/:agentId`       |                                         | `{ conversation }`. `400` for a DM or the last agent of a group chat                                                                                  |
+| `GET /api/conversations/:id/agents/:agentId/log`       | `?before=<seq>`                         | `{ lines }`: the last 200 stored lines of that agent in that conversation, or the 200 before `seq`                                                    |
+| `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }`         | `202`. `404` if the request is not open                                                                                                               |
+| `POST /mcp`                                            | JSON-RPC                                | The `chat` MCP server of the agents. `403` with no token of a live session. See `docs/mcp.md`                                                         |
+| `PUT /api/conversations/:id/uploads`                   | `?name=<file name>`, the raw bytes      | `201 { name, path, size }`. `413` over the limit. See `files.md`                                                                                      |
+| `POST /api/conversations/:id/files/find`               | `{ name, size, sha256 }`                | `{ match: { path } }` or `{ match: null }`. See `files.md`                                                                                            |
+| `GET /api/conversations/:id/files`                     |                                         | `{ files }`: the shared files, removed ones too. See `files.md`                                                                                       |
+| `DELETE /api/conversations/:id/files/:fileId`          |                                         | `{ file }`. Takes the file off the list. See `files.md`                                                                                               |
+| `GET /api/conversations/:id/paths`                     | `?q=<text>`                             | `{ paths }`: the best 20 files of the agent folders for `@`. See `files.md`                                                                           |
+
+An agent needs a `name`, a `cwd`, a `model` and a `permissionMode`. An empty
+`cwd` would start `claude` in the folder of the server, so the server refuses
+it. An empty `systemPrompt` is stored as `null`. The server checks an agent
+and a channel with the schemas in `server/schemas.ts`, and a refused body
+gets `400 { error, fields }` (`../forms.md`).
+
+The state of an agent with no live process is `exited`.

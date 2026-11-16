@@ -53,3 +53,4 @@ type check of the app does not need the Node types.
 | `docs/web-app/session-panel.md` | The session panel, the members of a channel, Stop turn, New session, Remove, and the DM tabs         |
 | `docs/web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs Start a chat, Create a channel and Members            |
 | `docs/web-app/agent-page.md`    | The form for a new or a saved agent                                                                  |
+| `docs/web-app/files.md`         | Attach, drop and `@` files, the chips, and the shared files in the thread and the panel              |

@@ -40,6 +40,7 @@ runs in one transaction with its SQL, its rebuild and the new
 | 5       | New table `conversation_reads`                                                           |
 | 6       | `agents` gets `description`, null for older rows                                         |
 | 7       | `agents` gets `max_turns`, null (no limit) for older rows                                |
+| 8       | New table `shared_files`                                                                 |
 
 A migration with `rebuild: true` builds the timeline of each session again
 from its stored lines. Use it when a change to the reducer must reach the
@@ -56,22 +57,24 @@ agents ──1:N── agent_sessions ──1:N── session_events
    │                 └──1:N── timeline_items (session_id, nullable)
    │
 conversations ──1:N── conversation_members
-      ├──────1:N── timeline_items
+      ├──────1:N── timeline_items ──1:N── shared_files (item_id, nullable)
+      ├──────1:N── shared_files
       └──────1:1── conversation_reads
 ```
 
-| Table                  | Holds                                                                                                                                                                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agents`               | The configuration, the description and the turn limit (`max_turns`, null for none) of each agent. The tool lists are JSON arrays. The `config` of a session row from before version 7 reads with `maxTurns: null`, so the session card does not say that it changed |
-| `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                                     |
-| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                                      |
-| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`)         |
-| `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                           |
-| `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                                                                                                                        |
-| `conversation_reads`   | For each conversation, the `last_read_seq` that the user saw and the time (`read_at`). No row: the user saw nothing                                                                                                                                                 |
+| Table                  | Holds                                                                                                                                                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents`               | The configuration, the description and the turn limit (`max_turns`, null for none) of each agent. The tool lists are JSON arrays. The `config` of a session row from before version 7 reads with `maxTurns: null`, so the session card does not say that it changed                                                              |
+| `conversations`        | Each channel, group chat and DM                                                                                                                                                                                                                                                                                                  |
+| `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                                                                                                   |
+| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`)                                                                      |
+| `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                                                                                        |
+| `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                                                                                                                                                                                     |
+| `conversation_reads`   | For each conversation, the `last_read_seq` that the user saw and the time (`read_at`). No row: the user saw nothing                                                                                                                                                                                                              |
+| `shared_files`         | The list of shared files of each conversation: `name`, absolute `path`, `kind` (`linked` or `copied`), `size`, `shared_by`, `shared_at`, and `removed_at` and `removed_by` once the user removes it. One row for each path of a conversation (`UNIQUE (conversation_id, path)`). `item_id` names the last message that shared it |
 
 A delete of an agent or a conversation deletes its sessions, members and
-items. A delete of a conversation also deletes its read. A delete of a session keeps its items, with `session_id` set to null.
+items. A delete of a conversation also deletes its read and its shared files. A delete of a message item keeps its shared files, with `item_id` set to null. A delete of a session keeps its items, with `session_id` set to null.
 
 ## The order of the timeline
 
@@ -129,22 +132,23 @@ in each replay.
 
 ## Queries
 
-| Function                                                                   | Result                                                                                                                                                                |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createAgent(agent)`, `getAgent(id)`                                       | An agent                                                                                                                                                              |
-| `createConversation(c)`, `getConversation(id)`                             | A conversation with its members in order                                                                                                                              |
-| `addMember(id, memberKey)`, `removeMember(id, memberKey)`                  | Adds a member at the end with the `joined_seq` of now, or removes it                                                                                                  |
-| `joinedSeq(id, memberKey)`                                                 | The place where a member joined                                                                                                                                       |
-| `updateConversation(id, { name, topic, private, replyMode })`              | Changes the given fields only, and gives back the conversation                                                                                                        |
-| `createSession({ agentId, conversationId })`, `getSession(id)`             | A session, `starting` at first                                                                                                                                        |
-| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })` | Changes the given fields only                                                                                                                                         |
-| `recordLine()`, `listLines(sessionId)`                                     | The lines of a session, in order                                                                                                                                      |
-| `listAgentLines(agentId, conversationId, { limit, before })`               | The lines of each session of that agent in that conversation, the last `limit` before `before`, in order                                                              |
-| `saveItems()`, `addMessage()`, `listTimeline(conversationId)`              | The timeline                                                                                                                                                          |
-| `listSessionTurns(agentId, conversationId, claudeSessionId)`               | The turn items of each row with that Claude session ID                                                                                                                |
-| `rebuildTimeline(sessionId)`                                               | The items of a session, from its lines                                                                                                                                |
-| `markRead(id, seq)`, `unreadCounts()`                                      | Keeps the higher `seq` of the two, and counts the agent items of kind `message`, `notice`, `permission` and `question` after the `last_read_seq` of each conversation |
-| `close()`                                                                  | Closes the database                                                                                                                                                   |
+| Function                                                                                                                         | Result                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createAgent(agent)`, `getAgent(id)`                                                                                             | An agent                                                                                                                                                              |
+| `createConversation(c)`, `getConversation(id)`                                                                                   | A conversation with its members in order                                                                                                                              |
+| `addMember(id, memberKey)`, `removeMember(id, memberKey)`                                                                        | Adds a member at the end with the `joined_seq` of now, or removes it                                                                                                  |
+| `joinedSeq(id, memberKey)`                                                                                                       | The place where a member joined                                                                                                                                       |
+| `updateConversation(id, { name, topic, private, replyMode })`                                                                    | Changes the given fields only, and gives back the conversation                                                                                                        |
+| `createSession({ agentId, conversationId })`, `getSession(id)`                                                                   | A session, `starting` at first                                                                                                                                        |
+| `updateSession(id, { claudeSessionId, state, endedAt, exitCode, stderr })`                                                       | Changes the given fields only                                                                                                                                         |
+| `recordLine()`, `listLines(sessionId)`                                                                                           | The lines of a session, in order                                                                                                                                      |
+| `listAgentLines(agentId, conversationId, { limit, before })`                                                                     | The lines of each session of that agent in that conversation, the last `limit` before `before`, in order                                                              |
+| `saveItems()`, `addMessage()`, `listTimeline(conversationId)`                                                                    | The timeline                                                                                                                                                          |
+| `listSessionTurns(agentId, conversationId, claudeSessionId)`                                                                     | The turn items of each row with that Claude session ID                                                                                                                |
+| `rebuildTimeline(sessionId)`                                                                                                     | The items of a session, from its lines                                                                                                                                |
+| `markRead(id, seq)`, `unreadCounts()`                                                                                            | Keeps the higher `seq` of the two, and counts the agent items of kind `message`, `notice`, `permission` and `question` after the `last_read_seq` of each conversation |
+| `shareFiles(id, itemId, files, sharedBy)`, `listSharedFiles(id)`, `getSharedFile(fileId)`, `removeSharedFile(fileId, removedBy)` | Adds or updates a row for each path (and puts back a removed one), lists each row, removed ones too, newest first, and marks a row removed                            |
+| `close()`                                                                                                                        | Closes the database                                                                                                                                                   |
 
 ## Not stored yet
 
