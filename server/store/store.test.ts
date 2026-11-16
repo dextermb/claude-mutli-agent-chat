@@ -141,6 +141,7 @@ describe("Store", () => {
       systemPrompt: "You review pull requests.",
       description: "Reviews each pull request.",
       maxTurns: 30,
+      sleepAfterMinutes: null,
     })
   })
 

@@ -18,6 +18,7 @@ export type Agent = {
   systemPrompt: string | null
   description: string | null
   maxTurns: number | null
+  sleepAfterMinutes: number | null
   createdAt: string
 }
 

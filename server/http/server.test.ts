@@ -705,6 +705,33 @@ describe("createServer", () => {
     })
   })
 
+  test("an agent keeps its sleep time, a time above 55 minutes is refused, and no time is null", async () => {
+    const { base } = await startServer()
+
+    const kept = await postJson(base, "/api/agents", {
+      ...testRunner,
+      sleepAfterMinutes: 20,
+    })
+    const tooLong = await postJson(base, "/api/agents", {
+      ...testRunner,
+      sleepAfterMinutes: 56,
+    })
+    const none = await postJson(base, "/api/agents", testRunner)
+
+    expect(await kept.json()).toMatchObject({
+      agent: { sleepAfterMinutes: 20 },
+    })
+    expect(tooLong.status).toBe(400)
+    expect(await tooLong.json()).toMatchObject({
+      fields: {
+        sleepAfterMinutes: "Give a whole number from 0 to 55, or leave it empty.",
+      },
+    })
+    expect(await none.json()).toMatchObject({
+      agent: { sleepAfterMinutes: null },
+    })
+  })
+
   test("a generic agent with no folder can be created", async () => {
     const { base } = await startServer()
 

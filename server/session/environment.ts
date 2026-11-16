@@ -14,5 +14,6 @@ const PARENT_SESSION_VARIABLES = [
 export function childEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const child = { ...env }
   for (const name of PARENT_SESSION_VARIABLES) delete child[name]
+  child.AGENT_CHAT = "1"
   return child
 }

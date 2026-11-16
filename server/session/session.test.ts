@@ -283,6 +283,22 @@ describe("AgentSession", () => {
     })
   })
 
+  test("the agent gets AGENT_CHAT=1, so a hook of the user can tell an agent from a terminal session", async () => {
+    const { session, events } = startFake("resume-1", "env", {
+      PATH: process.env.PATH,
+    })
+    await untilIdle(events, 1)
+
+    session.prompt("Remember the word kiwi. Reply with the single word ok.")
+    await untilIdle(events, 2)
+
+    expect(events).toContainEqual({
+      type: "line",
+      direction: "out",
+      text: "AGENT_CHAT: 1",
+    })
+  })
+
   test("a prompt to a failed session is dropped and the session stays failed", async () => {
     const { session, events } = startFake("resume-1", "crash")
     await untilIdle(events, 1)

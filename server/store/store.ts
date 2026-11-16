@@ -71,16 +71,17 @@ export function openStore(location: string) {
   function createAgent(agent: NewAgent): Agent {
     const created: Agent = {
       ...agent,
+      sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
     }
     db.prepare(
       `INSERT INTO agents (id, name, colour, model, permission_mode, cwd,
          autostart, allowed_tools, disallowed_tools, system_prompt, description,
-         max_turns, created_at)
+         max_turns, sleep_after_minutes, created_at)
        VALUES (:id, :name, :colour, :model, :permissionMode, :cwd,
          :autostart, :allowedTools, :disallowedTools, :systemPrompt, :description,
-         :maxTurns, :createdAt)`
+         :maxTurns, :sleepAfterMinutes, :createdAt)`
     ).run({
       ...created,
       autostart: created.autostart ? 1 : 0,
@@ -96,10 +97,11 @@ export function openStore(location: string) {
          permission_mode = :permissionMode, cwd = :cwd, autostart = :autostart,
          allowed_tools = :allowedTools, disallowed_tools = :disallowedTools,
          system_prompt = :systemPrompt, description = :description,
-         max_turns = :maxTurns
+         max_turns = :maxTurns, sleep_after_minutes = :sleepAfterMinutes
        WHERE id = :id`
     ).run({
       ...agent,
+      sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
       id,
       autostart: agent.autostart ? 1 : 0,
       allowedTools: JSON.stringify(agent.allowedTools),
@@ -791,6 +793,8 @@ function toAgent(row: Row): Agent {
     systemPrompt: row.system_prompt === null ? null : String(row.system_prompt),
     description: row.description === null ? null : String(row.description),
     maxTurns: row.max_turns === null ? null : Number(row.max_turns),
+    sleepAfterMinutes:
+      row.sleep_after_minutes === null ? null : Number(row.sleep_after_minutes),
     createdAt: String(row.created_at),
   }
 }

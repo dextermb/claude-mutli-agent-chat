@@ -44,6 +44,7 @@ for (const { dir, line } of fixture) {
       name.startsWith("CLAUDE")
     )
     process.stdout.write(`env: ${names.sort().join(" ")}\n`)
+    process.stdout.write(`AGENT_CHAT: ${process.env.AGENT_CHAT ?? "unset"}\n`)
   }
   if (line.type === "control_request") {
     requestIds.set(String(line.request_id), String(received.request_id))
