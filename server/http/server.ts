@@ -65,7 +65,10 @@ export type ServerOptions = {
   sleepAfterMinutes?: number
   compactAboveTokens?: number
   minuteMs?: number
+  wakeMessages?: number
 }
+
+type QueuedPrompt = { text: string; note: string | null }
 
 type LiveSession = {
   id: string
@@ -74,7 +77,7 @@ type LiveSession = {
   handle: SessionHandle | null
   token: string
   state: SessionState
-  queue: string[]
+  queue: QueuedPrompt[]
   cwd: string
   facts: string[] | null
   sleepTimer: ReturnType<typeof setTimeout> | null
@@ -111,6 +114,7 @@ const LOG_PAGE = 200
 const SUMMARY_HEADING = "\nSummary:\n"
 const SLEEP_AFTER_MINUTES = 15
 const COMPACT_ABOVE_TOKENS = 100_000
+const WAKE_MESSAGES = 30
 const MINUTE_MS = 60_000
 
 export function createServer({
@@ -123,6 +127,7 @@ export function createServer({
   sleepAfterMinutes = SLEEP_AFTER_MINUTES,
   compactAboveTokens = COMPACT_ABOVE_TOKENS,
   minuteMs = MINUTE_MS,
+  wakeMessages = WAKE_MESSAGES,
 }: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
@@ -538,19 +543,25 @@ export function createServer({
     return findLive(agentId, conversationId)?.state ?? "exited"
   }
 
-  function deliver(session: LiveSession, text: string) {
-    session.queue.push(text)
+  function deliver(session: LiveSession, queued: QueuedPrompt) {
+    session.queue.push(queued)
     deliverNext(session)
   }
 
   function deliverNext(session: LiveSession) {
     if (session.state !== "idle") return
-    const text = session.queue.shift()
-    if (text === undefined) return
+    const queued = session.queue.shift()
+    if (queued === undefined) return
     const facts = factsOf(session)
-    const note = facts ? factsNote(session.facts, facts) : undefined
+    const notes = [
+      facts ? factsNote(session.facts, facts) : undefined,
+      queued.note,
+    ].filter((note) => note !== undefined && note !== null)
     if (facts) session.facts = facts
-    session.handle?.prompt(text, note)
+    session.handle?.prompt(
+      queued.text,
+      notes.length > 0 ? notes.join("\n") : undefined
+    )
   }
 
   function factsOf(session: LiveSession): string[] | undefined {
@@ -572,8 +583,10 @@ export function createServer({
     agentId: string,
     conversationId: string,
     text: string
-  ): string {
-    if (store.getConversation(conversationId)?.kind === "dm") return text
+  ): QueuedPrompt {
+    if (store.getConversation(conversationId)?.kind === "dm") {
+      return { text, note: null }
+    }
     const author = `agent:${agentId}`
     const entries = store.listTimeline(conversationId)
     const key = `${agentId} ${conversationId}`
@@ -589,7 +602,7 @@ export function createServer({
       key,
       Math.max(cursor, ...entries.map((entry) => entry.seq))
     )
-    return entries
+    const lines = entries
       .filter(
         (entry) =>
           entry.seq > cursor &&
@@ -604,7 +617,13 @@ export function createServer({
             : ""
         return `[${authorName(entry.authorKey)}] ${text}`
       })
-      .join("\n")
+    return {
+      text: lines.slice(-wakeMessages).join("\n"),
+      note:
+        lines.length > wakeMessages
+          ? `[Chat app] ${lines.length} messages came since your last turn. Here are the last ${wakeMessages}. Use read_messages for the older ones.`
+          : null,
+    }
   }
 
   function authorName(authorKey: string): string {
@@ -618,11 +637,13 @@ export function createServer({
     const key = `${agentId} ${conversationId}`
     const removed = removedNotes.get(key) ?? []
     removedNotes.delete(key)
-    deliver(
-      session,
-      removed.map((path) => `[Removed file: ${path}]\n`).join("") +
-        promptFor(agentId, conversationId, text)
-    )
+    const queued = promptFor(agentId, conversationId, text)
+    deliver(session, {
+      ...queued,
+      text:
+        removed.map((path) => `[Removed file: ${path}]\n`).join("") +
+        queued.text,
+    })
   }
 
   function addressedAgents(
