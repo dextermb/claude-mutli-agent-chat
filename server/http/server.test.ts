@@ -10,6 +10,7 @@ import {
   openAppEvents,
   openEvents,
   postJson,
+  promptsTo,
   runCleanups,
   sendMessage,
   startServer,
@@ -232,6 +233,63 @@ describe("createServer", () => {
       })
     )
     expect(started).toHaveLength(1)
+  })
+
+  test("an agent with a large context compacts its memory before it sleeps", async () => {
+    const { base, sentTo, agent, conversation } = await startServer(
+      "compact",
+      ":memory:",
+      undefined,
+      undefined,
+      { minuteMs: 20, compactAboveTokens: 10_000 }
+    )
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 1 }),
+    })
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(async () => {
+      const response = await fetch(
+        `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+      )
+      expect(await response.json()).toMatchObject({
+        session: { state: "exited", asleepSince: expect.any(String) },
+      })
+    })
+    expect(promptsTo(sentTo, "reviewer-bot")[1]).toMatch(/^\/compact Keep:/)
+    const { items } = await timeline(base, conversation.id)
+    expect(items.map(({ item }) => item.kind)).toContain("compaction")
+  })
+
+  test("an agent with a background job that runs does not sleep", async () => {
+    const { base, agent, conversation } = await startServer(
+      "background",
+      ":memory:",
+      undefined,
+      () => ({ mode: "hold-after-result" }),
+      { minuteMs: 20 }
+    )
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 1 }),
+    })
+    await sendMessage(base, conversation.id, "Run the job.")
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.at(-1)?.item.kind).toBe("turn")
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    const response = await fetch(
+      `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+    )
+    expect(await response.json()).toMatchObject({
+      session: { state: "idle", asleepSince: null },
+    })
   })
 
   test("after a change to the agent, the session shows the configuration that runs, and that it changed", async () => {

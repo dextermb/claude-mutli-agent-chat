@@ -9,6 +9,12 @@ const UPLOADS = resolve(
   process.env.AGENTS_UPLOADS ?? join(dirname(DATABASE), "uploads")
 )
 const PORT = Number(process.env.PORT ?? 4100)
+const SLEEP_AFTER_MINUTES = numberOrUndefined(
+  process.env.AGENTS_SLEEP_AFTER_MINUTES
+)
+const COMPACT_ABOVE_TOKENS = numberOrUndefined(
+  process.env.AGENTS_COMPACT_ABOVE_TOKENS
+)
 
 mkdirSync(dirname(DATABASE), { recursive: true })
 const store = openStore(DATABASE)
@@ -16,6 +22,8 @@ const store = openStore(DATABASE)
 const server = createServer({
   store,
   uploadsFolder: UPLOADS,
+  sleepAfterMinutes: SLEEP_AFTER_MINUTES,
+  compactAboveTokens: COMPACT_ABOVE_TOKENS,
   startSession: ({ args, cwd, onEvent }) => {
     const session = new AgentSession({
       command: "claude",
@@ -40,4 +48,8 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.exit(0)
     })
   })
+}
+
+function numberOrUndefined(value: string | undefined): number | undefined {
+  return value === undefined || value === "" ? undefined : Number(value)
 }
