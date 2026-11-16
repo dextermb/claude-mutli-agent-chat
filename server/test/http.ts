@@ -277,11 +277,18 @@ export async function answerRequest(
   })
 }
 
-export async function nextPendingCard(base: string, conversationId: string) {
+export async function nextPendingCard(
+  base: string,
+  conversationId: string,
+  answered: string[] = []
+) {
   let requestId = ""
   await vi.waitFor(async () => {
     const { items } = await timeline(base, conversationId)
-    const card = items.find(({ item }) => item.status === "pending")
+    const card = items.find(
+      ({ item }) =>
+        item.status === "pending" && !answered.includes(String(item.requestId))
+    )
     expect(card).toBeDefined()
     requestId = String(card?.item.requestId)
   })

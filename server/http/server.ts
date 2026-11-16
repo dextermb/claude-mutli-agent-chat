@@ -1128,10 +1128,15 @@ export function createServer({
     }
 
     if ((params = route("POST", "api/requests/:id"))) {
-      const open = openRequests.get(params.id)
+      const requestId = params.id
+      const open = openRequests.get(requestId)
       if (!open) return send(response, 404, { error: "no open request" })
-      const body = await readJson(request)
-      open.session.handle?.answer(params.id, permissionAnswer(open.card, body))
+      openRequests.delete(requestId)
+      const body = await readJson(request).catch((error: unknown) => {
+        openRequests.set(requestId, open)
+        throw error
+      })
+      open.session.handle?.answer(requestId, permissionAnswer(open.card, body))
       return send(response, 202, {})
     }
 
