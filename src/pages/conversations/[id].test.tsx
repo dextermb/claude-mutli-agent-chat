@@ -518,6 +518,25 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("the session card says since when the agent sleeps, and that the next message wakes it", async () => {
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/agents/a1/session", {
+      session: {
+        ...testRunnerSession,
+        state: "exited",
+        asleepSince: localTime(15, 14, 2),
+      },
+    })
+
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    expect(
+      await within(panel).findByText(
+        "Asleep since 14:02. The next message wakes it."
+      )
+    ).toBeInTheDocument()
+  })
+
   test("the session card shows the last compaction, and its summary opens on request", async () => {
     const user = userEvent.setup()
     openConversation([userMessage])
@@ -1781,6 +1800,35 @@ describe("the DM page", () => {
         .emit(1, { type: "conversation", conversation: changed })
     )
     expect(header.getByText("Ship v2.5 on Monday.")).toBeInTheDocument()
+  })
+
+  test("in a channel, channel settings sends the sleep time of the channel", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("PATCH", "/api/conversations/ch1", {
+      conversation: { ...releaseChannel, sleepAfterMinutes: 5 },
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    await user.type(
+      dialog.getByRole("spinbutton", { name: "Sleep after (minutes)" }),
+      "5"
+    )
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([
+      {
+        method: "PATCH",
+        url: "/api/conversations/ch1",
+        body: { sleepAfterMinutes: 5 },
+      },
+    ])
   })
 
   test("in a channel, channel settings can change the working directory", async () => {

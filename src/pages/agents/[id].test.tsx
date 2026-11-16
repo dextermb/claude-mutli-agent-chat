@@ -98,6 +98,7 @@ describe("the agent configuration page", () => {
         systemPrompt: "You run and fix the Vitest tests.",
         description: "Runs and fixes the Vitest tests.",
         maxTurns: 30,
+        sleepAfterMinutes: null,
       },
     })
     expect(window.location.pathname).toBe("/agents/a1")
@@ -495,6 +496,33 @@ describe("the agent configuration page", () => {
       "Give a whole number of 1 or more, or leave it empty."
     )
     expect(turns).toHaveAttribute("aria-invalid", "true")
+  })
+
+  test("the sleep time goes to the server, and a time above 55 shows its message", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("PATCH", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+    const sleep = await screen.findByRole("spinbutton", {
+      name: "Sleep after (minutes)",
+    })
+
+    await user.type(sleep, "56")
+    await user.tab()
+
+    expect(sleep).toHaveAccessibleDescription(
+      "Give a whole number from 0 to 55, or leave it empty."
+    )
+
+    await user.clear(sleep)
+    await user.type(sleep, "20")
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    await vi.waitFor(() =>
+      expect(
+        network.sent.find((request) => request.method === "PATCH")?.body
+      ).toMatchObject({ sleepAfterMinutes: 20 })
+    )
   })
 
   test("browse starts at the folder of the agent, and the user can move up, open a folder and use it", async () => {

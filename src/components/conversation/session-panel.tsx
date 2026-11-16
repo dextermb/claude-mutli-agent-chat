@@ -2,6 +2,7 @@ import {
   ChevronDownIcon,
   CopyIcon,
   InfoIcon,
+  MoonIcon,
   RotateCcwIcon,
   SquareIcon,
   Trash2Icon,
@@ -383,6 +384,12 @@ function SessionFacts({
             className="mt-0.5 size-4 flex-none text-mention"
           />
           The configuration changed. Start a new session to use it.
+        </p>
+      )}
+      {card.asleepSince && (
+        <p className="m-0 flex items-start gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13px] leading-5 text-muted-foreground">
+          <MoonIcon aria-hidden="true" className="mt-0.5 size-4 flex-none" />
+          {`Asleep since ${clockTime(card.asleepSince)}. The next message wakes it.`}
         </p>
       )}
       <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-[13px]">

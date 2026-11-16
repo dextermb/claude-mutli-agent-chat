@@ -4,6 +4,7 @@ import {
   FolderField,
   PrivateField,
   ReplyModeField,
+  SleepField,
   TopicField,
 } from "@/components/channel-fields"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
@@ -56,6 +57,11 @@ function SettingsForm({
   const [isPrivate, setPrivate] = useState(conversation.private)
   const [replyMode, setReplyMode] = useState(conversation.replyMode)
   const [cwd, setCwd] = useState(conversation.cwd ?? "")
+  const [sleep, setSleep] = useState(
+    conversation.sleepAfterMinutes === null
+      ? ""
+      : String(conversation.sleepAfterMinutes)
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,6 +71,10 @@ function SettingsForm({
     if (isPrivate !== conversation.private) changes.private = isPrivate
     if (replyMode !== conversation.replyMode) changes.replyMode = replyMode
     if (cwd.trim() !== (conversation.cwd ?? "")) changes.cwd = cwd
+    const sleepAfterMinutes = sleep.trim() === "" ? null : Number(sleep)
+    if (sleepAfterMinutes !== conversation.sleepAfterMinutes) {
+      changes.sleepAfterMinutes = sleepAfterMinutes
+    }
     if (Object.keys(changes).length === 0) {
       onSaved()
       return
@@ -103,6 +113,7 @@ function SettingsForm({
         <PrivateField checked={isPrivate} onChange={setPrivate} />
         <FolderField value={cwd} onChange={setCwd} />
         <ReplyModeField value={replyMode} onChange={setReplyMode} />
+        <SleepField value={sleep} onChange={setSleep} />
       </FieldGroup>
       {error && (
         <RefusalAlert

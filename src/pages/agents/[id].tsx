@@ -88,6 +88,7 @@ const EMPTY: Draft = {
   systemPrompt: "",
   description: "",
   maxTurns: null,
+  sleepAfterMinutes: null,
 }
 
 export default function AgentPage() {
@@ -525,6 +526,49 @@ export default function AgentPage() {
                       </Field>
                     )}
                   </form.Field>
+                  <form.Field name="sleepAfterMinutes">
+                    {(field) => (
+                      <Field data-invalid={invalid(field.state.meta)}>
+                        <FieldLabel htmlFor="agent-sleep">
+                          Sleep after (minutes)
+                        </FieldLabel>
+                        <Input
+                          id="agent-sleep"
+                          type="number"
+                          min={0}
+                          max={55}
+                          step={1}
+                          className="w-36 font-mono"
+                          value={field.state.value ?? ""}
+                          aria-invalid={invalid(field.state.meta)}
+                          aria-describedby={
+                            invalid(field.state.meta)
+                              ? "agent-sleep-error"
+                              : "agent-sleep-description"
+                          }
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(
+                              event.currentTarget.value === ""
+                                ? null
+                                : Number(event.currentTarget.value)
+                            )
+                          }
+                        />
+                        {!invalid(field.state.meta) && (
+                          <FieldDescription id="agent-sleep-description">
+                            After this idle time, the agent saves its memory and
+                            its process stops. Empty: the app value. 0: never. A
+                            channel can set its own time.
+                          </FieldDescription>
+                        )}
+                        <FieldError
+                          id="agent-sleep-error"
+                          errors={shown(field.state.meta)}
+                        />
+                      </Field>
+                    )}
+                  </form.Field>
                   <form.Field name="autostart">
                     {(field) => (
                       <Field orientation="horizontal">
@@ -657,6 +701,7 @@ function draftOf(agent: Agent): Draft {
     systemPrompt: agent.systemPrompt ?? "",
     description: agent.description ?? "",
     maxTurns: agent.maxTurns,
+    sleepAfterMinutes: agent.sleepAfterMinutes,
   }
 }
 
