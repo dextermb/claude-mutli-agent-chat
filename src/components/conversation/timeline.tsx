@@ -1,6 +1,7 @@
 import {
   CopyIcon,
   FileIcon,
+  FoldVerticalIcon,
   RotateCcwIcon,
   TriangleAlertIcon,
 } from "lucide-react"
@@ -23,6 +24,7 @@ import {
 } from "@/components/conversation/tool-call-line"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type {
+  CompactionItem,
   ConversationAgent,
   PermissionItem,
   TimelineEntry,
@@ -47,8 +49,10 @@ type Group = { authorKey: string; entries: TimelineEntry[] }
 export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
   const requests = requestsByToolUse(entries)
   const subagentCalls = subagentCallsByParent(entries)
+  const compactionTurns = turnsOfCompactions(entries)
   const shown = entries.filter(
     (entry) =>
+      ![...compactionTurns.values()].includes(entry) &&
       !(entry.item.kind === "tool_call" && entry.item.parentToolUseId) &&
       (entry.item.kind !== "permission" ||
         !hasToolCall(entries, entry.item.toolUseId))
@@ -70,6 +74,13 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
               <SessionDivider
                 createdAt={createdAt}
                 agentName={agents.length > 1 ? agent?.name : undefined}
+              />
+            ) : group.entries[0].item.kind === "compaction" ? (
+              <CompactionDivider
+                item={group.entries[0].item}
+                turn={compactionTurns.get(group.entries[0].id)}
+                createdAt={createdAt}
+                agentName={agent?.name ?? "The agent"}
               />
             ) : (
               <AuthorGroup
@@ -108,6 +119,42 @@ function SessionDivider({
         {label}
       </span>
       <span className="flex-1 border-t border-dashed border-link" />
+    </div>
+  )
+}
+
+function CompactionDivider({
+  item,
+  turn,
+  createdAt,
+  agentName,
+}: {
+  item: CompactionItem
+  turn: TimelineEntry | undefined
+  createdAt: string
+  agentName: string
+}) {
+  const count = (value: number | null) => (value ?? 0).toLocaleString("en-GB")
+  const what =
+    item.status === "running"
+      ? `${agentName} compacts its memory…`
+      : `${agentName} compacted its memory: ${count(item.preTokens)} → ${count(item.postTokens)} tokens`
+  const cost =
+    turn?.item.kind === "turn" ? ` · $${turn.item.costUsd.toFixed(3)}` : ""
+  const label = `${what}${cost} · ${clockTime(createdAt)}`
+  return (
+    <div
+      role="separator"
+      aria-label={label}
+      aria-busy={item.status === "running"}
+      className="mx-5 my-1 flex items-center gap-3 text-xs text-foreground-faint"
+    >
+      <span className="flex-1 border-t border-dashed border-border" />
+      <span className="inline-flex items-center gap-1.5">
+        <FoldVerticalIcon aria-hidden="true" className="size-3.5" />
+        {label}
+      </span>
+      <span className="flex-1 border-t border-dashed border-border" />
     </div>
   )
 }
@@ -482,8 +529,8 @@ function groupByAuthor(entries: TimelineEntry[]): Group[] {
       last &&
       last.authorKey === entry.authorKey &&
       dayKey(last.entries[0].createdAt) === dayKey(entry.createdAt) &&
-      last.entries[0].item.kind !== "session_start" &&
-      entry.item.kind !== "session_start"
+      !isDivider(last.entries[0]) &&
+      !isDivider(entry)
     ) {
       last.entries.push(entry)
     } else {
@@ -491,4 +538,26 @@ function groupByAuthor(entries: TimelineEntry[]): Group[] {
     }
   }
   return groups
+}
+
+function isDivider(entry: TimelineEntry): boolean {
+  return entry.item.kind === "session_start" || entry.item.kind === "compaction"
+}
+
+function turnsOfCompactions(
+  entries: TimelineEntry[]
+): Map<string, TimelineEntry> {
+  const turns = new Map<string, TimelineEntry>()
+  entries.forEach((entry, index) => {
+    const before = entries[index - 1]
+    if (
+      entry.item.kind === "turn" &&
+      before?.item.kind === "compaction" &&
+      before.item.status === "done" &&
+      before.authorKey === entry.authorKey
+    ) {
+      turns.set(before.id, entry)
+    }
+  })
+  return turns
 }

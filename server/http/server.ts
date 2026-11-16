@@ -100,6 +100,7 @@ const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 1_000_000
 const EVENT_LOG_SIZE = 500
 const LOG_PAGE = 200
+const SUMMARY_HEADING = "\nSummary:\n"
 
 export function createServer({
   store,
@@ -344,6 +345,9 @@ export function createServer({
     const turns = row?.claudeSessionId
       ? store.listSessionTurns(agent.id, conversationId, row.claudeSessionId)
       : []
+    const compaction = row?.claudeSessionId
+      ? store.lastCompaction(agent.id, conversationId, row.claudeSessionId)
+      : undefined
     return {
       claudeSessionId: row?.claudeSessionId ?? null,
       state: liveState(agent.id, conversationId),
@@ -354,6 +358,14 @@ export function createServer({
       turns: turns.reduce((sum, turn) => sum + turn.numTurns, 0),
       costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
       context: turns.at(-1)?.context ?? null,
+      lastCompaction: compaction
+        ? {
+            at: compaction.createdAt,
+            preTokens: compaction.item.preTokens ?? 0,
+            postTokens: compaction.item.postTokens ?? 0,
+            summary: summaryPart(compaction.item.summary ?? ""),
+          }
+        : null,
       configChanged: JSON.stringify(config) !== JSON.stringify(now),
     }
   }
@@ -1184,6 +1196,11 @@ export function createServer({
       await new Promise<void>((resolve) => http.close(() => resolve()))
     },
   }
+}
+
+function summaryPart(text: string): string {
+  const start = text.indexOf(SUMMARY_HEADING)
+  return start === -1 ? text : text.slice(start + SUMMARY_HEADING.length)
 }
 
 function configOf(agent: Agent, cwd: string): SessionConfig {

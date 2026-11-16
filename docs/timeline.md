@@ -135,7 +135,9 @@ result                           → a turn, as for each prompt
   recorded yet.
 - The summary (F42) is the text that the agent keeps in place of the old
   context.
-- The browser does not show a compaction item yet.
+- The browser shows a compaction item as a divider
+  (`docs/web-app/conversation.md`), and the session card shows the last one
+  (`docs/server.md`).
 - A compaction item is not unread (`docs/store.md`).
 
 ### Subagents

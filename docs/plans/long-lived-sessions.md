@@ -2,10 +2,10 @@
 
 **Status:** in progress. Slice 1 (the facts in the prompt, F40) is built,
 and its lasting parts are in `docs/agent-environment.md` and
-`docs/protocol.md`. The server half of slice 2 is built: the fixture, the
-decoder and the `compaction` item (`docs/timeline.md`). The UI half of slice
-2 waits until the UI work of the branch `ai-elements-timeline` is merged.
-Slices 3–6 are ahead. The measurements are done
+`docs/protocol.md`. Slice 2 (the compaction lines, the divider and the last
+summary on the session card) is built, and its lasting parts are in
+`docs/timeline.md`, `docs/server.md` and `docs/web-app/`. Slices 3–6 are
+ahead. The measurements are done
 (2026-11-16, Claude Code 2.1.311, Haiku 5.5, about 0.57 USD, of which one
 probe took 0.28 USD: F52). All the questions are decided (decisions 1–8).
 
@@ -472,14 +472,9 @@ In slices, test-first with the `tdd` skill. Each slice ships alone.
    `agent_sessions.config`. The build keeps the facts that it sent last in
    memory for each process instead, because each new process sends all the
    facts again. So it needs no migration, and `configChanged` stays correct.
-2. **Compaction lines.** The server half is built: `compact.jsonl`, the
-   decoder lines `compaction_status`, `compact_boundary` and
-   `synthetic_text`, and the `compaction` item. Still ahead, after the UI
-   work of `ai-elements-timeline`: the conversation shows the item as a
-   divider, "test-runner compacted its memory (40k → 12k tokens)", and the
-   session card shows the last summary. An automatic compaction
-   (`trigger: "auto"`) is not recorded yet, so record it before the divider
-   relies on it.
+2. **Compaction lines.** Built. An automatic compaction
+   (`trigger: "auto"`) is not recorded yet. Record it before slice 3 relies
+   on it.
 3. **The sleep timer.** `sleep_after_minutes` on the agent and the channel,
    `end_reason`, the timer and its guards, the compaction before the stop,
    and `AGENT_CHAT=1` in the environment of each agent process. The agent

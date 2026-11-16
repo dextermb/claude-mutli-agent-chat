@@ -136,6 +136,7 @@ describe("createServer", () => {
         turns: 1,
         costUsd: 0.00553128,
         context: { used: 39_853, window: 1_000_000 },
+        lastCompaction: null,
         configChanged: false,
       },
     })
@@ -167,8 +168,35 @@ describe("createServer", () => {
         turns: 0,
         costUsd: 0,
         context: null,
+        lastCompaction: null,
         configChanged: false,
       },
+    })
+  })
+
+  test("after a compaction, the session card gives its tokens and the summary that the agent keeps", async () => {
+    const { base, agent, conversation } = await startServer("compact")
+    const turns = async () =>
+      (await timeline(base, conversation.id)).items.filter(
+        ({ item }) => item.kind === "turn"
+      )
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+    await vi.waitFor(async () => expect(await turns()).toHaveLength(1))
+
+    await sendMessage(base, conversation.id, "/compact Keep the word.")
+    await vi.waitFor(async () => expect(await turns()).toHaveLength(2))
+    const response = await fetch(
+      `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+    )
+
+    const { session } = (await response.json()) as {
+      session: { lastCompaction: Record<string, unknown> | null }
+    }
+    expect(session.lastCompaction).toEqual({
+      at: expect.any(String),
+      preTokens: 39857,
+      postTokens: 11894,
+      summary: expect.stringMatching(/^1\. Primary Request and Intent:/),
     })
   })
 

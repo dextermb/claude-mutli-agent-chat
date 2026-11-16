@@ -5,6 +5,7 @@ import {
   emptyTimeline,
   reduceTimeline,
   type SharedFile,
+  type CompactionItem,
   type TimelineItem,
   type TurnItem,
 } from "../timeline/reduce.ts"
@@ -667,6 +668,31 @@ export function openStore(location: string) {
       .map((row) => JSON.parse(String(row.payload)) as TurnItem)
   }
 
+  function lastCompaction(
+    agentId: string,
+    conversationId: string,
+    claudeSessionId: string
+  ): { createdAt: string; item: CompactionItem } | undefined {
+    return db
+      .prepare(
+        `SELECT timeline_items.created_at, timeline_items.payload
+         FROM timeline_items
+         JOIN agent_sessions ON agent_sessions.id = timeline_items.session_id
+         WHERE agent_sessions.agent_id = ?
+           AND agent_sessions.conversation_id = ?
+           AND agent_sessions.claude_session_id = ?
+           AND timeline_items.kind = 'compaction'
+         ORDER BY timeline_items.seq`
+      )
+      .all(agentId, conversationId, claudeSessionId)
+      .map((row) => ({
+        createdAt: String(row.created_at),
+        item: JSON.parse(String(row.payload)) as CompactionItem,
+      }))
+      .filter(({ item }) => item.status === "done")
+      .at(-1)
+  }
+
   function listTimeline(conversationId: string): TimelineEntry[] {
     return db
       .prepare(
@@ -714,6 +740,7 @@ export function openStore(location: string) {
     rebuildTimeline,
     listTimeline,
     listSessionTurns,
+    lastCompaction,
     listAgentLines,
     close: () => db.close(),
   }
