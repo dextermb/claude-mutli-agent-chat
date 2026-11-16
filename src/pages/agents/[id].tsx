@@ -1,9 +1,16 @@
-import { BotIcon, CheckIcon, FolderIcon, MenuIcon } from "lucide-react"
+import {
+  BotIcon,
+  CheckIcon,
+  FolderIcon,
+  MenuIcon,
+  Trash2Icon,
+} from "lucide-react"
 import { useForm } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
+import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
 import type { ActionRefusal } from "@/components/agent-actions/actions"
 import { AgentActions } from "@/components/agent-actions/agent-actions"
@@ -55,6 +62,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { Agent, Conversation } from "@/lib/agent-api"
+import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
 import { invalid, shown } from "@/lib/form-errors"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 
@@ -110,6 +118,8 @@ export default function AgentPage() {
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
   const [saved, setSaved] = useState<Draft | null>(null)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
+  const listed = agents.find((agent) => agent.id === id)
 
   const form = useForm({
     defaultValues: saved ?? EMPTY,
@@ -692,6 +702,43 @@ export default function AgentPage() {
             )}
           </form.Subscribe>
         </form>
+        {!isNew && listed && (
+          <section
+            aria-labelledby="delete-agent-title"
+            className="flex flex-wrap items-center gap-4 rounded-xl border border-destructive/40 px-5 py-4"
+          >
+            <div className="flex min-w-60 flex-1 flex-col gap-0.5">
+              <h2
+                id="delete-agent-title"
+                className="text-sm font-semibold text-foreground-strong"
+              >
+                Delete agent
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {listed.name} leaves each channel and group chat, and its DM is
+                deleted. Its files stay.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setDeleting(agentTarget(listed, conversations))}
+            >
+              <Trash2Icon />
+              Delete agent
+            </Button>
+          </section>
+        )}
+        <DeleteDialog
+          target={deleting}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null)
+          }}
+          onDeleted={() => {
+            setDeleting(null)
+            navigate("/")
+          }}
+        />
       </main>
     </div>
   )

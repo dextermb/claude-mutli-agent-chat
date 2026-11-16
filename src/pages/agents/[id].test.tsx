@@ -693,4 +693,31 @@ describe("the agent configuration page", () => {
     expect(dialog.getByRole("button", { name: "code" })).toBeInTheDocument()
     expect(dialog.queryByRole("alert")).not.toBeInTheDocument()
   })
+
+  test("delete agent asks first, then deletes the agent and goes to the home page", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    network.on("DELETE", "/api/agents/a1", null, 204)
+    openPage("/agents/a1")
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete agent" })
+    )
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Delete test-runner?",
+    })
+    expect(within(dialog).getAllByRole("listitem")[0]).toHaveTextContent(
+      "test-runner is working. The turn that runs now stops."
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete agent" })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+    expect(network.sent).toContainEqual({
+      method: "DELETE",
+      url: "/api/agents/a1",
+      body: undefined,
+    })
+  })
 })
