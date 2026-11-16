@@ -99,4 +99,22 @@ describe("useWorkspace", () => {
 
     expect(result.current.unread).toEqual({ [directMessage.id]: 1 })
   })
+
+  test("a deleted conversation and a deleted agent leave the lists", async () => {
+    const { result } = renderHook(() => useWorkspace())
+    await waitFor(() => expect(result.current.agents).toHaveLength(2))
+    const stream = network.stream("/api/events")
+
+    act(() =>
+      stream.emit(1, {
+        type: "conversation_deleted",
+        conversationId: releaseChannel.id,
+      })
+    )
+    act(() => stream.emit(2, { type: "agent_deleted", agentId: testRunner.id }))
+
+    expect(result.current.conversations).toEqual([directMessage])
+    expect(result.current.unread).toEqual({})
+    expect(result.current.agents).toEqual([reviewerBot])
+  })
 })

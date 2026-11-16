@@ -171,7 +171,9 @@ function applyMessage(
   if (
     message.type === "reset" ||
     message.type === "line" ||
-    message.type === "unread"
+    message.type === "unread" ||
+    message.type === "conversation_deleted" ||
+    message.type === "agent_deleted"
   ) {
     return view
   }
