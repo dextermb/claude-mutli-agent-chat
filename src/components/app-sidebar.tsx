@@ -1,11 +1,9 @@
 import {
-  BellIcon,
   BotIcon,
   ChevronDownIcon,
   HashIcon,
   HouseIcon,
   LockIcon,
-  MessagesSquareIcon,
   PlusIcon,
   SquarePenIcon,
   UsersIcon,
@@ -34,11 +32,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
@@ -306,12 +299,6 @@ function WorkspaceRail({ onAgents }: { onAgents: boolean }) {
       >
         <HouseIcon />
       </Link>
-      <NotBuilt label="Direct messages">
-        <MessagesSquareIcon />
-      </NotBuilt>
-      <NotBuilt label="Activity">
-        <BellIcon />
-      </NotBuilt>
       <Link
         href="/"
         aria-label="Agents"
@@ -328,19 +315,6 @@ function WorkspaceRail({ onAgents }: { onAgents: boolean }) {
         <AvatarBadge className="bg-status-online" />
       </Avatar>
     </nav>
-  )
-}
-
-function NotBuilt({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex" />}>
-        <Button variant="ghost" size="icon" aria-label={label} disabled>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="right">Not built yet</TooltipContent>
-    </Tooltip>
   )
 }
 

@@ -44,7 +44,7 @@ describe("the home page on a narrow screen", () => {
 })
 
 describe("the workspace rail", () => {
-  test("the rail goes home and to the agents, and shows the pages that are not built yet as disabled", async () => {
+  test("the rail goes home and to the agents, and holds no other page", async () => {
     window.history.pushState({}, "", "/")
     render(<App />)
     const rail = within(
@@ -59,8 +59,7 @@ describe("the workspace rail", () => {
       "href",
       "/"
     )
-    expect(rail.getByRole("button", { name: "Direct messages" })).toBeDisabled()
-    expect(rail.getByRole("button", { name: "Activity" })).toBeDisabled()
+    expect(rail.queryByRole("button")).not.toBeInTheDocument()
   })
 })
 
