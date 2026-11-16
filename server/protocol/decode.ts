@@ -29,6 +29,8 @@ export type AssistantLine = {
   uuid: string
   parentToolUseId: string | null
   blocks: AssistantBlock[]
+  model: string
+  contextTokens: number
 }
 
 export type PermissionDecision = { decision: string; source: string }
@@ -83,6 +85,7 @@ export type ResultLine = {
   durationMs: number
   numTurns: number
   totalCostUsd: number
+  contextWindows: Record<string, number>
   sessionId: string
   permissionDenials: { toolName: string; toolUseId: string }[]
 }
@@ -151,7 +154,17 @@ function decodeAssistant(raw: Json): AssistantLine {
     uuid: string(raw.uuid),
     parentToolUseId: nullableString(raw.parent_tool_use_id),
     blocks: contentBlocks(raw.message).flatMap(decodeAssistantBlock),
+    model: string(object(raw.message).model),
+    contextTokens: contextTokens(object(object(raw.message).usage)),
   }
+}
+
+function contextTokens(usage: Json): number {
+  return (
+    number(usage.input_tokens) +
+    number(usage.cache_creation_input_tokens) +
+    number(usage.cache_read_input_tokens)
+  )
 }
 
 function decodeAssistantBlock(block: Json): AssistantBlock[] {
@@ -208,6 +221,12 @@ function decodeResult(raw: Json): ResultLine {
     durationMs: number(raw.duration_ms),
     numTurns: number(raw.num_turns),
     totalCostUsd: number(raw.total_cost_usd),
+    contextWindows: Object.fromEntries(
+      Object.entries(object(raw.modelUsage)).map(([model, usage]) => [
+        model,
+        number(object(usage as Json).contextWindow),
+      ])
+    ),
     sessionId: string(raw.session_id),
     permissionDenials: array(raw.permission_denials)
       .filter(isObject)

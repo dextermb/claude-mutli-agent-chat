@@ -149,6 +149,18 @@ describe("reduceTimeline", () => {
     })
   })
 
+  test("a turn keeps how full the context is after the last request of the agent", () => {
+    const turns = ofKind(replay("tools"), "turn")
+
+    expect(turns.at(-1)?.context).toEqual({ used: 53_040, window: 1_000_000 })
+  })
+
+  test("a turn of a resumed session gets the context window of its model", () => {
+    const turns = ofKind(replay("resume-1"), "turn")
+
+    expect(turns.at(-1)?.context).toEqual({ used: 39_853, window: 1_000_000 })
+  })
+
   test("a Bash call shows the output of the command", () => {
     const items = replay("tools")
 

@@ -86,6 +86,7 @@ export type TurnItem = {
   durationMs: number
   costUsd: number
   numTurns: number
+  context?: { used: number; window: number }
 }
 
 export type NoticeItem =
@@ -131,6 +132,7 @@ export type TimelineState = {
   draftId: string | null
   costSoFar: number
   rateLimitStatus: string
+  lastRequest?: { model: string; contextTokens: number }
 }
 
 export type TimelineStep = {
@@ -187,7 +189,19 @@ function reduceAssistant(
   state: TimelineState,
   line: AssistantLine
 ): TimelineStep {
-  let step: TimelineStep = { state, changes: [] }
+  let step: TimelineStep = {
+    state:
+      line.parentToolUseId === null && line.contextTokens > 0
+        ? {
+            ...state,
+            lastRequest: {
+              model: line.model,
+              contextTokens: line.contextTokens,
+            },
+          }
+        : state,
+    changes: [],
+  }
   for (const block of line.blocks) {
     if (block.type === "text") {
       step = completeMessage(step, block.text)
@@ -309,8 +323,20 @@ function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
     durationMs: line.durationMs,
     costUsd: line.totalCostUsd - state.costSoFar,
     numTurns: line.numTurns,
+    ...contextOf(state, line),
   }))
   return { ...step, state: { ...step.state, costSoFar: line.totalCostUsd } }
+}
+
+function contextOf(
+  state: TimelineState,
+  line: ResultLine
+): Pick<TurnItem, "context"> {
+  const request = state.lastRequest
+  const window = request ? line.contextWindows[request.model] : undefined
+  return request && window
+    ? { context: { used: request.contextTokens, window } }
+    : {}
 }
 
 function turnStatus(terminalReason: string): TurnItem["status"] {
