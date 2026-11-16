@@ -72,6 +72,8 @@ boards, but the boards show some things that the app does not build:
 - **A Run a slash command button.** A group chat or a channel wraps each
   message in a prompt (`[User] /compact`), so Claude Code never gets it as a
   command. The server sends `/compact` itself before an agent sleeps.
+- **A Name field in Channel settings and Group chat settings.** The name of
+  a conversation does not change after it is made (`docs/conversations.md`).
 
 ## The detail
 
