@@ -40,3 +40,7 @@ const CLOCK_SECONDS = new Intl.DateTimeFormat("en-GB", {
 export function clockSeconds(iso: string): string {
   return CLOCK_SECONDS.format(new Date(iso))
 }
+export function elapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds} s`
+  return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
+}

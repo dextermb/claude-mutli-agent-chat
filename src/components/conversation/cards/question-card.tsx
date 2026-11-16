@@ -2,13 +2,8 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import type { RequestAnswer } from "@/hooks/use-conversation"
-import type { Json, QuestionItem } from "@/lib/agent-api"
-
-type Question = {
-  question: string
-  header: string
-  options: { label: string; description: string }[]
-}
+import type { QuestionItem } from "@/lib/agent-api"
+import { toQuestion } from "@/lib/question"
 
 export function QuestionCard({
   card,
@@ -74,16 +69,4 @@ export function QuestionCard({
       ))}
     </div>
   )
-}
-
-function toQuestion(value: Json): Question {
-  const options = Array.isArray(value.options) ? value.options : []
-  return {
-    question: String(value.question ?? ""),
-    header: String(value.header ?? ""),
-    options: options.map((option: Json) => ({
-      label: String(option.label ?? ""),
-      description: String(option.description ?? ""),
-    })),
-  }
 }
