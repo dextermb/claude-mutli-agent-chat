@@ -41,7 +41,10 @@ export function requestsByToolUse(
   return requests
 }
 
-export function hasToolCall(entries: TimelineEntry[], toolUseId: string): boolean {
+export function hasToolCall(
+  entries: TimelineEntry[],
+  toolUseId: string
+): boolean {
   return entries.some(
     ({ item }) => item.kind === "tool_call" && item.toolUseId === toolUseId
   )

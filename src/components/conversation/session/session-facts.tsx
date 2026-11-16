@@ -1,13 +1,10 @@
 import { CopyIcon, InfoIcon, MoonIcon } from "lucide-react"
 
-import {
-  contextPercent,
-  contextTokens,
-} from "@/components/conversation/composer/composer-tools"
 import { FactRow } from "@/components/conversation/session/fact-row"
 import { LastCompaction } from "@/components/conversation/session/last-compaction"
 import { Button } from "@/components/ui/button"
 import type { SessionCard } from "@/lib/agent-api"
+import { contextPercent, contextTokens } from "@/lib/context"
 import { formatCost } from "@/lib/cost"
 import { clockTime } from "@/lib/time"
 

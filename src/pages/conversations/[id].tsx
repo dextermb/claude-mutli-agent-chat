@@ -31,10 +31,8 @@ import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer/composer"
-import {
-  ContextFigure,
-  ModelLink,
-} from "@/components/conversation/composer/composer-tools"
+import { ContextFigure } from "@/components/conversation/composer/context-figure"
+import { ModelLink } from "@/components/conversation/composer/model-link"
 import {
   FilesPanel,
   SharedFilesList,

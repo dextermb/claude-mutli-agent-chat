@@ -1,6 +1,3 @@
-import { CpuIcon } from "lucide-react"
-import { Link } from "wouter"
-
 import { buttonVariants } from "@/components/ui/button"
 import {
   HoverCard,
@@ -13,31 +10,10 @@ import {
   ProgressValue,
 } from "@/components/ui/progress"
 import type { SessionCard } from "@/lib/agent-api"
+import { contextPercent, contextTokens } from "@/lib/context"
 import { cn } from "@/lib/utils"
 
 type Context = NonNullable<SessionCard["context"]>
-
-export function ModelLink({
-  agentId,
-  model,
-}: {
-  agentId: string
-  model: string
-}) {
-  return (
-    <Link
-      href={`/agents/${agentId}`}
-      aria-label={`Model: ${model}`}
-      className={cn(
-        buttonVariants({ variant: "ghost", size: "xs" }),
-        "font-mono text-muted-foreground"
-      )}
-    >
-      <CpuIcon />
-      {model}
-    </Link>
-  )
-}
 
 export function ContextFigure({ context }: { context: Context }) {
   const percent = contextPercent(context)
@@ -68,13 +44,4 @@ export function ContextFigure({ context }: { context: Context }) {
       </HoverCardContent>
     </HoverCard>
   )
-}
-
-export function contextPercent(context: Context): number {
-  return Math.round((context.used / context.window) * 100)
-}
-
-export function contextTokens(context: Context): string {
-  const count = (value: number) => value.toLocaleString("en-GB")
-  return `${count(context.used)} / ${count(context.window)}`
 }
