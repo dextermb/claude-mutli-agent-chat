@@ -49,7 +49,8 @@ type check of the app does not need the Node types.
 
 Two artifacts on claude.ai hold the design of the web app:
 
-- **Boards:** the "Agent Chat" canvas, 21 boards
+- **Boards:** the "Agent Chat" canvas, 26 boards on the "Current app" page
+  and 4 on the "AI Elements" page
   (https://claude.ai/artifact/NyiP26udWrUFSDDX6BjutT).
 - **Design system:** "Gruvbox Chat"
   (https://claude.ai/artifact/3cUXEWP7TNyCWaxnSe8fYu).
