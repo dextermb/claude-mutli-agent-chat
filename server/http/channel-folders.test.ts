@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
   cleanups,
+  factsTo,
   postJson,
   runCleanups,
   sendMessage,
@@ -53,8 +54,8 @@ describe("the folder of an agent session", () => {
     await vi.waitFor(() => expect(startedIn).toEqual([folder]))
   })
 
-  test("the rule of an agent in a channel with a folder says that it works in the folder of the channel", async () => {
-    const { base, store, started } = await startServer()
+  test("the facts of an agent in a channel with a folder say that it works in the folder of the channel", async () => {
+    const { base, store, sentTo } = await startServer()
     const agent = store.createAgent(testRunner)
     const folder = projectFolder()
     const channel = await makeChannel(base, {
@@ -68,9 +69,10 @@ describe("the folder of an agent session", () => {
       "@test-runner run the tests."
     )
 
-    await vi.waitFor(() => expect(started).toHaveLength(1))
-    const rule = started[0][started[0].indexOf("--append-system-prompt") + 1]
-    expect(rule).toContain(
+    await vi.waitFor(() =>
+      expect(factsTo(sentTo, "test-runner")).toHaveLength(1)
+    )
+    expect(factsTo(sentTo, "test-runner")[0]).toContain(
       `- You work in ${folder}, the folder of this channel.`
     )
   })

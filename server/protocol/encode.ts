@@ -1,9 +1,13 @@
 import type { Json } from "./decode.ts"
 
-export function encodePrompt(text: string): string {
+export function encodePrompt(text: string, note?: string): string {
+  const texts = note === undefined ? [text] : [note, text]
   return JSON.stringify({
     type: "user",
-    message: { role: "user", content: [{ type: "text", text }] },
+    message: {
+      role: "user",
+      content: texts.map((text) => ({ type: "text", text })),
+    },
     parent_tool_use_id: null,
   })
 }

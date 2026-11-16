@@ -59,7 +59,7 @@ purpose, for example to select a provider. `childEnvironment()` in
 
 | Line | Use |
 |---|---|
-| `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"…"}]},"parent_tool_use_id":null}` | A prompt |
+| `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"…"}]},"parent_tool_use_id":null}` | A prompt. A first text block can hold the facts of the session (`docs/agent-environment.md`) |
 | `{"type":"control_request","request_id":"…","request":{"subtype":"initialize"}}` | The first line. The answer lists the commands and the account |
 | `{"type":"control_response","response":{"subtype":"success","request_id":"<id of the request>","response":{…}}}` | The answer to `can_use_tool` |
 | `{"type":"control_request","request_id":"…","request":{"subtype":"interrupt"}}` | Stops the turn |
@@ -120,6 +120,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F35 | **Claude Code connects to an `http` MCP server when the process starts, before the first prompt.** It sends `server/discover` with `MCP-Protocol-Version: 2026-07-28`. After the error `-32601` (or an empty result), it sends `initialize` with `2025-11-25`, then `notifications/initialized`, a `GET` for an event stream, and `tools/list`. Each request carries the headers of `--mcp-config`. | Probe |
 | F36 | **`--max-turns <n>` works with `stream-json` input, for each prompt.** The help of 2.1.311 does not list it, but the parser accepts it. A prompt that needs more turns ends with a `result` of `subtype: "error_max_turns"`, `is_error: true`, `terminal_reason: "max_turns"`, `errors: ["Reached maximum number of turns (1)"]` and no `result` text. The process stays alive, and the next prompt gets its own limit. | `max-turns` |
 | F37 | **`--resume <id>` works in a folder that is not the folder of the first turn.** The process finds the transcript under the folder of the first turn, and the new turn has the memory of the old turns. The new lines go into the same transcript file, and each new line has the new `cwd`. Claude Code also makes an empty project folder (with only `memory/`) for the new folder. | Probe |
+| F38 | **A resume keeps the system prompt of the first request.** `--system-prompt-snapshot` is `on` by default. A first process had `--append-system-prompt "The codeword is ALPHA."`. A `--resume` with "BETA" answered `ALPHA`. With `--system-prompt-snapshot off` on both processes, it answered `BETA`. The help says that the snapshot stays "until the conversation is compacted". So the facts that change go in the prompt, not in the system prompt. | Probe |
 
 ## The decoder and the encoders
 

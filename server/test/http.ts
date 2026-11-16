@@ -277,11 +277,31 @@ export function promptsTo(
   sentTo: Map<string, Record<string, unknown>[]>,
   agentName: string
 ): string[] {
+  return promptBlocks(sentTo, agentName).map((blocks) =>
+    blocks.filter((text) => !text.startsWith(APP_NOTE)).join("")
+  )
+}
+
+export function factsTo(
+  sentTo: Map<string, Record<string, unknown>[]>,
+  agentName: string
+): string[] {
+  return promptBlocks(sentTo, agentName).flatMap((blocks) =>
+    blocks.filter((text) => text.startsWith(APP_NOTE))
+  )
+}
+
+const APP_NOTE = "[Chat app]"
+
+function promptBlocks(
+  sentTo: Map<string, Record<string, unknown>[]>,
+  agentName: string
+): string[][] {
   return (sentTo.get(agentName) ?? [])
     .filter((line) => line.type === "user")
     .map((line) => {
       const message = line.message as { content: { text: string }[] }
-      return message.content.map((block) => block.text).join("")
+      return message.content.map((block) => block.text)
     })
 }
 

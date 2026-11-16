@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
   openAppEvents,
+  factsTo,
   openEvents,
   postJson,
   promptsTo,
@@ -192,8 +193,8 @@ describe("group chats and channels", () => {
     expect(missingName.status).toBe(400)
   })
 
-  test("an agent in a channel starts with the rule of that channel, its topic and its members", async () => {
-    const { base, started } = await startServer()
+  test("an agent in a channel learns the channel, its topic and its members from its first prompt, not from its system prompt", async () => {
+    const { base, started, sentTo } = await startServer()
     const reviewer = await createAgent(base, "reviewer-bot")
     const runner = await createAgent(base, "test-runner")
     const created = await postJson(base, "/api/conversations", {
@@ -209,16 +210,95 @@ describe("group chats and channels", () => {
     await sendMessage(base, conversation.id, "@test-runner run the tests.")
     await untilTurns(base, conversation.id, 1)
 
-    const rule = started[0][started[0].indexOf("--append-system-prompt") + 1]
-    expect(rule).toContain(
+    expect(factsTo(sentTo, "test-runner")).toEqual([
       [
+        "[Chat app] This session:",
         '- You are the agent "test-runner".',
         `- This conversation is the channel "#release-train" (ID "${conversation.id}"). Its topic: "Ship v2.4 on Friday.".`,
         "- An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you.",
-        "- The members at the start: User, reviewer-bot, test-runner (you).",
-      ].join("\n")
+        "- The members: User, reviewer-bot, test-runner (you).",
+        "- You work in /home/user/code/web-app.",
+      ].join("\n"),
+    ])
+    expect(promptsTo(sentTo, "test-runner")).toEqual([
+      "[User] @test-runner run the tests.",
+    ])
+    const systemPrompt =
+      started[0][started[0].indexOf("--append-system-prompt") + 1]
+    expect(systemPrompt).not.toContain("release-train")
+    expect(systemPrompt).toMatch(/\n\nYou run and fix the Vitest tests\.$/)
+  })
+
+  test("an agent that runs learns in its next prompt only the facts that changed", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ fixture: "max-turns", reply: "Done." })
     )
-    expect(rule).toMatch(/\n\nYou run and fix the Vitest tests\.$/)
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const writer = await createAgent(base, "docs-writer")
+    const { id } = await channel(base, { agentIds: [reviewer.id, runner.id] })
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    await postJson(base, `/api/conversations/${id}/members`, {
+      agentIds: [writer.id],
+    })
+    await sendMessage(base, id, "@test-runner run them again.")
+    await untilTurns(base, id, 2)
+
+    expect(factsTo(sentTo, "test-runner").slice(1)).toEqual([
+      [
+        "[Chat app] This session changed:",
+        "- The members: User, reviewer-bot, test-runner (you), docs-writer.",
+      ].join("\n"),
+    ])
+    expect(promptsTo(sentTo, "test-runner")).toEqual([
+      "[User] @test-runner run the tests.",
+      "[User] @test-runner run them again.",
+    ])
+  })
+
+  test("an agent that runs gets no facts in its next prompt when nothing changed", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ fixture: "max-turns", reply: "Done." })
+    )
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, { agentIds: [runner.id] })
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    await sendMessage(base, id, "@test-runner run them again.")
+    await untilTurns(base, id, 2)
+
+    expect(promptsTo(sentTo, "test-runner")).toHaveLength(2)
+    expect(factsTo(sentTo, "test-runner")).toHaveLength(1)
+  })
+
+  test("an agent that resumes its Claude session learns the facts of now, not the facts of its first process", async () => {
+    const { base, started, sentTo } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, {
+      topic: "Ship v2.4 on Friday.",
+      agentIds: [runner.id],
+    })
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+    await changeSettings(base, id, { topic: "Ship v2.5 on Monday." })
+    await postJson(base, `/api/agents/${runner.id}/stop`, {})
+
+    await sendMessage(base, id, "@test-runner run them again.")
+    await untilTurns(base, id, 2)
+
+    expect(started[1]).toContain("--resume")
+    expect(factsTo(sentTo, "test-runner")[1].split("\n")[2]).toBe(
+      `- This conversation is the channel "#release-train" (ID "${id}"). Its topic: "Ship v2.5 on Monday.".`
+    )
   })
 
   test("in a group chat, only the agent that the message mentions gets a turn", async () => {

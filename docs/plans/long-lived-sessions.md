@@ -1,9 +1,10 @@
 # Long-lived agents: sleep, wake and memory
 
-**Status:** awaiting go-ahead to build. The measurements are done
+**Status:** in progress. Slice 1 (the facts in the prompt, F38) is built,
+and its lasting parts are in `docs/agent-environment.md` and
+`docs/protocol.md`. Slices 2–6 are ahead. The measurements are done
 (2026-11-16, Claude Code 2.1.311, Haiku 5.5, about 0.57 USD, of which one
 probe took 0.28 USD: F50). All the questions are decided (decisions 1–8).
-Nothing is open.
 
 An agent can stay in a DM, a group chat or a channel for weeks. Today, its
 `claude` process never stops on its own, and its Claude session grows until
@@ -26,12 +27,11 @@ message ──▶ liveSessionFor() ──▶ live process? ──yes──▶ qu
                       member removed, or a crash)
 ```
 
-| Fact of today                                                | Result                                                             |
-| ------------------------------------------------------------ | ------------------------------------------------------------------ |
-| A process stays alive with no limit                          | About 460 MB of memory for each agent in each conversation         |
-| The prompt holds each message since the last turn            | After a long sleep in a busy channel, the prompt has no size limit |
-| The rule (with "This session" facts) is in the system prompt | A resumed session does **not** get the new facts (F38)             |
-| Claude Code compacts only at its context window              | Each request of a large session reads the full context             |
+| Fact of today                                     | Result                                                             |
+| ------------------------------------------------- | ------------------------------------------------------------------ |
+| A process stays alive with no limit               | About 460 MB of memory for each agent in each conversation         |
+| The prompt holds each message since the last turn | After a long sleep in a busy channel, the prompt has no size limit |
+| Claude Code compacts only at its context window   | Each request of a large session reads the full context             |
 
 ## Decisions
 
@@ -84,7 +84,7 @@ findings move into `docs/protocol.md`.
 
 | #   | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F38 | **A resume keeps the system prompt of the first request.** `--system-prompt-snapshot` is `on` by default. A first process had `--append-system-prompt "The codeword is ALPHA."`. A `--resume` with "BETA" answered `ALPHA`. With `--system-prompt-snapshot off` on both processes, it answered `BETA`. The help says that the snapshot stays "until the conversation is compacted".                                                                                                                                                                                                             |
+| F38 | **A resume keeps the system prompt of the first request.** Moved to `docs/protocol.md` with slice 1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | F39 | **The prompt cache lives one hour.** Each cache write is `ephemeral_1h_input_tokens`. A cache write costs 20 times a cache read (Haiku: 0.20 against 0.01 USD for each million tokens, from the measured costs).                                                                                                                                                                                                                                                                                                                                                                                |
 | F40 | **`/compact <instructions>` works as a stream-json prompt.** The turn writes `system/status` (`"compacting"`), `system/hook_started` and `hook_response` lines of `SessionStart:compact`, `system/init`, `system/compact_boundary` with `compact_metadata` (`trigger: "manual"`, `pre_tokens`, `post_tokens`, `preserved_segment`), a `user` line whose `content` is a string (the summary), a replayed `user` line with `<local-command-stdout>`, and `result/success` with no text. No `assistant` line comes. 43k → 17k tokens in 4.3 s for 0.009 USD, and 53k → 16k in 6.7 s for 0.011 USD. |
 | F41 | **The summary text is on stdout.** The `user` line after `compact_boundary` starts with "This session is being continued from a previous conversation…" and holds the summary in Claude Code's own sections. The decoder of today makes it `unknown`.                                                                                                                                                                                                                                                                                                                                           |
@@ -200,9 +200,8 @@ The server builds the prompt. Only the parts that apply go in.
 
 ```
 [Chat app] You were asleep for 3 h 12 min.                     ← gap > 1 h only
-[Chat app] Changes since your session started:                 ← facts changed
-- Members now: User, reviewer-bot, test-runner (you), docs-bot.
-- You now work in ~/code/release-v3.
+[Chat app] This session:                                       ← each new process
+- …                                                              (slice 1)
 [Chat app] 212 messages came while you were asleep.            ← missed > 30
 Summary of the conversation up to the last 30 messages: …      ← conversation summary
 Use read_messages for the full text of older messages.
@@ -407,7 +406,7 @@ timer fires
 ```
 POST message → addressedAgents → prompt(agentId)
   → liveSessionFor: no live process → start(row, --resume)
-  → promptFor: wakeHeader(gap, facts changed, missed count)
+  → promptFor: wakeHeader(gap, missed count)
               + conversationSummary(cut)          may start the summarizer
               + the last 30 messages
   → queue → idle → prompt
@@ -415,14 +414,14 @@ POST message → addressedAgents → prompt(agentId)
 
 ### What is stored and what is derived
 
-| Value                       | Stored or derived                                                                 |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| The compaction summary      | Derived: a timeline item from the stored lines. A rebuild makes it again          |
-| The end reason of a process | Stored: `agent_sessions.end_reason`                                               |
-| The time of the last turn   | Derived: the `createdAt` of the last `turn` item of the agent                     |
-| The facts at the start      | Stored: `agent_sessions.config` gets `facts` (members, topic, reply mode, folder) |
-| The context size            | In memory: the usage of the last `assistant` line                                 |
-| The conversation summary    | Stored: `conversation_summaries`                                                  |
+| Value                       | Stored or derived                                                        |
+| --------------------------- | ------------------------------------------------------------------------ |
+| The compaction summary      | Derived: a timeline item from the stored lines. A rebuild makes it again |
+| The end reason of a process | Stored: `agent_sessions.end_reason`                                      |
+| The time of the last turn   | Derived: the `createdAt` of the last `turn` item of the agent            |
+| The facts sent last         | In memory, for each process (slice 1). A new process sends all the facts |
+| The context size            | In memory: the usage of the last `assistant` line                        |
+| The conversation summary    | Stored: `conversation_summaries`                                         |
 
 ## ERD
 
@@ -435,7 +434,7 @@ agents                                agent_sessions
 │ +  sleep_after_minutes INT   │     │ FK conversation_id ─▶ conversations│
 │      NULL = app value,       │     │    ON DELETE CASCADE               │
 │      0 = never               │     │    claude_session_id, state, …     │
-└──────────────────────────────┘     │    config (JSON) + facts           │
+└──────────────────────────────┘     │    config (JSON)                   │
                                      │ +  end_reason TEXT NULL            │
                                      │      sleep | stop | restart | new  │
                                      │      | removed | failed | server   │
@@ -466,11 +465,10 @@ conversations                                           │ N
 
 In slices, test-first with the `tdd` skill. Each slice ships alone.
 
-1. **Facts in the prompt (fixes F38).** `environmentPrompt()` splits into the
-   static rule (system prompt) and `sessionFacts()` (the first prompt of each
-   process, and a "Changes since…" block when the stored `facts` differ).
-   Correct `docs/agent-environment.md`, which today says that a resume gets
-   "the rule of now". Seams: `buildArgs()`, `promptFor()` through the server.
+1. **Facts in the prompt (fixes F38).** Built. The plan stored the facts in
+   `agent_sessions.config`. The build keeps the facts that it sent last in
+   memory for each process instead, because each new process sends all the
+   facts again. So it needs no migration, and `configChanged` stays correct.
 2. **Compaction lines.** Record a fixture `compact.jsonl` with
    `pnpm fixtures:record`. The decoder gets `compact_boundary`, the summary
    `user` line and `system/status`. The reducer makes a `compaction` item.

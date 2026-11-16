@@ -88,6 +88,10 @@ mention is `@` and the full name of a member:
 
 In a DM, the prompt is the text of the message.
 
+Before the text, the first prompt of each process holds the facts of the
+session, and a later prompt holds the facts that changed. They are a separate
+text block that starts with `[Chat app]` (`docs/agent-environment.md`).
+
 In a group chat or a channel, the prompt holds each complete message since
 the last prompt of that agent, one line for each, with its author:
 

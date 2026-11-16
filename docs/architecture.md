@@ -91,6 +91,13 @@ into `--append-system-prompt`, because it must be in each turn, and a skill
 loads only on demand. Rejected: a `CLAUDE.md` in the folder of the agent,
 because the folder belongs to the user (`docs/agent-environment.md`).
 
+**The facts of the session go in the prompt, not in the system prompt.** A
+resume keeps the system prompt of the first process (F38), so a fact in the
+system prompt stays old. So the first prompt of each process holds the
+facts, and a later prompt holds the facts that changed. Then the system
+prompt of an agent is the same in each conversation, and the prompt cache can
+share it.
+
 **The agent server hosts the `chat` MCP server.** At `POST /mcp`, so a tool
 calls the store and the conversation code directly, with no second process.
 A token in the header tells which session calls. The JSON-RPC is our own
