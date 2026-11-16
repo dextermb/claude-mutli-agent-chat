@@ -1135,6 +1135,48 @@ describe("the DM page", () => {
     )
   })
 
+  test("after the first click, the buttons of an approval card are disabled, so the card sends one answer", async () => {
+    const user = userEvent.setup()
+    network.on("POST", "/api/requests/r1", {}, 202)
+    openConversation([userMessage, pushCall, pushRequest], "waiting")
+    const card = await screen.findByRole("region", {
+      name: "Approval for Bash git push origin release-train",
+    })
+
+    await user.click(within(card).getByRole("button", { name: "Allow once" }))
+    await user.click(within(card).getByRole("button", { name: "Deny" }))
+
+    for (const button of within(card).getAllByRole("button")) {
+      expect(button).toBeDisabled()
+    }
+    expect(
+      network.sent.filter((request) => request.url === "/api/requests/r1")
+    ).toHaveLength(1)
+  })
+
+  test("when the server refuses an answer, the buttons of the card work again", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/requests/r1",
+      { error: "The agent is not running." },
+      409
+    )
+    openConversation([userMessage, pushCall, pushRequest], "waiting")
+    const card = await screen.findByRole("region", {
+      name: "Approval for Bash git push origin release-train",
+    })
+
+    await user.click(within(card).getByRole("button", { name: "Allow once" }))
+
+    await waitFor(() =>
+      expect(
+        within(card).getByRole("button", { name: "Allow once" })
+      ).toBeEnabled()
+    )
+    expect(within(card).getByRole("button", { name: "Deny" })).toBeEnabled()
+  })
+
   test("the user can allow a tool once, and the card then shows that it is allowed", async () => {
     const user = userEvent.setup()
     network.on("POST", "/api/requests/r1", {}, 202)
@@ -1217,6 +1259,25 @@ describe("the DM page", () => {
     ).toHaveAccessibleDescription(
       "Lets test-runner edit files with no request until the session ends."
     )
+  })
+
+  test("after the choice that answers a question, its buttons are disabled, so the card sends one answer", async () => {
+    const user = userEvent.setup()
+    network.on("POST", "/api/requests/q1", {}, 202)
+    openConversation([userMessage, colourQuestion], "waiting")
+    const card = await screen.findByRole("region", {
+      name: "Which colour do you prefer?",
+    })
+
+    await user.click(within(card).getByRole("button", { name: /Red/ }))
+    await user.click(within(card).getByRole("button", { name: /Blue/ }))
+
+    for (const button of within(card).getAllByRole("button")) {
+      expect(button).toBeDisabled()
+    }
+    expect(
+      network.sent.filter((request) => request.url === "/api/requests/q1")
+    ).toHaveLength(1)
   })
 
   test("the user can answer a question, and the card then shows the answer", async () => {

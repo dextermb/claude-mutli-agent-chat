@@ -79,7 +79,7 @@ export function ToolCallLine({
   cwd: string
   request: PermissionItem | undefined
   agentName: string
-  onAnswer: (requestId: string, answer: RequestAnswer) => void
+  onAnswer: (requestId: string, answer: RequestAnswer) => Promise<boolean>
   subagentCalls?: ToolCallItem[]
   requests?: Map<string, PermissionItem>
   anchorId?: string
