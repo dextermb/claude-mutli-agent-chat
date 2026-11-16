@@ -20,6 +20,7 @@ export const testRunner: ConversationAgent = {
   maxTurns: null,
   sleepAfterMinutes: null,
   createdAt: "2026-11-15T10:00:00.000Z",
+  deletedAt: null,
   state: "idle",
   sessionCwd: "/home/user/code/web-app",
 }

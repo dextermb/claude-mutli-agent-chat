@@ -142,6 +142,7 @@ describe("Store", () => {
       description: "Reviews each pull request.",
       maxTurns: 30,
       sleepAfterMinutes: null,
+      deletedAt: null,
     })
   })
 
@@ -616,5 +617,90 @@ describe("Store: unread conversations", () => {
     store.markRead(conversation.id, 0)
 
     expect(store.unreadCounts()).toEqual({})
+  })
+})
+
+describe("Store: delete", () => {
+  test("a deleted conversation is gone with its timeline and its shared files", () => {
+    const store = memoryStore()
+    const { conversation, session } = directMessage(store)
+    const other = store.createConversation({
+      kind: "channel",
+      name: "release-train",
+      topic: null,
+      private: false,
+      replyMode: "mention",
+      members: ["user:me"],
+    })
+    const message = store.addUserMessage(conversation.id, "Read @notes.txt")
+    playLive(store, session.id, "resume-1")
+    store.shareFiles(
+      conversation.id,
+      message.id,
+      [{ name: "notes.txt", path: "/tmp/notes.txt", kind: "linked", size: 4 }],
+      "user:me"
+    )
+
+    store.deleteConversation(conversation.id)
+
+    expect(store.getConversation(conversation.id)).toBeUndefined()
+    expect(store.listConversations().map(({ id }) => id)).toEqual([other.id])
+    expect(store.listTimeline(conversation.id)).toEqual([])
+    expect(store.listSharedFiles(conversation.id)).toEqual([])
+    expect(store.unreadCounts()).toEqual({})
+  })
+
+  test("a deleted agent leaves each conversation, its DM goes, and its messages keep its name", () => {
+    const store = memoryStore()
+    const { agent, conversation: dm } = directMessage(store)
+    const helper = store.createAgent({ ...reviewer, name: "test-runner" })
+    const conversation = (
+      kind: "group" | "channel",
+      name: string,
+      agentIds: string[]
+    ) =>
+      store.createConversation({
+        kind,
+        name,
+        topic: null,
+        private: false,
+        replyMode: "mention",
+        members: ["user:me", ...agentIds.map((id) => `agent:${id}`)],
+      })
+    const alone = conversation("group", "reviewer-bot", [agent.id])
+    const shared = conversation("group", "both", [agent.id, helper.id])
+    const channel = conversation("channel", "release-train", [
+      agent.id,
+      helper.id,
+    ])
+    store.addMessage(channel.id, `agent:${agent.id}`, "PR #212 looks good.")
+
+    const result = store.deleteAgent(agent.id)
+
+    expect(result).toEqual({
+      deletedConversationIds: [dm.id, alone.id],
+      changedConversationIds: [shared.id, channel.id],
+    })
+    expect(store.getConversation(dm.id)).toBeUndefined()
+    expect(store.getConversation(alone.id)).toBeUndefined()
+    expect(store.getConversation(shared.id)?.members).toEqual([
+      "user:me",
+      `agent:${helper.id}`,
+    ])
+    expect(store.getConversation(channel.id)?.members).toEqual([
+      "user:me",
+      `agent:${helper.id}`,
+    ])
+    expect(store.listAgents().map(({ name }) => name)).toEqual(["test-runner"])
+    expect(store.getAgent(agent.id)).toMatchObject({
+      name: "reviewer-bot",
+      deletedAt: expect.any(String),
+    })
+    expect(
+      store.listTimeline(channel.id).map(({ authorKey, item }) => ({
+        authorKey,
+        text: item.kind === "message" ? item.text : null,
+      }))
+    ).toEqual([{ authorKey: `agent:${agent.id}`, text: "PR #212 looks good." }])
   })
 })
