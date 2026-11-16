@@ -1,7 +1,23 @@
 # Delete channels, group chats and agents
 
 **Status:** in progress. The user agreed the decisions, the answers below and
-the seams under test on 2026-11-16. Nothing is built yet.
+the seams under test on 2026-11-16.
+
+Built, with tests: the store (migration 12, `deleteConversation()`,
+`deleteAgent()`), both routes and the two stream events, `useWorkspace()`,
+the × on each sidebar row with the confirm dialog, the conversation page that
+goes home when its conversation is deleted, and Delete agent on the agent page.
+
+Still ahead:
+
+1. Delete channel in Channel settings.
+2. Group chat settings (the ⋯ button) with Delete group chat.
+3. The label "Deleted agent" in the timeline. `GET /api/conversations/:id`
+   must send the deleted authors of its items.
+4. A test for a refused delete in the confirm dialog.
+5. The docs: `docs/server/routes.md`, `docs/store.md`, `docs/server.md`,
+   `docs/web-app/sidebar.md`, `docs/web-app/agent-page.md`.
+6. One run of the real app, then the merge.
 
 The design is the row "Delete channels, group chats and agents" of the
 "Agent Chat" canvas (`docs/web-app.md`): the × on a sidebar row, Channel
