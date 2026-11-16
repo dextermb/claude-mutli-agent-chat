@@ -129,8 +129,12 @@ prompt to the agent, so each step shows, also `idle` between two turns.
 ## Answers
 
 The server keeps each open approval card and question card in memory, by its
-request ID. `POST /api/requests/:requestId` builds the answer to
-`can_use_tool` (`docs/protocol.md`):
+request ID. `POST /api/requests/:requestId` takes the request off that list
+before it reads the body, then builds the answer to `can_use_tool`
+(`docs/protocol.md`). So a card takes one answer: a second answer, from a
+double click or a second tab, gets `404` at once. The card in the timeline
+stays `pending` until Claude Code echoes the answer (F16), and that can take
+a moment. If the body cannot be read, the request goes back on the list.
 
 | Body                                                    | Answer to Claude Code                                         |
 | ------------------------------------------------------- | ------------------------------------------------------------- |

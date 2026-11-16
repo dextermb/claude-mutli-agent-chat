@@ -173,6 +173,7 @@ The tests start it in place of `claude`:
 | `not-json`          | writes a line that is not JSON, then plays the fixture                                                                                             |
 | `env`               | writes the names of its `CLAUDE*` variables and the value of `AGENT_CHAT`, then plays the fixture                                                  |
 | `no-transcript`     | when it starts with `--resume`, writes "No conversation found with session ID: …" to stderr and exits with code 1 (F30). Else it plays the fixture |
+| `slow`              | waits 300 ms after each line that it reads, so the echo of an answer comes late                                                                    |
 | `hold-after-result` | plays the fixture until the first `result` line, then writes nothing more                                                                          |
 | `hang`              | plays the fixture, but ignores the end of stdin and `SIGTERM`                                                                                      |
 

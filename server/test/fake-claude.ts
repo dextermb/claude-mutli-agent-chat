@@ -40,6 +40,7 @@ for (const { dir, line } of fixture) {
   }
   const received = await nextInput()
   if (!received) break
+  if (mode === "slow") await new Promise((resolve) => setTimeout(resolve, 300))
   if (received.type !== line.type || subtype(received) !== subtype(line)) {
     fail(`expected ${String(line.type)}, got ${String(received.type)}`)
   }

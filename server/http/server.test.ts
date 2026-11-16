@@ -720,14 +720,41 @@ describe("createServer", () => {
     expect(lastEventId).toBe(watcher.events.at(-1)?.id)
   })
 
+  test("a card takes one answer: a second answer before Claude Code confirms the first is refused, and Claude Code gets one answer", async () => {
+    const { base, sent, conversation } = await startServer(
+      "tools",
+      ":memory:",
+      undefined,
+      () => ({ mode: "slow" })
+    )
+    await sendMessage(base, conversation.id, "Do these steps in order.")
+    const requestId = await nextPendingCard(base, conversation.id)
+
+    const first = await answerRequest(base, requestId, {
+      decision: "allow_once",
+    })
+    const second = await answerRequest(base, requestId, { decision: "deny" })
+
+    expect([first.status, second.status]).toEqual([202, 404])
+    expect(
+      sent.filter(
+        (line) =>
+          line.type === "control_response" &&
+          (line.response as Record<string, unknown>).request_id === requestId
+      )
+    ).toHaveLength(1)
+  })
+
   test("the user can allow once, deny, or always allow a tool, and each card shows the answer", async () => {
     const { base, sent, conversation } = await startServer("tools")
     await sendMessage(base, conversation.id, "Do these steps in order.")
 
+    const answered: string[] = []
     for (const decision of ["allow_once", "deny", "always_allow"]) {
-      const requestId = await nextPendingCard(base, conversation.id)
+      const requestId = await nextPendingCard(base, conversation.id, answered)
       const response = await answerRequest(base, requestId, { decision })
       expect(response.status).toBe(202)
+      answered.push(requestId)
     }
 
     await vi.waitFor(async () => {
