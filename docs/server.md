@@ -175,6 +175,7 @@ its latest session row:
 | `model`, `permissionMode`, `allowedTools` | `config` of the row: what the process runs with                                                |
 | `directory`                               | `config.cwd`, with the home folder as `~`                                                      |
 | `turns`, `costUsd`                        | The sums of `numTurns` and `costUsd` of the turn items of each row with that Claude session ID |
+| `context`                                 | `context` of the last of those turn items (`docs/timeline.md`), or `null`                      |
 | `configChanged`                           | True when the agent configuration now differs from `config`                                    |
 
 A change to an agent does not reach a process that runs. The card shows the

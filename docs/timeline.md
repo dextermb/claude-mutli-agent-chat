@@ -52,15 +52,21 @@ piece came first, the `assistant` text block adds a message that is `done`.
 A tool call keeps the tool `name`, its `input`, the permission `decision` of
 Claude Code (for example `user_temporary` or `user_reject`), and a `result`:
 
-| `result.kind` | From                                                           | The design shows |
-| ------------- | -------------------------------------------------------------- | ---------------- |
-| `lines`       | Read: `file.numLines`                                          | `4 lines`        |
-| `diff`        | Edit: the `+` and `-` lines of `structuredPatch`               | `+1 −1`          |
-| `diff`        | Write of a new file (`type: "create"`): the lines of `content` | `+1`             |
-| `output`      | Bash: `stdout` and `stderr`                                    | The output       |
-| `error`       | A result with `is_error`, for example a denied call            | The error text   |
+| `result.kind` | From                                                           | The design shows       |
+| ------------- | -------------------------------------------------------------- | ---------------------- |
+| `lines`       | Read: `file.numLines`                                          | `4 lines`              |
+| `diff`        | Edit: the `+` and `-` lines of `structuredPatch`               | `+1 −1`, and the lines |
+| `diff`        | Write of a new file (`type: "create"`): the lines of `content` | `+1`, and the lines    |
+| `output`      | Bash: `stdout` and `stderr`                                    | The output             |
+| `error`       | A result with `is_error`, for example a denied call            | The error text         |
 
 Any other tool gives `result: null`.
+
+A `diff` also keeps `lines`: each line with its `kind` (`add`, `remove` or
+`same`) and its `text`, with no `+` or `-`. It keeps the first 200 lines, and
+`more` counts the lines that it drops, so a large Write does not fill the
+store. A `diff` that was stored before this rule has no `lines`, and the
+browser then shows only the counts.
 
 A Bash call with `run_in_background` starts a job. The `task` lines put
 `job: { taskId, status }` on the tool call: `running` at the start, then the
@@ -90,7 +96,16 @@ tool runs, F28) is `stopped`. Claude Code first answers the tool
 call that ran with an error `tool_result`. When the `aborted_tools` result
 comes, the reducer gives the last tool call of the turn the status
 `stopped`, if its status is `error`, and drops its result. The browser shows
-a grey dot and "Stopped".
+"Stopped".
+
+A turn also keeps `context: { used, window }`: how full the context of the
+agent is at the end of the turn. `used` is `contextTokens` of the last
+`assistant` line of the main agent (`docs/protocol.md`). The input of each
+request holds the whole conversation, so the last request shows the context
+now. A line of a subagent does not count, because a subagent has its own
+context. `window` is the `contextWindow` of the model of that line, from the
+`result` line. A turn with no such line, or no window for its model, has no
+`context`.
 
 A turn that ends with `terminal_reason: "max_turns"` (the turn limit of the
 agent, F36) is `limit`. The turns of a limit come from `--max-turns`, so the

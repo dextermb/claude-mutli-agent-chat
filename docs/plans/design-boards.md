@@ -24,6 +24,15 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
   tools, and neither is there. A recording on 2026-11-15 asked for both: the
   answer was "No such tool available: Grep", and the agent used `grep` and
   `find` through Bash. The boards show tools that the agents do not have.
+- **"Thought 4s"** on the AI Elements boards. The reducer drops `thinking`
+  blocks, and Claude Code sends them with empty text and a signature only
+  (`background.jsonl`). So the app has no reasoning to show.
+- **Suggestions** under a done turn, **Edit** on a message of the user, and
+  **Retry**, **Good response** and **Bad response** on a message of an agent
+  (AI Elements boards). Nothing makes the suggestions, and the server has no
+  action for the others.
+- **A model menu in the message box** (AI Elements boards). The model is part
+  of the agent configuration, so the message box links to it instead.
 - **People** (other humans, their names and presence, a name in place of
   "You", and people in Start a chat and Add members). The app runs locally,
   so it has only one user.

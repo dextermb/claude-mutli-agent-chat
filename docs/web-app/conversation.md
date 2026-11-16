@@ -33,43 +33,80 @@ conversation in a background window stays unread.
 
 ## The DM page
 
-`src/components/conversation/` holds the parts of the timeline:
+`src/components/conversation/` holds the parts of the timeline. They use the
+shadcn AI Elements: Bubble, Trace, CodeBlock, HoverCard and Progress.
 
-| Part                 | Shows                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| `timeline.tsx`       | One block for each run of entries by the same author                                   |
-| `tool-call-card.tsx` | The tool, its main input, and its result: `4 lines`, `+1 −1`, the output, or the error |
-| `approval.tsx`       | Deny, Allow once and Always allow, under the tool call that waits                      |
-| `question-card.tsx`  | Each question with its options as buttons, then the answer                             |
-| `composer.tsx`       | The message box. Enter sends, Shift+Enter adds a line                                  |
-| `working-line.tsx`   | One line at the end of the thread for each agent that works                            |
-| `agent-look.ts`      | The avatar colours, the initials, and the status of each state                         |
+| Part                 | Shows                                                                           |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `timeline.tsx`       | One block for each run of entries by the same author                            |
+| `tool-call-line.tsx` | One Trace line for each tool call, with its output, diff or subagent behind it  |
+| `approval.tsx`       | Deny, Allow once and Always allow, in an outline Item under the call that waits |
+| `question-card.tsx`  | Each question with its options as buttons, then the answer                      |
+| `composer.tsx`       | The message box. Enter sends, Shift+Enter adds a line                           |
+| `composer-tools.tsx` | The model and the context of a DM, in the message box                           |
+| `working-line.tsx`   | One line at the end of the thread for each agent that works                     |
+| `agent-look.ts`      | The avatar colours, the initials, and the status of each state                  |
+
+### A block
+
+Your messages are a muted Bubble at the right, with no avatar. The time of the
+first one shows under them. The block is an `article` named "You, 14:03".
+
+An agent block has a header row: a small avatar, the name, the "Agent" Badge
+and the time. The content is under it, at full width. The block is named
+"test-runner, 14:03". Each message of the agent that is done has a ghost
+button "Copy the message".
+
+### A tool call
+
+Calls that follow each other in a block share one `Trace`. Each call is a
+`section` named for its tool and its main input ("Bash echo hello"), with one
+`TraceLine`: an icon, a verb with the main input, and a description.
+
+| Tool     | Runs                       | Done                   | Failed                    |
+| -------- | -------------------------- | ---------------------- | ------------------------- |
+| Read     | Reading `path`             | Read `path`            | Failed to read `path`     |
+| Edit     | Editing `path`             | Edited `path`          | Failed to edit `path`     |
+| Write    | Writing `path`             | Wrote `path`           | Failed to write `path`    |
+| Bash     | Running `cmd`              | Ran `cmd`              | Failed to run `cmd`       |
+| WebFetch | Fetching `url`             | Fetched `url`          | Failed to fetch `url`     |
+| Agent    | Running the subagent: task | Ran the subagent: task | The subagent failed: task |
+
+Another tool shows its name and its main input. The description gives
+`4 lines`, `+1 −1`, `Stopped`, or the count of the calls of a subagent, in
+`foreground-faint`. A call that runs shows a spinner and its title shimmers.
+A call that waits shows its icon in the waiting colour.
 
 The main input of a tool is `file_path`, `command`, `pattern` or `url`. A path
 in the folder of the session shows without that folder. The page reads that
 folder from `sessionCwd` of each agent, so a generic agent in a channel uses
 the folder of the channel (`docs/agents.md`).
 
-An approval card shows inside the card of its tool call, so a waiting call is
-one card, as in the design. Always allow tells what each suggestion grants. A
-rule for `localSettings` stays in the folder of the session, so the text says
-so. In a channel with a folder, each agent of that channel gets the rule.
+A line with more to show is the trigger of a `TraceCollapsible`:
 
-The card of an `Agent` call names the task of the subagent (its
-`description`). The tool calls of the subagent are inside that card, behind
-a ghost button such as "3 tool calls" in the header of the card. Each call of
-the subagent is a compact card. The list opens by itself while one of those
-calls waits for an approval, so the approval card is always visible, and the
-dot of the `Agent` card then shows the waiting colour.
+- The output of a command, or the text of an error, in a `CodeBlock` of size
+  `sm`. The block wraps and scrolls after 16 rem.
+- The lines of a diff (`docs/timeline.md`), each marked added or removed.
+  When the server keeps only the first 200 lines, the foot says "12 more
+  lines".
+- The calls of a subagent, as a second Trace. It opens by itself while one
+  of those calls waits for an approval, so the approval is always visible.
 
-A tool call that runs shows a spinner in the place of its dot, with the name
-"Running". The task of an `Agent` call that runs shimmers. A tool call that a
-stop interrupted shows a grey dot and "Stopped"
-(`docs/timeline.md`). A new session shows as a dashed divider in the link
-colour, with a restart icon: "New session · 09:12".
+A failed call opens by itself. Its line is `foreground` with a red icon, and
+its output is `foreground` on `error-soft`, because the `destructive` text of
+the components is 4.3:1 on `background`.
+
+The approval shows under its call, so a waiting call is one part, as in the
+design. Always allow tells what each suggestion grants. A rule for
+`localSettings` stays in the folder of the session, so the text says so. In a
+channel with a folder, each agent of that channel gets the rule. After the
+answer, the Item goes, and one line says "Allowed", "Denied" or "Expired".
+
+A new session shows as a dashed divider in the link colour, with a restart
+icon: "New session · 09:12".
 
 A failed process shows one line: "test-runner stopped with an error (exit code
-1)." "Show details" opens the stderr of the process.
+1)." "Show details" opens the stderr of the process, in the error CodeBlock.
 
 A rate-limit notice is one line with a warning icon: "The five-hour rate
 limit is reached. It resets at 14:00." A limit that is near, but not reached,
@@ -159,6 +196,13 @@ Stop while it works, the tabs Messages, Files and Session log, and Configure,
 which opens `/agents/:id`. The messages start with a line about the agent:
 "This is your DM with test-runner. In a DM, the agent replies to every
 message. It runs Claude Code in /home/user/code/web-app."
+
+The message box of a DM shows the model of the agent, as a link to
+`/agents/:id` named "Model: claude-sonnet-5-5". A change of model is a change
+of the agent, so the message box does not change it. After the first turn, it
+also shows "31% context". A HoverCard on it shows a Progress named "Context"
+and the count: "62,400 / 200,000 tokens". The value comes from the session
+card (`docs/web-app/session-panel.md`). The attach and Send buttons are round.
 
 ## A refused action
 
