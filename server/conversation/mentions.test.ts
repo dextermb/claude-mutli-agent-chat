@@ -32,4 +32,14 @@ describe("parseMentions", () => {
       parseMentions("Send it to dev@test-runner and ops@reviewer-bot.", members)
     ).toEqual([])
   })
+
+  test("a path that starts with a member name is not a mention", () => {
+    expect(
+      parseMentions(
+        "Read @test-runner/notes.md and @test-runner.md, thanks @test-runner.",
+        members
+      )
+    ).toEqual(["agent:t1"])
+    expect(parseMentions("See @test-runner/notes.md", members)).toEqual([])
+  })
 })

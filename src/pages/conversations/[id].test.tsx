@@ -1137,6 +1137,54 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("@ also completes the files of the agent folder, and the pick is shared as a linked file", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/paths?q=aut", {
+      paths: [
+        {
+          path: "/home/user/code/web-app/src/auth.ts",
+          relative: "src/auth.ts",
+          agentId: "a1",
+        },
+      ],
+    })
+    network.on("POST", "/api/conversations/c1/messages", {}, 202)
+    const box = await screen.findByRole("textbox", {
+      name: "Message test-runner",
+    })
+
+    await user.type(box, "Check @aut")
+    const files = within(await screen.findByRole("listbox", { name: "Files" }))
+    expect(
+      files.getByRole("option", { name: "src/auth.ts test-runner" })
+    ).toBeInTheDocument()
+    await user.keyboard("{Enter}")
+
+    expect(box).toHaveValue("Check @src/auth.ts ")
+    const chips = within(
+      screen.getByRole("list", { name: "Files for this message" })
+    )
+    expect(chips.getByText("Linked")).toBeInTheDocument()
+    await user.keyboard("please.{Enter}")
+
+    expect(network.sent.at(-1)).toEqual({
+      method: "POST",
+      url: "/api/conversations/c1/messages",
+      body: {
+        text: "Check @src/auth.ts please.",
+        files: [
+          {
+            name: "auth.ts",
+            path: "/home/user/code/web-app/src/auth.ts",
+            kind: "linked",
+            size: 0,
+          },
+        ],
+      },
+    })
+  })
+
   test("a copy that fails blocks Send until the user removes the file", async () => {
     const user = userEvent.setup()
     openConversation([userMessage])

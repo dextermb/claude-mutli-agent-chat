@@ -7,6 +7,7 @@ import {
   XIcon,
 } from "lucide-react"
 import {
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -43,7 +44,9 @@ import type { Attachment, useAttachments } from "@/hooks/use-attachments"
 import type { AgentWithState, SharedFile } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
 
-const MENTION_AT_CARET = /(?:^|\s)@([\w-]*)$/
+const MENTION_AT_CARET = /(?:^|\s)@([\w./-]*)$/
+
+export type PathOption = { path: string; relative: string; agentName: string }
 
 type Member = Pick<AgentWithState, "id" | "name" | "colour" | "state">
 
@@ -52,11 +55,13 @@ export function Composer({
   members,
   onSend,
   attachments,
+  searchPaths,
 }: {
   label: string
   members: Member[]
   onSend: (text: string, files: SharedFile[]) => void
   attachments?: ReturnType<typeof useAttachments>
+  searchPaths?: (query: string) => Promise<PathOption[]>
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [text, setText] = useState("")
@@ -82,8 +87,27 @@ export function Composer({
           member.name.toLowerCase().startsWith(typed[1].toLowerCase())
         )
       : []
+  const query = typed && typed[1] !== dismissed ? typed[1] : null
+  const [found, setFound] = useState<{ query: string; paths: PathOption[] }>({
+    query: "",
+    paths: [],
+  })
+  useEffect(() => {
+    if (!searchPaths || !query) return
+    let current = true
+    searchPaths(query)
+      .then((paths) => {
+        if (current) setFound({ query, paths })
+      })
+      .catch(() => undefined)
+    return () => {
+      current = false
+    }
+  }, [query, searchPaths])
+  const fileSuggestions = query && found.query === query ? found.paths : []
+  const optionCount = suggestions.length + fileSuggestions.length
   const activeIndex =
-    typed && active.query === typed[1] && active.index < suggestions.length
+    typed && active.query === typed[1] && active.index < optionCount
       ? active.index
       : 0
 
@@ -91,6 +115,11 @@ export function Composer({
     setText(value)
     setCaret(at)
     setDismissed(null)
+  }
+
+  function pickFile(option: PathOption) {
+    pick(option.relative)
+    attachments?.addPath(option.path)
   }
 
   function pick(name: string) {
@@ -115,26 +144,24 @@ export function Composer({
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     const step = { ArrowDown: 1, ArrowUp: -1 }[event.key]
-    if (typed && suggestions.length > 0 && event.key === "Escape") {
+    if (typed && optionCount > 0 && event.key === "Escape") {
       event.preventDefault()
       setDismissed(typed[1])
       return
     }
-    if (typed && suggestions.length > 0 && step) {
+    if (typed && optionCount > 0 && step) {
       event.preventDefault()
-      const count = suggestions.length
+      const count = optionCount
       setActive({
         query: typed[1],
         index: (activeIndex + step + count) % count,
       })
       return
     }
-    if (
-      suggestions.length > 0 &&
-      (event.key === "Tab" || event.key === "Enter")
-    ) {
+    if (optionCount > 0 && (event.key === "Tab" || event.key === "Enter")) {
       event.preventDefault()
-      pick(suggestions[activeIndex].name)
+      if (activeIndex < suggestions.length) pick(suggestions[activeIndex].name)
+      else pickFile(fileSuggestions[activeIndex - suggestions.length])
       return
     }
     if (event.key === "Enter" && !event.shiftKey) send(event)
@@ -142,49 +169,99 @@ export function Composer({
 
   return (
     <form onSubmit={send} className="flex flex-col gap-2">
-      {suggestions.length > 0 && (
+      {optionCount > 0 && (
         <div className="flex max-w-sm flex-col gap-1 rounded-[14px] border bg-popover p-1.5 text-popover-foreground shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
-          <p
-            id={`${listId}-label`}
-            className="m-0 px-2 pt-1 text-xs font-medium text-muted-foreground"
-          >
-            Members
-          </p>
-          <ul
-            id={listId}
-            role="listbox"
-            aria-labelledby={`${listId}-label`}
-            className="m-0 flex list-none flex-col p-0"
-          >
-            {suggestions.map((member, index) => {
-              const status = statusOf(member.state)
-              return (
-                <li
-                  key={member.id}
-                  id={`${listId}-${index}`}
-                  role="option"
-                  aria-selected={index === activeIndex}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2 py-1.5 aria-selected:bg-accent"
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    pick(member.name)
-                  }}
-                >
-                  <Avatar size="sm" aria-hidden="true">
-                    <AvatarFallback className={AVATAR_COLOURS[member.colour]}>
-                      {initialsOf(member.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 truncate font-medium text-foreground-strong">
-                    {member.name}
-                  </span>{" "}
-                  <Badge variant="outline" className={status.text}>
-                    {status.label}
-                  </Badge>
-                </li>
-              )
-            })}
-          </ul>
+          {suggestions.length > 0 && (
+            <>
+              <p
+                id={`${listId}-label`}
+                className="m-0 px-2 pt-1 text-xs font-medium text-muted-foreground"
+              >
+                Members
+              </p>
+              <ul
+                id={listId}
+                role="listbox"
+                aria-labelledby={`${listId}-label`}
+                className="m-0 flex list-none flex-col p-0"
+              >
+                {suggestions.map((member, index) => {
+                  const status = statusOf(member.state)
+                  return (
+                    <li
+                      key={member.id}
+                      id={`${listId}-${index}`}
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2 py-1.5 aria-selected:bg-accent"
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        pick(member.name)
+                      }}
+                    >
+                      <Avatar size="sm" aria-hidden="true">
+                        <AvatarFallback
+                          className={AVATAR_COLOURS[member.colour]}
+                        >
+                          {initialsOf(member.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="flex-1 truncate font-medium text-foreground-strong">
+                        {member.name}
+                      </span>{" "}
+                      <Badge variant="outline" className={status.text}>
+                        {status.label}
+                      </Badge>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+          {fileSuggestions.length > 0 && (
+            <>
+              <p
+                id={`${listId}-files-label`}
+                className="m-0 px-2 pt-1 text-xs font-medium text-muted-foreground"
+              >
+                Files
+              </p>
+              <ul
+                id={`${listId}-files`}
+                role="listbox"
+                aria-labelledby={`${listId}-files-label`}
+                className="m-0 flex list-none flex-col p-0"
+              >
+                {fileSuggestions.map((option, fileIndex) => {
+                  const index = suggestions.length + fileIndex
+                  return (
+                    <li
+                      key={option.path}
+                      id={`${listId}-${index}`}
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2 py-1.5 aria-selected:bg-accent"
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        pickFile(option)
+                      }}
+                    >
+                      <FileIcon
+                        aria-hidden="true"
+                        className="size-4 flex-none text-muted-foreground"
+                      />
+                      <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-foreground-strong">
+                        {option.relative}
+                      </span>{" "}
+                      <span className="flex-none text-xs text-foreground-faint">
+                        {option.agentName}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
         </div>
       )}
       <InputGroup>
@@ -210,11 +287,20 @@ export function Composer({
           ref={box}
           aria-label={label}
           aria-autocomplete="list"
-          aria-controls={suggestions.length > 0 ? listId : undefined}
-          aria-activedescendant={
-            suggestions.length > 0 ? `${listId}-${activeIndex}` : undefined
+          aria-controls={
+            optionCount > 0
+              ? [
+                  suggestions.length > 0 ? listId : null,
+                  fileSuggestions.length > 0 ? `${listId}-files` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              : undefined
           }
-          aria-expanded={suggestions.length > 0}
+          aria-activedescendant={
+            optionCount > 0 ? `${listId}-${activeIndex}` : undefined
+          }
+          aria-expanded={optionCount > 0}
           placeholder={label}
           value={text}
           onChange={(event) =>
@@ -260,8 +346,8 @@ export function Composer({
             </span>
           ) : (
             <span className="ml-auto flex items-center gap-1 text-xs text-foreground-faint">
-              <Kbd>{suggestions.length > 0 ? "Tab" : "Enter"}</Kbd>
-              {suggestions.length > 0 ? "to pick" : "to send"}
+              <Kbd>{optionCount > 0 ? "Tab" : "Enter"}</Kbd>
+              {optionCount > 0 ? "to pick" : "to send"}
             </span>
           )}
           <InputGroupButton

@@ -22,6 +22,7 @@ import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import { findFile } from "./find-file.ts"
 import { listFolders } from "./folders.ts"
+import { searchPaths } from "./paths.ts"
 import { checkFiles, isFile, sharedFileLines } from "./shared-files.ts"
 import { saveUpload, UPLOAD_LIMIT, uploadsOf } from "./uploads.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
@@ -602,6 +603,19 @@ export function createServer({
         sha256: body.sha256,
       })
       return send(response, 200, { match: path ? { path } : null })
+    }
+
+    if ((params = route("GET", "api/conversations/:id/paths"))) {
+      if (!store.getConversation(params.id)) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      const folders = agentIdsOf(params.id).flatMap((agentId) => {
+        const agent = store.getAgent(agentId)
+        return agent ? [{ agentId, cwd: agent.cwd }] : []
+      })
+      return send(response, 200, {
+        paths: await searchPaths(folders, url.searchParams.get("q") ?? ""),
+      })
     }
 
     if ((params = route("GET", "api/conversations/:id/files"))) {

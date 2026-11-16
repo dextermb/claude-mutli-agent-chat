@@ -10,7 +10,7 @@ import {
   SquareIcon,
   UsersIcon,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useLocation, useParams, useSearch } from "wouter"
 
 import {
@@ -63,6 +63,25 @@ export default function ConversationPage() {
   const params = useParams<{ id: string }>()
   const conversation = useConversation(params.id)
   const attachments = useAttachments(params.id)
+  const agentList = conversation.agents
+  const searchPaths = useCallback(
+    async (query: string) => {
+      const response = await fetch(
+        `/api/conversations/${params.id}/paths?q=${encodeURIComponent(query)}`
+      )
+      if (!response.ok) return []
+      const { paths } = (await response.json()) as {
+        paths: { path: string; relative: string; agentId: string }[]
+      }
+      return paths.map((match) => ({
+        path: match.path,
+        relative: match.relative,
+        agentName:
+          agentList.find((agent) => agent.id === match.agentId)?.name ?? "",
+      }))
+    },
+    [params.id, agentList]
+  )
   const dropZone = useDropZone(
     attachments,
     conversation.conversation?.kind === "channel"
@@ -430,6 +449,7 @@ export default function ConversationPage() {
                 conversation.conversation.kind === "channel" ? "#" : ""
               }${conversation.conversation.name}`}
               attachments={attachments}
+              searchPaths={searchPaths}
               onSend={async (text, files) =>
                 showRefusal(await conversation.send(text, files))
               }

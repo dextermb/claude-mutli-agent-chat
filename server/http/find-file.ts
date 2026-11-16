@@ -1,11 +1,8 @@
 import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
-import { readdir, stat } from "node:fs/promises"
-import { join } from "node:path"
-
-const SKIPPED = new Set(["node_modules", "dist", "build", "target"])
-const MAX_ENTRIES = 50_000
-const MAX_MS = 2_000
+import { stat } from "node:fs/promises"
+import { basename, join } from "node:path"
+import { walk } from "./paths.ts"
 
 export type Fingerprint = { name: string; size: number; sha256: string }
 
@@ -29,28 +26,10 @@ async function candidates(
   wanted: Fingerprint
 ): Promise<string[]> {
   const found: string[] = []
-  const queue = [root]
-  const started = Date.now()
-  let entries = 0
-  while (queue.length > 0) {
-    if (entries > MAX_ENTRIES || Date.now() - started > MAX_MS) break
-    const folder = queue.shift() as string
-    let items
-    try {
-      items = await readdir(folder, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const item of items) {
-      entries += 1
-      if (item.name.startsWith(".") || SKIPPED.has(item.name)) continue
-      const path = join(folder, item.name)
-      if (item.isDirectory()) queue.push(path)
-      else if (item.isFile() && item.name === wanted.name) {
-        const info = await stat(path)
-        if (info.size === wanted.size) found.push(path)
-      }
-    }
+  for (const file of await walk(root)) {
+    if (basename(file) !== wanted.name) continue
+    const path = join(root, file)
+    if ((await stat(path)).size === wanted.size) found.push(path)
   }
   return found
 }

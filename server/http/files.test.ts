@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import {
   existsSync,
@@ -237,7 +238,10 @@ describe("uploads", () => {
     mkdirSync(join(folder, "node_modules"))
     writeFileSync(join(folder, "src", "auth.test.ts"), "the real test\n")
     writeFileSync(join(folder, "auth.test.ts"), "another text!\n")
-    writeFileSync(join(folder, "node_modules", "auth.test.ts"), "the real test\n")
+    writeFileSync(
+      join(folder, "node_modules", "auth.test.ts"),
+      "the real test\n"
+    )
     const agent = (await (
       await postJson(base, "/api/agents", { ...testRunner, cwd: folder })
     ).json()) as { agent: { id: string } }
@@ -261,6 +265,83 @@ describe("uploads", () => {
       match: { path: join(folder, "src", "auth.test.ts") },
     })
     expect(await none.json()).toEqual({ match: null })
+    rmSync(folder, { recursive: true, force: true })
+  })
+
+  test("paths gives the files of the agent folders that match the typed text, the shortest first", async () => {
+    const { base } = await startServer()
+    const folder = mkdtempSync(join(tmpdir(), "paths-test-"))
+    mkdirSync(join(folder, "src"))
+    mkdirSync(join(folder, "node_modules"))
+    for (const file of [
+      "src/auth.test.ts",
+      "src/auth.ts",
+      "README.md",
+      "node_modules/auth.js",
+    ]) {
+      writeFileSync(join(folder, file), "x")
+    }
+    const agent = (await (
+      await postJson(base, "/api/agents", { ...testRunner, cwd: folder })
+    ).json()) as { agent: { id: string } }
+    const dm = (await (
+      await postJson(base, "/api/conversations", {
+        kind: "dm",
+        agentId: agent.agent.id,
+      })
+    ).json()) as { conversation: { id: string } }
+
+    const response = await fetch(
+      `${base}/api/conversations/${dm.conversation.id}/paths?q=auth`
+    )
+
+    expect(await response.json()).toEqual({
+      paths: [
+        {
+          path: join(folder, "src/auth.ts"),
+          relative: "src/auth.ts",
+          agentId: agent.agent.id,
+        },
+        {
+          path: join(folder, "src/auth.test.ts"),
+          relative: "src/auth.test.ts",
+          agentId: agent.agent.id,
+        },
+      ],
+    })
+    rmSync(folder, { recursive: true, force: true })
+  })
+
+  test("in a git repository, paths leaves out what .gitignore names", async () => {
+    const { base } = await startServer()
+    const folder = mkdtempSync(join(tmpdir(), "paths-git-"))
+    execFileSync("git", ["init", "-q"], { cwd: folder })
+    writeFileSync(join(folder, ".gitignore"), "secret-notes.txt\n")
+    writeFileSync(join(folder, "notes.txt"), "x")
+    writeFileSync(join(folder, "secret-notes.txt"), "x")
+    const agent = (await (
+      await postJson(base, "/api/agents", { ...testRunner, cwd: folder })
+    ).json()) as { agent: { id: string } }
+    const dm = (await (
+      await postJson(base, "/api/conversations", {
+        kind: "dm",
+        agentId: agent.agent.id,
+      })
+    ).json()) as { conversation: { id: string } }
+
+    const response = await fetch(
+      `${base}/api/conversations/${dm.conversation.id}/paths?q=notes`
+    )
+
+    expect(await response.json()).toEqual({
+      paths: [
+        {
+          path: join(folder, "notes.txt"),
+          relative: "notes.txt",
+          agentId: agent.agent.id,
+        },
+      ],
+    })
     rmSync(folder, { recursive: true, force: true })
   })
 })
