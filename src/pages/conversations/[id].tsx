@@ -405,9 +405,11 @@ export default function ConversationPage() {
               <Timeline
                 entries={conversation.entries}
                 agents={conversation.agents}
-                onAnswer={async (requestId, answer) =>
-                  showRefusal(await conversation.answer(requestId, answer))
-                }
+                onAnswer={async (requestId, answer) => {
+                  const refusal = await conversation.answer(requestId, answer)
+                  showRefusal(refusal)
+                  return refusal === null
+                }}
               />
             </SharedFilesContext.Provider>
             <WorkingLines

@@ -36,7 +36,7 @@ import { clockTime, dayKey, dayName, longDay } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { mentionPattern } from "../../../server/conversation/mentions.ts"
 
-type Answer = (requestId: string, answer: RequestAnswer) => void
+type Answer = (requestId: string, answer: RequestAnswer) => Promise<boolean>
 
 type TimelineProps = {
   entries: TimelineEntry[]

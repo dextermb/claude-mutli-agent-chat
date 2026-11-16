@@ -15,16 +15,20 @@ export function QuestionCard({
   onAnswer,
 }: {
   card: QuestionItem
-  onAnswer: (requestId: string, answer: RequestAnswer) => void
+  onAnswer: (requestId: string, answer: RequestAnswer) => Promise<boolean>
 }) {
   const questions = card.questions.map(toQuestion)
   const [chosen, setChosen] = useState<Record<string, string>>({})
+  const [sending, setSending] = useState(false)
 
   function choose(question: string, label: string) {
     const next = { ...chosen, [question]: label }
     setChosen(next)
     if (questions.every((item) => next[item.question])) {
-      onAnswer(card.requestId, { answers: next })
+      setSending(true)
+      void onAnswer(card.requestId, { answers: next }).then((taken) => {
+        if (!taken) setSending(false)
+      })
     }
   }
 
@@ -52,6 +56,7 @@ export function QuestionCard({
                   }
                   size="sm"
                   title={option.description}
+                  disabled={sending}
                   onClick={() => choose(item.question, option.label)}
                 >
                   {option.label}

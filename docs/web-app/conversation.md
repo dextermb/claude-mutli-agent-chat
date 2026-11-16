@@ -102,6 +102,12 @@ design. Always allow tells what each suggestion grants. A rule for
 channel with a folder, each agent of that channel gets the rule. After the
 answer, the Item goes, and one line says "Allowed", "Denied" or "Expired".
 
+After the first click, the buttons of an approval card are disabled until
+the answer comes back from Claude Code, so a card sends one answer
+(`docs/server.md`). A question card does the same after the choice that
+answers each question. If the server refuses the answer, the page shows the
+refusal, and the buttons work again.
+
 A new session shows as a dashed divider in the link colour, with a restart
 icon: "New session · 09:12".
 

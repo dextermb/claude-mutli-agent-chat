@@ -1,5 +1,5 @@
 import { ShieldIcon } from "lucide-react"
-import { useId } from "react"
+import { useId, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -31,11 +31,16 @@ export function Approval({
   request: PermissionItem
   label: string
   agentName: string
-  onAnswer: (requestId: string, answer: RequestAnswer) => void
+  onAnswer: (requestId: string, answer: RequestAnswer) => Promise<boolean>
 }) {
   const grantsId = useId()
-  const answer = (decision: "allow_once" | "always_allow" | "deny") =>
-    onAnswer(request.requestId, { decision })
+  const [sending, setSending] = useState(false)
+  const answer = (decision: "allow_once" | "always_allow" | "deny") => {
+    setSending(true)
+    void onAnswer(request.requestId, { decision }).then((taken) => {
+      if (!taken) setSending(false)
+    })
+  }
   if (request.status !== "pending") {
     return (
       <div
@@ -64,12 +69,18 @@ export function Approval({
           </ItemDescription>
         </ItemContent>
         <ItemActions>
-          <Button variant="outline" size="sm" onClick={() => answer("deny")}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={sending}
+            onClick={() => answer("deny")}
+          >
             Deny
           </Button>
           <Button
             variant="outline"
             size="sm"
+            disabled={sending}
             onClick={() => answer("allow_once")}
           >
             Allow once
@@ -78,6 +89,7 @@ export function Approval({
             <Button
               size="sm"
               aria-describedby={grantsId}
+              disabled={sending}
               onClick={() => answer("always_allow")}
             >
               Always allow
