@@ -104,6 +104,9 @@ export default function ConversationPage() {
   } | null>(null)
   const search = useSearch()
   const [, navigate] = useLocation()
+  useEffect(() => {
+    if (conversation.deleted) navigate("/")
+  }, [conversation.deleted, navigate])
   const tab = new URLSearchParams(search).get("tab") ?? "messages"
   const focusEntry = useRef<string | null>(null)
   const { scrollRef, contentRef, atBottom, jumpToBottom } = useStickToBottom(

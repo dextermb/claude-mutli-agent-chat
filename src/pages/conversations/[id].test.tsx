@@ -3007,3 +3007,19 @@ describe("the scroll of the messages", () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe("a deleted conversation", () => {
+  test("the page of a channel that is deleted elsewhere goes to the home page", async () => {
+    openChannel([])
+    await screen.findByRole("heading", { name: "release-train" })
+
+    act(() =>
+      network.stream("/api/conversations/ch1/events").emit(1, {
+        type: "conversation_deleted",
+        conversationId: "ch1",
+      })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+  })
+})

@@ -16,6 +16,7 @@ type ConversationView = {
   agents: ConversationAgent[]
   entries: TimelineEntry[]
   files: SharedFileView[]
+  deleted: boolean
 }
 
 const LOADING: ConversationView = {
@@ -24,6 +25,7 @@ const LOADING: ConversationView = {
   agents: [],
   entries: [],
   files: [],
+  deleted: false,
 }
 
 export function useConversation(conversationId: string) {
@@ -51,6 +53,7 @@ export function useConversation(conversationId: string) {
         agents: detail.agents,
         entries: timeline.items,
         files: shared.files,
+        deleted: false,
       })
       source = new EventSource(
         `/api/conversations/${conversationId}/events?lastEventId=${timeline.lastEventId}`
@@ -172,10 +175,12 @@ function applyMessage(
     message.type === "reset" ||
     message.type === "line" ||
     message.type === "unread" ||
-    message.type === "conversation_deleted" ||
     message.type === "agent_deleted"
   ) {
     return view
+  }
+  if (message.type === "conversation_deleted") {
+    return { ...view, deleted: true }
   }
   if (message.type === "agent_state") {
     return {
