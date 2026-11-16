@@ -1373,7 +1373,7 @@ describe("the DM page", () => {
     expect(
       within(sidebar).getByRole("link", { name: "reviewer-bot, test-runner" })
     ).toHaveAttribute("href", "/conversations/g1")
-    const current = within(sidebar).getByRole("link", {
+    const current = await within(sidebar).findByRole("link", {
       name: "test-runner Working",
     })
     expect(current).toHaveAttribute("href", "/conversations/c1")
@@ -1641,7 +1641,7 @@ describe("the DM page", () => {
 
     const sidebar = screen.getByRole("navigation", { name: "Conversations" })
     await user.click(
-      within(sidebar).getByRole("link", { name: squadGroup.name })
+      await within(sidebar).findByRole("link", { name: squadGroup.name })
     )
 
     await screen.findByRole("heading", { name: squadGroup.name })
@@ -2029,7 +2029,7 @@ describe("a refused action", () => {
 
     const sidebar = screen.getByRole("navigation", { name: "Conversations" })
     await user.click(
-      within(sidebar).getByRole("link", { name: "release-train" })
+      await within(sidebar).findByRole("link", { name: "release-train" })
     )
 
     await screen.findByRole("heading", { name: "release-train" })
