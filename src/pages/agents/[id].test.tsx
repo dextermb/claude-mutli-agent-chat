@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeEach, describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test } from "vitest"
 
 import { App } from "@/App"
 import {
@@ -128,7 +128,7 @@ describe("the agent configuration page", () => {
     network.on("PATCH", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/a1")
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.getByLabelText("Working directory")).toHaveValue(
         "/home/user/code/web-app"
       )
@@ -166,7 +166,7 @@ describe("the agent configuration page", () => {
     network.on("PATCH", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/a1")
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         screen.getByRole("combobox", { name: "Permission mode" })
       ).toHaveTextContent("manual")
@@ -193,7 +193,7 @@ describe("the agent configuration page", () => {
     network.on("PATCH", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/a1")
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         screen.getByRole("combobox", { name: "Permission mode" })
       ).toHaveTextContent("auto")
@@ -408,7 +408,7 @@ describe("the agent configuration page", () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/a1")
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.getByLabelText("Working directory")).toHaveValue(
         "/home/user/code/web-app"
       )
@@ -612,7 +612,7 @@ describe("the agent configuration page", () => {
     await user.type(sleep, "20")
     await user.click(screen.getByRole("button", { name: "Save agent" }))
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         network.sent.find((request) => request.method === "PATCH")?.body
       ).toMatchObject({ sleepAfterMinutes: 20 })
@@ -642,7 +642,7 @@ describe("the agent configuration page", () => {
     })
     openPage("/agents/a1")
     const cwd = await screen.findByLabelText("Working directory")
-    await vi.waitFor(() => expect(cwd).toHaveValue("/home/user/code/web-app"))
+    await waitFor(() => expect(cwd).toHaveValue("/home/user/code/web-app"))
 
     await user.click(screen.getByRole("button", { name: "Browse" }))
     const dialog = within(
