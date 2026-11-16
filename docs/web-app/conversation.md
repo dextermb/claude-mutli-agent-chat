@@ -34,18 +34,20 @@ conversation in a background window stays unread.
 ## The DM page
 
 `src/components/conversation/` holds the parts of the timeline. They use the
-shadcn AI Elements: Bubble, Trace, CodeBlock, HoverCard and Progress.
+shadcn AI Elements: Bubble, Trace, CodeBlock, HoverCard and Progress. See
+`docs/web-app/components.md` for the layout of the directories.
 
-| Part                 | Shows                                                                           |
-| -------------------- | ------------------------------------------------------------------------------- |
-| `timeline.tsx`       | One block for each run of entries by the same author                            |
-| `tool-call-line.tsx` | One Trace line for each tool call, with its output, diff or subagent behind it  |
-| `approval.tsx`       | Deny, Allow once and Always allow, in an outline Item under the call that waits |
-| `question-card.tsx`  | Each question with its options as buttons, then the answer                      |
-| `composer.tsx`       | The message box. Enter sends, Shift+Enter adds a line                           |
-| `composer-tools.tsx` | The model and the context of a DM, in the message box                           |
-| `working-line.tsx`   | One line at the end of the thread for each agent that works                     |
-| `agent-look.ts`      | The avatar colours, the initials, and the status of each state                  |
+| Part                           | Shows                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `timeline/timeline.tsx`        | One block for each run of entries by the same author                            |
+| `tool-call/tool-call-line.tsx` | One Trace line for each tool call, with its output, diff or subagent behind it  |
+| `cards/approval.tsx`           | Deny, Allow once and Always allow, in an outline Item under the call that waits |
+| `cards/question-card.tsx`      | Each question with its options as buttons, then the answer                      |
+| `composer/composer.tsx`        | The message box. Enter sends, Shift+Enter adds a line                           |
+| `composer/model-link.tsx`      | The model of a DM, in the message box                                           |
+| `composer/context-figure.tsx`  | The context of a DM, in the message box                                         |
+| `working-line.tsx`             | One line at the end of the thread for each agent that works                     |
+| `agent-look.ts`                | The avatar colours, the initials, and the status of each state                  |
 
 ### A block
 
@@ -240,9 +242,9 @@ message box of a channel is "Message #<name>".
 The header of a channel also shows its topic, then when the agents reply:
 "Agents reply when you @mention them." or "Agents reply to every message."
 At the end, a ghost icon button "Channel settings" opens
-`src/components/channel-settings-dialog.tsx`, with the title "Channel
+`src/components/dialogs/channel-settings/channel-settings-dialog.tsx`, with the title "Channel
 settings" and "#<name>". It has the Topic, Private and reply-mode fields of
-Create a channel (`src/components/channel-fields.tsx`). Save sends only the
+Create a channel (`src/components/fields/channel/`). Save sends only the
 fields that changed to `PATCH /api/conversations/:id`, and closes the dialog.
 With no change, Save closes it with no request. The header, the icon and the
 sidebar follow the `conversation` event of the stream. A refusal shows "The

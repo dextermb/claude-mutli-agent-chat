@@ -56,7 +56,7 @@ with the message, and Claude Code also attaches its content (F39 in
 ## In the thread
 
 A message with files shows the list "Shared files" under its text
-(`src/components/conversation/shared-files.tsx`). Each row has the name, a
+(`src/components/conversation/files/shared-file-row.tsx`). Each row has the name, a
 badge, the path in mono, a note and "Copy the path of <name>":
 
 | Badge     | When                              | Note                                                         |

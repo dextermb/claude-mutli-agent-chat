@@ -23,6 +23,8 @@ manager is pnpm.
 - `src/router`: the file-based router.
 - `src/components/ui`: shadcn components. Add them with
   `pnpm dlx shadcn@latest add <name>`. Do not write them by hand.
+- `src/components`: one component in each file, grouped in directories by
+  kind or by part. See `docs/web-app/components.md`.
 - `docs/README.md`: the index of the documentation. Add each new page to it.
 - `docs/architecture.md`: the parts of the agent app, and why.
 - `docs/testing.md`: the test set-up and the seams under test.

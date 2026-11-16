@@ -5,7 +5,7 @@ the header of a DM.
 
 ## The session panel of a DM
 
-`src/components/conversation/session-panel.tsx` holds the panels on the
+`src/components/conversation/session/session-panel.tsx` holds the panels on the
 right of a conversation, as in the design. In a DM, `SessionPanel` is always
 there, with the name "Session" and a visible heading. It has two cards:
 

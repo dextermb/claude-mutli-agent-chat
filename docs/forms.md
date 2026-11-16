@@ -2,7 +2,7 @@
 
 Two forms check their input before they send it: the agent page
 (`src/pages/agents/[id].tsx`) and the Create a channel dialog
-(`src/components/create-channel-dialog.tsx`). Both use TanStack Form, and
+(`src/components/dialogs/create-channel-dialog.tsx`). Both use TanStack Form, and
 both check their values with the same Zod schema as the server. The Channel
 settings dialog sends input too, but only the server checks it (see "One
 schema").
@@ -23,7 +23,7 @@ schema").
 - `NewAgent` in `server/api-types.ts` is the output type of `agentSchema`.
 
 The Channel settings dialog
-(`src/components/channel-settings-dialog.tsx`) is not a TanStack Form. Its
+(`src/components/dialogs/channel-settings/channel-settings-dialog.tsx`) is not a TanStack Form. Its
 fields are a text, a folder, a switch, a radio and a number. Only a sleep
 time out of range fails the schema. That, and a folder that does not exist,
 get `400` from the route. It keeps its values in state, and shows a refusal
