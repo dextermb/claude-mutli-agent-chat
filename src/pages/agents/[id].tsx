@@ -62,14 +62,24 @@ type Draft = AgentDraft
 
 const COLOURS = ["orange", "yellow", "green", "aqua", "blue", "purple"]
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
-const MODES = ["default", "acceptEdits", "plan", "bypassPermissions"]
+const MODES = [
+  "manual",
+  "acceptEdits",
+  "plan",
+  "auto",
+  "dontAsk",
+  "bypassPermissions",
+]
 
 const MODE_NOTES: Record<string, string> = {
-  default:
-    "With default, each tool outside the allowed list waits for approval in the chat.",
+  manual:
+    "With manual, each tool outside the allowed list waits for approval in the chat.",
   acceptEdits:
     "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat.",
   plan: "plan reads and plans, and changes no file. Other tools outside the allowed list wait for approval in the chat.",
+  auto: "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card.",
+  dontAsk:
+    "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run.",
   bypassPermissions:
     "bypassPermissions runs each tool without a prompt. Blocked tools still never run.",
 }
@@ -78,7 +88,7 @@ const EMPTY: Draft = {
   name: "",
   colour: "green",
   model: "claude-sonnet-5-5",
-  permissionMode: "default",
+  permissionMode: "manual",
   cwd: "",
   autostart: false,
   allowedTools: [],
@@ -692,7 +702,8 @@ function draftOf(agent: Agent): Draft {
     name: agent.name,
     colour: agent.colour,
     model: agent.model,
-    permissionMode: agent.permissionMode,
+    permissionMode:
+      agent.permissionMode === "default" ? "manual" : agent.permissionMode,
     cwd: agent.cwd ?? "",
     autostart: agent.autostart,
     allowedTools: agent.allowedTools,

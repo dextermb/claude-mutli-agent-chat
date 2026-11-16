@@ -62,7 +62,7 @@ and dialog, in `FolderField` of `src/components/fields/channel/`.
 
 The model and the permission mode use the Base UI `Select`, with a mono
 trigger, as the design shows. The description under the permission mode
-changes with the mode. The working directory has a folder icon. A tool goes
+changes with the mode. The modes and their notes are in `docs/agents.md`. The working directory has a folder icon. A tool goes
 into the allowed or the blocked list with Enter or with Add. A blocked
 `ToolSearch` shows its message under Blocked tools at Save, and the agent is
 not saved (`docs/forms.md`).

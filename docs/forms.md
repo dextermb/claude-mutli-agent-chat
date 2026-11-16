@@ -44,12 +44,14 @@ taken gives `409`, and the dialog shows it in its alert only.
 | channel `name`          | `^[a-z0-9-]+$`                       | Use only lowercase letters, numbers and hyphens in a channel name.                   |
 | channel `replyMode`     | `mention` or `every`                 | Pick a reply mode.                                                                   |
 
-The model and the permission mode are free strings, because new models come
-out. The schema gives a default to the fields that an older client can leave
-out (the colour, the lists, `autostart`, `private`, `replyMode`), and turns
-an empty system prompt, description, topic or `cwd` into `null`. An agent and
-a channel can both have no folder (`docs/agents.md`). The route checks that
-the folder of a channel exists, because the browser cannot.
+The model and the permission mode are free strings, because new models and
+modes come out. A stored mode that the form does not list, such as `default`,
+stays valid (`docs/agents.md`). The schema gives a default to the fields that
+an older client can leave out (the colour, the lists, `autostart`, `private`,
+`replyMode`), and turns an empty system prompt, description, topic or `cwd`
+into `null`. An agent and a channel can both have no folder
+(`docs/agents.md`). The route checks that the folder of a channel exists,
+because the browser cannot.
 
 ## A refused body
 

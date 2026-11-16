@@ -158,6 +158,55 @@ describe("the agent configuration page", () => {
     })
   })
 
+  test("a saved agent in the default mode shows manual, and a save sends manual", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", {
+      agent: { ...testRunner, permissionMode: "default" },
+    })
+    network.on("PATCH", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: "Permission mode" })
+      ).toHaveTextContent("manual")
+    )
+    expect(
+      screen.getByText(
+        "With manual, each tool outside the allowed list waits for approval in the chat."
+      )
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    expect(network.sent.at(-1)).toEqual({
+      method: "PATCH",
+      url: "/api/agents/a1",
+      body: expect.objectContaining({ permissionMode: "manual" }),
+    })
+  })
+
+  test("a saved agent in the auto mode keeps auto when it is saved", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", {
+      agent: { ...testRunner, permissionMode: "auto" },
+    })
+    network.on("PATCH", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: "Permission mode" })
+      ).toHaveTextContent("auto")
+    )
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    expect(network.sent.at(-1)).toEqual({
+      method: "PATCH",
+      url: "/api/agents/a1",
+      body: expect.objectContaining({ permissionMode: "auto" }),
+    })
+  })
+
   test("the page shows why the server refused the agent", async () => {
     const user = userEvent.setup()
     network.on(
@@ -319,17 +368,40 @@ describe("the agent configuration page", () => {
     openPage("/agents/new")
     expect(
       await screen.findByText(
-        "With default, each tool outside the allowed list waits for approval in the chat."
+        "With manual, each tool outside the allowed list waits for approval in the chat."
       )
     ).toBeInTheDocument()
 
     await pick("Permission mode", "acceptEdits")
-
     expect(
       screen.getByText(
         "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat."
       )
     ).toBeInTheDocument()
+
+    await pick("Permission mode", "auto")
+    expect(
+      screen.getByText(
+        "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card."
+      )
+    ).toBeInTheDocument()
+
+    await pick("Permission mode", "dontAsk")
+    expect(
+      screen.getByText(
+        "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run."
+      )
+    ).toBeInTheDocument()
+
+    await pick("Permission mode", "manual")
+    expect(
+      screen.getByText(
+        "With manual, each tool outside the allowed list waits for approval in the chat."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("combobox", { name: "Permission mode" })
+    ).toHaveTextContent("manual")
   })
 
   test("the command shows how Claude Code starts the agent, follows the form, and can be copied", async () => {
@@ -370,10 +442,14 @@ describe("the agent configuration page", () => {
     )
 
     await pick("Model", "claude-haiku-5-5")
+    await pick("Permission mode", "auto")
     await user.type(screen.getByLabelText("System prompt"), "Run the tests.")
 
     expect(command.getByRole("code")).toHaveTextContent(
       "--model claude-haiku-5-5"
+    )
+    expect(command.getByRole("code")).toHaveTextContent(
+      "--permission-mode auto"
     )
     expect(command.getByRole("code")).toHaveTextContent(
       "--append-system-prompt '<rule> + <system prompt>'"
