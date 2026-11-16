@@ -1,12 +1,12 @@
-import { CopyIcon, TriangleAlertIcon } from "lucide-react"
+import { TriangleAlertIcon } from "lucide-react"
 
 import { QuestionCard } from "@/components/conversation/cards/question-card"
 import { MessageFiles } from "@/components/conversation/files/message-files"
+import { AgentReply } from "@/components/conversation/timeline/agent-reply"
 import { FailedNotice } from "@/components/conversation/timeline/failed-notice"
 import { MessageText } from "@/components/conversation/timeline/message-text"
 import { ToolCallLine } from "@/components/conversation/tool-call/tool-call-line"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
-import { Button } from "@/components/ui/button"
 import type {
   ConversationAgent,
   PermissionItem,
@@ -111,22 +111,9 @@ export function EntryBody({
       <>
         {text &&
           (agent ? (
-            <div className="flex flex-col items-start gap-1">
+            <AgentReply text={item.text} done={item.status === "done"}>
               {text}
-              {item.status === "done" && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Copy the message"
-                  className="-ml-1.5 text-muted-foreground"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(item.text)
-                  }}
-                >
-                  <CopyIcon />
-                </Button>
-              )}
-            </div>
+            </AgentReply>
           ) : (
             <Bubble variant="muted" align="end">
               <BubbleContent>{text}</BubbleContent>

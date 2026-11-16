@@ -39,6 +39,11 @@ import {
   testRunnerSession,
   userMessage,
 } from "@/test/conversation-data"
+import {
+  elementHeight,
+  fakeResizeObserver,
+  resizeAll,
+} from "@/test/fake-layout"
 import { fakeNetwork } from "@/test/fake-network"
 import { screenWidth, windowFocus } from "@/test/fake-screen"
 
@@ -962,6 +967,39 @@ describe("the DM page", () => {
     expect(await navigator.clipboard.readText()).toBe(
       "I will use a fixed clock."
     )
+  })
+
+  test("the copy button of a one-line reply sits at the right of the reply", async () => {
+    fakeResizeObserver()
+    elementHeight(() => 22)
+    openConversation([userMessage, agentMessage])
+
+    const reply = await screen.findByText("I will use a fixed clock.")
+
+    expect(reply.closest("[data-lines]")).toHaveAttribute("data-lines", "one")
+  })
+
+  test("the copy button of a reply of two lines sits under the reply", async () => {
+    fakeResizeObserver()
+    elementHeight(() => 44)
+    openConversation([userMessage, agentMessage])
+
+    const reply = await screen.findByText("I will use a fixed clock.")
+
+    expect(reply.closest("[data-lines]")).toHaveAttribute("data-lines", "many")
+  })
+
+  test("the copy button moves under a reply that wraps in a narrower window", async () => {
+    fakeResizeObserver()
+    let height = 22
+    elementHeight(() => height)
+    openConversation([userMessage, agentMessage])
+    const reply = await screen.findByText("I will use a fixed clock.")
+
+    height = 44
+    resizeAll()
+
+    expect(reply.closest("[data-lines]")).toHaveAttribute("data-lines", "many")
   })
 
   test("text between backticks in a message shows as code", async () => {

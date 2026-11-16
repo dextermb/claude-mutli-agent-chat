@@ -59,6 +59,20 @@ and the time. The content is under it, at full width. The block is named
 "test-runner, 14:03". Each message of the agent that is done has a ghost
 button "Copy the message".
 
+`timeline/agent-reply.tsx` puts the button in one of two places:
+
+- A message of one rendered line has the button at the right edge of the
+  message column, in the same row. So the buttons of one-line messages are
+  in one column.
+- A message of more lines has the button under the text, at the left.
+
+The count is of rendered lines, not of line breaks in the text. A long
+paragraph that wraps has more than one line. The text has a height of 22 px
+for each line, so a height of 26 px or less is one line. A `ResizeObserver`
+measures the height again when the width changes. The text always keeps the
+width of the first column. Thus the move of the button cannot change the
+count of lines.
+
 ### A tool call
 
 Calls that follow each other in a block share one `Trace`. Each call is a
