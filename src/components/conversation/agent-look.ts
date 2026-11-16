@@ -11,6 +11,15 @@ export const AVATAR_COLOURS: Record<string, string> = {
   purple: `bg-agent-purple ${INITIALS}`,
 }
 
+export const MENTION_COLOURS: Record<string, string> = {
+  orange: "bg-agent-orange/10 text-agent-orange",
+  yellow: "bg-agent-yellow/10 text-agent-yellow",
+  green: "bg-agent-green/10 text-agent-green",
+  aqua: "bg-agent-aqua/10 text-agent-aqua",
+  blue: "bg-agent-blue/10 text-agent-blue",
+  purple: "bg-agent-purple/10 text-agent-purple",
+}
+
 export const HUMAN_AVATAR = "bg-human font-semibold text-foreground-strong"
 
 const STATUS: Record<

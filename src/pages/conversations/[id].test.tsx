@@ -741,6 +741,42 @@ describe("the DM page", () => {
     expect(screen.getByText(/, not a `\.$/)).toBeInTheDocument()
   })
 
+  test("an @mention of a member shows in the colour of that agent", async () => {
+    openChannel([
+      {
+        ...userMessage,
+        item: {
+          kind: "message",
+          id: "u1",
+          text: "@test-runner and @reviewer-bot, check it. @release-bot is not here.",
+          status: "done",
+        },
+      },
+    ])
+
+    expect(await screen.findByText("@test-runner")).toHaveClass(
+      "text-agent-aqua"
+    )
+    expect(screen.getByText("@reviewer-bot")).toHaveClass("text-agent-orange")
+    expect(screen.getByText(/@release-bot is not here\.$/)).not.toHaveClass(
+      /text-agent-/
+    )
+  })
+
+  test("an @mention of a file shows as a path, and the text stays the same", async () => {
+    const text =
+      "Read @src/notes.txt and @README.md. Mail me at dev@example.com."
+    openConversation([
+      { ...userMessage, item: { ...userMessage.item, text } } as TimelineEntry,
+    ])
+
+    const path = await screen.findByText("src/notes.txt")
+    expect(path).toHaveClass("font-mono", "text-link")
+    expect(screen.getByText("README.md")).toHaveClass("font-mono")
+    expect(path.closest("p")).toHaveTextContent(text)
+    expect(screen.queryByText("example.com")).not.toBeInTheDocument()
+  })
+
   test("a tool call that a stop ended says Stopped", async () => {
     openConversation([userMessage, stoppedCall])
 
