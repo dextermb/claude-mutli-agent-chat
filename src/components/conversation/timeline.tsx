@@ -322,7 +322,7 @@ function withMentions(text: string, agents: ConversationAgent[]) {
       ) : (
         <span
           key={mention.at}
-          className="rounded-sm bg-link/10 px-1 font-mono text-[13px] text-link"
+          className="relative rounded-sm bg-link/10 px-1 font-mono text-[13px] text-link"
         >
           <FileIcon
             aria-hidden="true"
