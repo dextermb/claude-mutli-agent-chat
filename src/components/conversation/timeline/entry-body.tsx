@@ -1,7 +1,7 @@
 import { CopyIcon, TriangleAlertIcon } from "lucide-react"
 
 import { QuestionCard } from "@/components/conversation/cards/question-card"
-import { MessageFiles } from "@/components/conversation/files/shared-files"
+import { MessageFiles } from "@/components/conversation/files/message-files"
 import { FailedNotice } from "@/components/conversation/timeline/failed-notice"
 import { MessageText } from "@/components/conversation/timeline/message-text"
 import { ToolCallLine } from "@/components/conversation/tool-call/tool-call-line"
