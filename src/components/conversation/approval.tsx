@@ -1,7 +1,15 @@
+import { ShieldIcon } from "lucide-react"
 import { useId } from "react"
 
 import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type { Json, PermissionItem } from "@/lib/agent-api"
 
@@ -28,51 +36,62 @@ export function Approval({
   const grantsId = useId()
   const answer = (decision: "allow_once" | "always_allow" | "deny") =>
     onAnswer(request.requestId, { decision })
+  if (request.status !== "pending") {
+    return (
+      <div
+        role="region"
+        aria-label={`Approval for ${label}`}
+        className="pl-6 text-xs text-foreground-faint"
+      >
+        {DONE_LABEL[request.status]}
+      </div>
+    )
+  }
   return (
     <div
       role="region"
       aria-label={`Approval for ${label}`}
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-background px-2.5 py-2 font-sans"
+      className="flex flex-col gap-1.5"
     >
-      {request.status === "pending" ? (
-        <>
-          <span className="min-w-[200px] flex-1 text-[13px]">
+      <Item variant="outline" size="sm">
+        <ItemMedia variant="icon">
+          <ShieldIcon aria-hidden="true" />
+        </ItemMedia>
+        <ItemContent>
+          <ItemTitle>Allow {label}?</ItemTitle>
+          <ItemDescription>
             This tool is not in the allowed tools of {agentName}.
-          </span>
-          <ButtonGroup>
-            <Button variant="outline" size="sm" onClick={() => answer("deny")}>
-              Deny
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => answer("allow_once")}
-            >
-              Allow once
-            </Button>
-            {request.suggestions.length > 0 && (
-              <Button
-                size="sm"
-                aria-describedby={grantsId}
-                onClick={() => answer("always_allow")}
-              >
-                Always allow
-              </Button>
-            )}
-          </ButtonGroup>
+          </ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <Button variant="outline" size="sm" onClick={() => answer("deny")}>
+            Deny
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => answer("allow_once")}
+          >
+            Allow once
+          </Button>
           {request.suggestions.length > 0 && (
-            <span
-              id={grantsId}
-              className="w-full text-xs leading-[18px] text-foreground-faint"
+            <Button
+              size="sm"
+              aria-describedby={grantsId}
+              onClick={() => answer("always_allow")}
             >
-              <span aria-hidden="true">Always allow: </span>
-              {describeGrants(request.suggestions, agentName)}
-            </span>
+              Always allow
+            </Button>
           )}
-        </>
-      ) : (
-        <span className="text-[13px] text-muted-foreground">
-          {DONE_LABEL[request.status]}
+        </ItemActions>
+      </Item>
+      {request.suggestions.length > 0 && (
+        <span
+          id={grantsId}
+          className="text-xs leading-[18px] text-foreground-faint"
+        >
+          <span aria-hidden="true">Always allow: </span>
+          {describeGrants(request.suggestions, agentName)}
         </span>
       )}
     </div>
