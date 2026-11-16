@@ -120,7 +120,7 @@ export type SessionStartItem = {
 export type CompactionItem = {
   kind: "compaction"
   id: string
-  status: "running" | "done"
+  status: "running" | "done" | "failed"
   trigger: string | null
   preTokens: number | null
   postTokens: number | null
@@ -194,6 +194,13 @@ function reduceCompactionStatus(
   state: TimelineState,
   line: CompactionStatusLine
 ): TimelineStep {
+  if (line.compactResult === "failed") {
+    const compaction = runningCompaction(state)
+    const step: TimelineStep = { state, changes: [] }
+    return compaction
+      ? replace(step, { ...compaction, status: "failed" })
+      : step
+  }
   if (line.status !== "compacting") return { state, changes: [] }
   const step: TimelineStep = {
     state: { ...state, lastRequest: undefined },

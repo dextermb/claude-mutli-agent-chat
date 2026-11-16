@@ -310,6 +310,37 @@ describe("reduceTimeline", () => {
     expect(ofKind(items, "message").at(-1)?.text).toBe("kiwi")
   })
 
+  test("an automatic compaction inside a turn makes an item with the trigger auto, its tokens and its summary", () => {
+    const done = ofKind(replay("compact-auto"), "compaction").filter(
+      (item) => item.status === "done"
+    )
+
+    expect(done).toHaveLength(4)
+    expect(done[0]).toMatchObject({
+      trigger: "auto",
+      preTokens: 51547,
+      postTokens: 15411,
+      summary: expect.stringMatching(
+        /^This session is being continued from a previous conversation/
+      ),
+    })
+  })
+
+  test("a compaction that fails ends as failed, and no compaction stays running", () => {
+    const statuses = ofKind(replay("compact-auto"), "compaction").map(
+      (item) => item.status
+    )
+
+    expect(statuses).toEqual([
+      "failed",
+      "failed",
+      "done",
+      "done",
+      "done",
+      "done",
+    ])
+  })
+
   test("the turn of a compaction gives no context, because the size is not known until the next request", () => {
     const turns = ofKind(replay("compact"), "turn")
 

@@ -330,9 +330,11 @@ function decodeUser(raw: Json): DecodedLine {
       text: resultText(object(raw.message).content),
     }
   }
-  const content = object(raw.message).content
-  if (raw.isSynthetic === true && typeof content === "string") {
-    return { kind: "synthetic_text", text: content }
+  if (raw.isSynthetic === true) {
+    return {
+      kind: "synthetic_text",
+      text: resultText(object(raw.message).content),
+    }
   }
   const blocks = contentBlocks(raw.message).filter(
     (block) => block.type === "tool_result"

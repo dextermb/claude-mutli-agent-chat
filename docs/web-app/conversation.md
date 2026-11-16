@@ -107,9 +107,11 @@ icon: "New session · 09:12".
 
 A compaction shows as a dashed divider in the faint colour, with a fold
 icon: "test-runner compacted its memory: 39,857 → 11,894 tokens · $0.002 ·
-14:30". The cost comes from the turn of the compaction, which has no line of
-its own. While it runs, it says "test-runner compacts its memory… · 14:30".
-Like a new session, it is not inside the block of the agent.
+14:30". The cost comes from the turn of a `/compact`, which has no line of
+its own. An automatic compaction comes inside a turn, so its divider has no
+cost, and that turn keeps its line. While it runs, it says "test-runner compacts its memory… · 14:30".
+Like a new session, it is not inside the block of the agent. A compaction
+that failed shows nothing, because Claude Code tries again later by itself.
 
 A failed process shows one line: "test-runner stopped with an error (exit code
 1)." "Show details" opens the stderr of the process, in the error CodeBlock.
