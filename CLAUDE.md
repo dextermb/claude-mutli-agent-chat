@@ -39,9 +39,9 @@ manager is pnpm.
 - `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.
 - `docs/sleep.md`: sleep and wake: the timer, the compaction before an idle
   process stops, the wake prompt, and a transcript that Claude Code deleted.
-- `docs/web-app.md`: the pages of the web app. It is the index of
-  `docs/web-app/`: the conversation, the session panel, the sidebar and the
-  agent page.
+- `docs/web-app.md`: the pages of the web app, and the links to the design
+  boards and the design system. It is the index of `docs/web-app/`: the
+  conversation, the session panel, the sidebar and the agent page.
 - `docs/forms.md`: the two forms, the shared Zod schema in
   `server/schemas.ts`, and the shape of a refused body.
 

@@ -45,6 +45,33 @@ It imports them with `import type` from `server/api-types.ts` and
 `server/timeline/reduce.ts`. Those two files import no Node module, so the
 type check of the app does not need the Node types.
 
+## The design
+
+Two artifacts on claude.ai hold the design of the web app:
+
+- **Boards:** the "Agent Chat" canvas, 21 boards
+  (https://claude.ai/artifact/NyiP26udWrUFSDDX6BjutT).
+- **Design system:** "Gruvbox Chat"
+  (https://claude.ai/artifact/3cUXEWP7TNyCWaxnSe8fYu).
+
+Read them with the Artifact tool, not with a web fetch. The app follows the
+boards, but the boards show some things that the app does not build:
+
+- **Counts on Grep and Glob** ("3 matches"). Claude Code has no Grep tool and
+  no Glob tool. The agents use `grep` and `find` through Bash.
+- **"Thought 4s".** Claude Code sends a `thinking` block with empty text, so
+  the app has no reasoning to show.
+- **Suggestions, Edit, Retry, Good response and Bad response.** Nothing makes
+  the suggestions, and the server has no action for the others.
+- **A model menu in the message box.** The model is part of the agent
+  configuration, so the message box links to it.
+- **People.** The app runs locally and has one user.
+- **The rail pages Direct messages and Activity.** The sidebar lists each DM,
+  and the unread counts and the footer show what is new.
+- **A Run a slash command button.** A group chat or a channel wraps each
+  message in a prompt (`[User] /compact`), so Claude Code never gets it as a
+  command. The server sends `/compact` itself before an agent sleeps.
+
 ## The detail
 
 | Page                            | Open it for                                                                                          |
