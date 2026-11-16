@@ -123,6 +123,8 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F38 | **`--add-dir <folder>` lets the tools read in that folder with no permission request.** In `default` mode, a `Read` of a file in the added folder runs at once, with no `can_use_tool`. | `add-dir` |
 | F39 | **`-p` with `stream-json` input expands an `@path` of the prompt.** The prompt "What is the first line of @notes.txt? … Do not use any tools." got the right line with no tool call, and the agent said that the content came with the message. The replayed `user` line shows only the text. | `add-dir` |
 | F40 | **A resume keeps the system prompt of the first request.** `--system-prompt-snapshot` is `on` by default. A first process had `--append-system-prompt "The codeword is ALPHA."`. A `--resume` with "BETA" answered `ALPHA`. With `--system-prompt-snapshot off` on both processes, it answered `BETA`. The help says that the snapshot stays "until the conversation is compacted". So the facts that change go in the prompt, not in the system prompt. A prompt with the facts as a first text block still expands an `@path` of the second block (F39). | Probe |
+| F41 | **`/compact <instructions>` works as a stream-json prompt.** The turn writes `system/status` with `status: "compacting"`, the `SessionStart:compact` hook lines, `system/status` with `compact_result: "success"`, `system/init`, `system/compact_boundary` with `compact_metadata` (`trigger: "manual"`, `pre_tokens`, `post_tokens`, `cumulative_dropped_tokens`, `duration_ms`), the summary line (F42), a replayed `user` line with `<local-command-stdout>`, and `result/success` with `num_turns: 0` and no text. No `assistant` line comes, and the `/compact` prompt has no echo. In the fixture: 39,857 → 11,894 tokens in 3.9 s. | `compact` |
+| F42 | **The summary of a compaction is on stdout.** It is a `user` line with `isSynthetic: true` and a string `content` that starts with "This session is being continued from a previous conversation…". It holds the summary in the sections of Claude Code. The next prompt uses it: the agent still knew the word. | `compact` |
 
 ## The decoder and the encoders
 
@@ -142,6 +144,9 @@ kind that the app does not read is `unknown` with the raw object.
 | `result` | `result` |
 | `task` | `system/task_started`, `task_updated` and `task_notification` |
 | `rate_limit` | `rate_limit_event` |
+| `compaction_status` | `system/status`, with `status` (for example `compacting`) and `compact_result` |
+| `compact_boundary` | `system/compact_boundary`, with the `trigger`, `pre_tokens` and `post_tokens` of `compact_metadata` |
+| `synthetic_text` | `user` with `isSynthetic: true` and a string `content`, for example the summary of a compaction (F42) |
 
 A `tool_results` line gives `structured` (the `tool_use_result`) only when it
 holds one result, because that field belongs to the whole line.
@@ -171,6 +176,7 @@ to stdout.
 | `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
 | `add-dir.jsonl` | `--add-dir`: a `Read` in the added folder (F38), then a prompt with `@notes.txt` (F39) |
 | `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
+| `compact.jsonl` | A prompt, then `/compact` with instructions, then a prompt that needs the memory (F41, F42) |
 
 To record them again:
 
@@ -179,7 +185,7 @@ pnpm fixtures:record                       # each scenario
 pnpm fixtures:record server/protocol/fixtures interrupt   # one scenario
 ```
 
-The recorder (`scripts/record-fixtures.ts`) costs about 0.06 USD for each
+The recorder (`scripts/record-fixtures.ts`) costs about 0.08 USD for each
 full run. It uses a fixed work folder, `/tmp/claude-fixture/<scenario>`, so
 that no path of the machine gets into a file. Before it writes a file, it:
 

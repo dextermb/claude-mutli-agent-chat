@@ -1,5 +1,7 @@
 import type {
   AssistantLine,
+  CompactBoundaryLine,
+  CompactionStatusLine,
   DecodedLine,
   Json,
   PermissionAnswerLine,
@@ -7,6 +9,7 @@ import type {
   PermissionRequestLine,
   ResultLine,
   RateLimitLine,
+  SyntheticTextLine,
   TaskLine,
   ToolResult,
   TextDeltaLine,
@@ -103,7 +106,18 @@ export type SessionStartItem = {
   claudeSessionId: string
 }
 
+export type CompactionItem = {
+  kind: "compaction"
+  id: string
+  status: "running" | "done"
+  trigger: string | null
+  preTokens: number | null
+  postTokens: number | null
+  summary: string | null
+}
+
 export type TimelineItem =
+  | CompactionItem
   | ToolCallItem
   | MessageItem
   | PermissionItem
@@ -154,7 +168,63 @@ export function reduceTimeline(
   if (line.kind === "result") return reduceResult(state, line)
   if (line.kind === "task") return reduceTask(state, line)
   if (line.kind === "rate_limit") return reduceRateLimit(state, line)
+  if (line.kind === "compaction_status") {
+    return reduceCompactionStatus(state, line)
+  }
+  if (line.kind === "compact_boundary") {
+    return reduceCompactBoundary(state, line)
+  }
+  if (line.kind === "synthetic_text") return reduceSyntheticText(state, line)
   return { state, changes: [] }
+}
+
+function reduceCompactionStatus(
+  state: TimelineState,
+  line: CompactionStatusLine
+): TimelineStep {
+  const step: TimelineStep = { state, changes: [] }
+  if (line.status !== "compacting") return step
+  return add(step, (id) => ({
+    kind: "compaction",
+    id,
+    status: "running",
+    trigger: null,
+    preTokens: null,
+    postTokens: null,
+    summary: null,
+  }))
+}
+
+function reduceCompactBoundary(
+  state: TimelineState,
+  line: CompactBoundaryLine
+): TimelineStep {
+  const step: TimelineStep = { state, changes: [] }
+  const compaction = runningCompaction(state)
+  if (!compaction) return step
+  return replace(step, {
+    ...compaction,
+    trigger: line.trigger,
+    preTokens: line.preTokens,
+    postTokens: line.postTokens,
+  })
+}
+
+function reduceSyntheticText(
+  state: TimelineState,
+  line: SyntheticTextLine
+): TimelineStep {
+  const step: TimelineStep = { state, changes: [] }
+  const compaction = runningCompaction(state)
+  if (!compaction) return step
+  return replace(step, { ...compaction, status: "done", summary: line.text })
+}
+
+function runningCompaction(state: TimelineState): CompactionItem | undefined {
+  return state.items.find(
+    (item): item is CompactionItem =>
+      item.kind === "compaction" && item.status === "running"
+  )
 }
 
 function reduceTextDelta(

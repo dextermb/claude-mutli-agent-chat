@@ -39,6 +39,7 @@ Each item has an `id` (`item-1`, `item-2`, …), unique in its session, and a
 | `permission` | A `permission_request`, then its `permission_answer`          | `pending`, `allowed`, `denied`, `expired` |
 | `question`   | A `permission_request` for `AskUserQuestion`, then its answer | `pending`, `answered`, `expired`          |
 | `turn`       | A `result` line                                               | `done`, `stopped`, `limit`                |
+| `compaction` | `compaction_status`, `compact_boundary`, then the summary     | `running`, `done`                         |
 
 ### Messages
 
@@ -99,6 +100,28 @@ reducer needs no other field of the `result` line.
 A turn does not need a prompt. A background job that ends after the turn
 starts a new turn (F11). Its message and its summary come after the summary of
 the first turn.
+
+### Compactions
+
+Claude Code compacts the context of a session when the server sends
+`/compact`, or when the context gets near its window (F41 in
+`docs/protocol.md`):
+
+```
+compaction_status "compacting"   → adds a compaction item, running
+compact_boundary                 → sets trigger, preTokens and postTokens
+synthetic_text                   → sets the summary, and the status done
+result                           → a turn, as for each prompt
+```
+
+- The reducer changes only a compaction that runs. A `compact_boundary` or a
+  `synthetic_text` line with no running compaction changes nothing.
+- `trigger` is `manual` for `/compact`. An automatic compaction is not
+  recorded yet.
+- The summary (F42) is the text that the agent keeps in place of the old
+  context.
+- The browser does not show a compaction item yet.
+- A compaction item is not unread (`docs/store.md`).
 
 ### Subagents
 

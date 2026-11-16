@@ -142,6 +142,19 @@ const scenarios: Scenario[] = [
     ],
   },
   {
+    name: "compact",
+    permissionMode: "default",
+    runs: [
+      {
+        prompts: [
+          "Remember the word kiwi. Reply with the single word ok.",
+          "/compact Keep the word that I asked you to remember.",
+          "Which word did I ask you to remember? Reply with that word only.",
+        ],
+      },
+    ],
+  },
+  {
     name: "two-requests",
     permissionMode: "default",
     runs: [

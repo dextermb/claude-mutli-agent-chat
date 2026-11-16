@@ -221,6 +221,31 @@ describe("decodeLine", () => {
     ])
   })
 
+  test("a compaction gives its status, its result, its boundary with the tokens, and its summary", () => {
+    const lines = decodeFixture("compact")
+
+    expect(
+      lines.filter(
+        (line) =>
+          line.kind === "compaction_status" || line.kind === "compact_boundary"
+      )
+    ).toEqual([
+      { kind: "compaction_status", status: "requesting", compactResult: null },
+      { kind: "compaction_status", status: "compacting", compactResult: null },
+      { kind: "compaction_status", status: null, compactResult: "success" },
+      {
+        kind: "compact_boundary",
+        trigger: "manual",
+        preTokens: 39857,
+        postTokens: 11894,
+      },
+      { kind: "compaction_status", status: "requesting", compactResult: null },
+    ])
+    expect(firstOfKind(lines, "synthetic_text").text).toMatch(
+      /^This session is being continued from a previous conversation/
+    )
+  })
+
   test("a rate limit line gives its status, its window and when it resets", () => {
     expect(firstOfKind(decodeFixture("tools"), "rate_limit")).toEqual({
       kind: "rate_limit",

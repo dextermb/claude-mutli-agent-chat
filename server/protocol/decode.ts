@@ -104,8 +104,26 @@ export type RateLimitLine = {
   resetsAt: number
 }
 
+export type CompactionStatusLine = {
+  kind: "compaction_status"
+  status: string | null
+  compactResult: string | null
+}
+
+export type CompactBoundaryLine = {
+  kind: "compact_boundary"
+  trigger: string
+  preTokens: number
+  postTokens: number
+}
+
+export type SyntheticTextLine = { kind: "synthetic_text"; text: string }
+
 export type DecodedLine =
   | InvalidLine
+  | CompactionStatusLine
+  | CompactBoundaryLine
+  | SyntheticTextLine
   | RateLimitLine
   | TaskLine
   | ResultLine
@@ -122,6 +140,12 @@ export function decodeLine(text: string): DecodedLine {
   const raw = parseObject(text)
   if (!raw) return { kind: "invalid", text }
   if (raw.type === "system" && raw.subtype === "init") return decodeInit(raw)
+  if (raw.type === "system" && raw.subtype === "status") {
+    return decodeCompactionStatus(raw)
+  }
+  if (raw.type === "system" && raw.subtype === "compact_boundary") {
+    return decodeCompactBoundary(raw)
+  }
   if (raw.type === "system") return decodeTask(raw)
   if (raw.type === "assistant") return decodeAssistant(raw)
   if (raw.type === "user") return decodeUser(raw)
@@ -142,6 +166,24 @@ function decodeInit(raw: Json): InitLine {
     cwd: string(raw.cwd),
     claudeCodeVersion: string(raw.claude_code_version),
     tools: array(raw.tools).map(string),
+  }
+}
+
+function decodeCompactionStatus(raw: Json): CompactionStatusLine {
+  return {
+    kind: "compaction_status",
+    status: nullableString(raw.status),
+    compactResult: nullableString(raw.compact_result),
+  }
+}
+
+function decodeCompactBoundary(raw: Json): CompactBoundaryLine {
+  const metadata = object(raw.compact_metadata)
+  return {
+    kind: "compact_boundary",
+    trigger: string(metadata.trigger),
+    preTokens: number(metadata.pre_tokens),
+    postTokens: number(metadata.post_tokens),
   }
 }
 
@@ -268,6 +310,10 @@ function decodeUser(raw: Json): DecodedLine {
       uuid: string(raw.uuid),
       text: resultText(object(raw.message).content),
     }
+  }
+  const content = object(raw.message).content
+  if (raw.isSynthetic === true && typeof content === "string") {
+    return { kind: "synthetic_text", text: content }
   }
   const blocks = contentBlocks(raw.message).filter(
     (block) => block.type === "tool_result"
