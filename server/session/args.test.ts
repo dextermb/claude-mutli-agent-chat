@@ -9,6 +9,7 @@ const AGENT_FOLDER = fileURLToPath(new URL("../../agent", import.meta.url))
 const CONTEXT = {
   rule: "# This session\n\nYou are reviewer-bot.",
   chat: { url: "http://127.0.0.1:4100/mcp", token: "token-of-the-session" },
+  uploads: "/data/uploads/c1",
 }
 
 const CHAT_READ_TOOLS = [
@@ -16,6 +17,7 @@ const CHAT_READ_TOOLS = [
   "mcp__chat__list_conversations",
   "mcp__chat__list_agents",
   "mcp__chat__read_messages",
+  "mcp__chat__list_files",
 ]
 
 const reviewer: AgentConfig = {
@@ -62,6 +64,8 @@ describe("buildArgs", () => {
           },
         },
       }),
+      "--add-dir",
+      "/data/uploads/c1",
       "--model",
       "claude-haiku-5-5",
       "--permission-mode",

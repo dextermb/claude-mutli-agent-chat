@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react"
 import type {
   Conversation,
   ConversationAgent,
+  SharedFile,
+  SharedFileView,
   StreamMessage,
   TimelineEntry,
 } from "@/lib/agent-api"
@@ -13,6 +15,7 @@ type ConversationView = {
   conversation: Conversation | null
   agents: ConversationAgent[]
   entries: TimelineEntry[]
+  files: SharedFileView[]
 }
 
 const LOADING: ConversationView = {
@@ -20,6 +23,7 @@ const LOADING: ConversationView = {
   conversation: null,
   agents: [],
   entries: [],
+  files: [],
 }
 
 export function useConversation(conversationId: string) {
@@ -29,13 +33,16 @@ export function useConversation(conversationId: string) {
     let current = true
     let source: EventSource | null = null
     async function load() {
-      const [detail, timeline] = await Promise.all([
+      const [detail, timeline, shared] = await Promise.all([
         getJson<{ conversation: Conversation; agents: ConversationAgent[] }>(
           `/api/conversations/${conversationId}`
         ),
         getJson<{ items: TimelineEntry[]; lastEventId: number }>(
           `/api/conversations/${conversationId}/timeline`
         ),
+        getJson<{ files: SharedFileView[] }>(
+          `/api/conversations/${conversationId}/files`
+        ).catch(() => ({ files: [] })),
       ])
       if (!current) return
       setView({
@@ -43,6 +50,7 @@ export function useConversation(conversationId: string) {
         conversation: detail.conversation,
         agents: detail.agents,
         entries: timeline.items,
+        files: shared.files,
       })
       source = new EventSource(
         `/api/conversations/${conversationId}/events?lastEventId=${timeline.lastEventId}`
@@ -79,8 +87,11 @@ export function useConversation(conversationId: string) {
   }, [conversationId])
 
   const send = useCallback(
-    (text: string) =>
-      postJson(`/api/conversations/${conversationId}/messages`, { text }),
+    (text: string, files: SharedFile[] = []) =>
+      postJson(
+        `/api/conversations/${conversationId}/messages`,
+        files.length > 0 ? { text, files } : { text }
+      ),
     [conversationId]
   )
   const answer = useCallback(
@@ -121,8 +132,19 @@ export function useConversation(conversationId: string) {
     [conversationId]
   )
 
+  const removeFile = useCallback(
+    (fileId: string) =>
+      refusalOf(
+        fetch(`/api/conversations/${conversationId}/files/${fileId}`, {
+          method: "DELETE",
+        })
+      ),
+    [conversationId]
+  )
+
   return {
     ...view,
+    removeFile,
     send,
     answer,
     stop,
@@ -142,6 +164,9 @@ function applyMessage(
 ): ConversationView {
   if (message.type === "conversation") {
     return { ...view, conversation: message.conversation }
+  }
+  if (message.type === "files") {
+    return { ...view, files: message.files }
   }
   if (
     message.type === "reset" ||

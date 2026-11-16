@@ -45,6 +45,11 @@ The rule starts with a block that the server makes for the conversation:
 | `mention`           | An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you. |
 | `every`             | Each agent gets each message of the user. A message of an agent gives a turn only to the agents that it mentions with @name.                                                       |
 
+The rule in `agent/environment.md` also tells the agent what the lines
+`[Shared file: <path>]` and `[Removed file: <path>]` mean, and names
+`list_files`. The skill `chat:catch-up` calls `list_files` when a message
+refers to a file that the prompt does not show.
+
 These lines follow the rules in `docs/conversations.md`. When those rules
 change, change `environmentPrompt()` and `agent/environment.md` too.
 

@@ -17,6 +17,7 @@ export type SessionRef = {
 export type SessionValues = {
   pluginDir: string
   mcpConfig: string
+  addDir: string
   systemPrompt: string
 }
 
@@ -42,6 +43,8 @@ export function claudeArgs(
     values.pluginDir,
     "--mcp-config",
     values.mcpConfig,
+    "--add-dir",
+    values.addDir,
     "--model",
     agent.model,
     "--permission-mode",

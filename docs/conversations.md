@@ -83,10 +83,16 @@ mention is `@` and the full name of a member:
 - `dev@test-runner` is not a mention, because `@` must not follow a letter, a
   digit, `_`, `-` or `@`.
 - An agent does not mention itself.
+- A path is not a mention: a name followed by `/`, or by `.` and a letter,
+  does not count. So `@test-runner/notes.md` mentions nobody. The `@` list
+  of the composer also completes files (`docs/web-app/files.md`).
 
 ## The prompt
 
-In a DM, the prompt is the text of the message.
+In a DM, the prompt is the text of the message. Each shared file of the
+message adds a line `[Shared file: <path>]` after the text, and the prompt
+after a removal starts with `[Removed file: <path>]`
+(`docs/server/files.md`).
 
 In a group chat or a channel, the prompt holds each complete message since
 the last prompt of that agent, one line for each, with its author:
@@ -98,6 +104,8 @@ the last prompt of that agent, one line for each, with its author:
 ```
 
 - The messages of the agent itself are left out.
+- A message with shared files has a `[Shared file: <path>]` line for each
+  file after its own line.
 - The user is `User`. An agent is its name.
 - The server keeps the place of the last prompt of each agent in memory.
   After a server start, it uses the last item of that agent in the

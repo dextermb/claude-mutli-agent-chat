@@ -120,6 +120,8 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F35 | **Claude Code connects to an `http` MCP server when the process starts, before the first prompt.** It sends `server/discover` with `MCP-Protocol-Version: 2026-07-28`. After the error `-32601` (or an empty result), it sends `initialize` with `2025-11-25`, then `notifications/initialized`, a `GET` for an event stream, and `tools/list`. Each request carries the headers of `--mcp-config`. | Probe |
 | F36 | **`--max-turns <n>` works with `stream-json` input, for each prompt.** The help of 2.1.311 does not list it, but the parser accepts it. A prompt that needs more turns ends with a `result` of `subtype: "error_max_turns"`, `is_error: true`, `terminal_reason: "max_turns"`, `errors: ["Reached maximum number of turns (1)"]` and no `result` text. The process stays alive, and the next prompt gets its own limit. | `max-turns` |
 | F37 | **`--resume <id>` works in a folder that is not the folder of the first turn.** The process finds the transcript under the folder of the first turn, and the new turn has the memory of the old turns. The new lines go into the same transcript file, and each new line has the new `cwd`. Claude Code also makes an empty project folder (with only `memory/`) for the new folder. | Probe |
+| F38 | **`--add-dir <folder>` lets the tools read in that folder with no permission request.** In `default` mode, a `Read` of a file in the added folder runs at once, with no `can_use_tool`. | `add-dir` |
+| F39 | **`-p` with `stream-json` input expands an `@path` of the prompt.** The prompt "What is the first line of @notes.txt? … Do not use any tools." got the right line with no tool call, and the agent said that the content came with the message. The replayed `user` line shows only the text. | `add-dir` |
 
 ## The decoder and the encoders
 
@@ -166,6 +168,7 @@ to stdout.
 | `subagent-text.jsonl` | An `Agent` call whose subagent writes text before its `Read` call (F32) |
 | `interrupt-tool.jsonl` | A `Bash` call of `ping -c 30 127.0.0.1`, interrupted 3 s after the `tool_use` line |
 | `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
+| `add-dir.jsonl` | `--add-dir`: a `Read` in the added folder (F38), then a prompt with `@notes.txt` (F39) |
 | `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
 
 To record them again:

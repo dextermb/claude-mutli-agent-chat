@@ -15,19 +15,22 @@ gives the parts of the app, the main decisions, and the risks.
 | `mcp.md`               | The `chat` MCP server that each agent gets, and its tools                    |
 | `store.md`             | The SQLite tables and the queries                                            |
 | `server.md`            | The routes and the event stream                                              |
+| `server/routes.md`     | Each route, its body and its result                                          |
+| `server/files.md`      | Uploads, shared files, the `@` search of paths, and Browse folders           |
 | `conversations.md`     | Who gets a turn, mentions, and the shape of a prompt                         |
 
 ## The web app
 
-| Page                       | Open it for                                                      |
-| -------------------------- | ---------------------------------------------------------------- |
-| `web-app.md`               | The pages, how to run the app, and the shared types              |
-| `web-app/conversation.md`  | `useConversation()`, the parts of the timeline, and the `@` list |
-| `web-app/session-panel.md` | The session panel, the members of a channel, and the DM tabs     |
-| `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar    |
-| `web-app/agent-page.md`    | The form for a new or a saved agent                              |
-| `forms.md`                 | The two forms, the shared Zod schema, and the shape of a refusal |
-| `routing.md`               | The file-based router: from a file in `src/pages` to a URL       |
+| Page                       | Open it for                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `web-app.md`               | The pages, how to run the app, and the shared types                          |
+| `web-app/conversation.md`  | `useConversation()`, the parts of the timeline, and the `@` list             |
+| `web-app/session-panel.md` | The session panel, the members of a channel, and the DM tabs                 |
+| `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar                |
+| `web-app/agent-page.md`    | The form for a new or a saved agent                                          |
+| `web-app/files.md`         | Attach, drop and `@` files, and the shared files in the thread and the panel |
+| `forms.md`                 | The two forms, the shared Zod schema, and the shape of a refusal             |
+| `routing.md`               | The file-based router: from a file in `src/pages` to a URL                   |
 
 ## The project
 

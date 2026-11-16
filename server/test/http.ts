@@ -28,7 +28,7 @@ export async function startServer(
   location = ":memory:",
   members?: Members,
   perAgent: (agentName: string) => FakeAgent = () => ({}),
-  options: { eventLogSize?: number } = {}
+  options: { eventLogSize?: number; uploadLimit?: number } = {}
 ) {
   const store = openStore(location)
   const scratchRoot = mkdtempSync(join(tmpdir(), "scratch-test-"))
@@ -64,12 +64,20 @@ export async function startServer(
     session.start()
     return session
   }
-  const server = createServer({ store, startSession, scratchRoot, ...options })
+  const uploadsFolder = mkdtempSync(join(tmpdir(), "uploads-test-"))
+  const server = createServer({
+    store,
+    startSession,
+    scratchRoot,
+    uploadsFolder,
+    ...options,
+  })
   const address = await server.listen(0)
   const stop = async () => {
     await server.close()
     store.close()
     rmSync(scratchRoot, { recursive: true, force: true })
+    rmSync(uploadsFolder, { recursive: true, force: true })
   }
   cleanups.push(stop)
   const { agent, conversation } = members ?? directMessage(store)
@@ -88,6 +96,7 @@ export async function startServer(
     address,
     stop,
     server,
+    uploadsFolder,
   }
 }
 

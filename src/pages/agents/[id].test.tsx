@@ -359,9 +359,10 @@ describe("the agent configuration page", () => {
         "  --setting-sources user,project \\",
         "  --plugin-dir '<chat plugin>' \\",
         "  --mcp-config '<chat server>' \\",
+        "  --add-dir '<uploads>' \\",
         "  --model claude-sonnet-5-5 \\",
         "  --permission-mode acceptEdits \\",
-        "  --allowedTools Read 'Bash(pnpm test:*)' mcp__chat__get_conversation mcp__chat__list_conversations mcp__chat__list_agents mcp__chat__read_messages \\",
+        "  --allowedTools Read 'Bash(pnpm test:*)' mcp__chat__get_conversation mcp__chat__list_conversations mcp__chat__list_agents mcp__chat__read_messages mcp__chat__list_files \\",
         "  --append-system-prompt '<rule>' \\",
         "  --resume '<session id>'",
       ].join("\n")

@@ -51,7 +51,7 @@ prompt, and a change to it does not mark a running session as changed.
 The Working directory input has Browse at its end. It opens
 `src/components/agent-form/folder-dialog.tsx`, "Pick a folder", at the folder
 in the field when that is an absolute path that exists, else at the home
-folder (`GET /api/folders`, `docs/server.md`). The dialog shows the path in
+folder (`GET /api/folders`, `docs/server/files.md`). The dialog shows the path in
 mono, Up (disabled at `/`), one button for each subfolder, or "No folders in
 this folder.", and Cancel and "Use this folder". Browse always puts an
 absolute path in the field, because the server does not expand `~` in the

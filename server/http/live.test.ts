@@ -12,6 +12,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     const store = openStore(":memory:")
     const server = createServer({
       store,
+      uploadsFolder: join(folder, ".uploads"),
       startSession: ({ args, cwd, onEvent }) => {
         const session = new AgentSession({
           command: "claude",
@@ -86,6 +87,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     const startServer = async () => {
       const server = createServer({
         store,
+        uploadsFolder: join(folder, ".uploads"),
         startSession: ({ args, cwd, onEvent }) => {
           started.push(args)
           const session = new AgentSession({
@@ -186,6 +188,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     const store = openStore(":memory:")
     const server = createServer({
       store,
+      uploadsFolder: join(folder, ".uploads"),
       startSession: ({ args, cwd, onEvent }) => {
         const session = new AgentSession({
           command: "claude",
@@ -260,6 +263,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     const store = openStore(":memory:")
     const server = createServer({
       store,
+      uploadsFolder: join(folder, ".uploads"),
       startSession: ({ args, cwd, onEvent }) => {
         const session = new AgentSession({
           command: "claude",

@@ -24,6 +24,9 @@ session, or when you join, it holds only the messages after that point.
 3. Stop when you know enough. Do not read the full history.
 4. To read another conversation, give its `conversationId`. Get the IDs with
    `list_conversations`.
+5. When a message refers to "the file", "the log" or "the attachment", call
+   `list_files`. It gives each file that is shared in the conversation now,
+   with its absolute path.
 
 ## Then
 

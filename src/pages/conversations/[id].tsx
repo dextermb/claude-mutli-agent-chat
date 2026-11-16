@@ -1,5 +1,6 @@
 import {
   EllipsisIcon,
+  FolderIcon,
   HashIcon,
   InfoIcon,
   LockIcon,
@@ -9,7 +10,7 @@ import {
   SquareIcon,
   UsersIcon,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useLocation, useParams, useSearch } from "wouter"
 
 import {
@@ -30,9 +31,16 @@ import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer"
+import {
+  FilesPanel,
+  SharedFilesList,
+} from "@/components/conversation/files-panel"
+import { Separator } from "@/components/ui/separator"
+import { useDropZone } from "@/components/conversation/drop-zone"
 import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
+import { SharedFilesContext } from "@/components/conversation/shared-files"
 import {
   MembersPanel,
   SessionPanel,
@@ -40,6 +48,7 @@ import {
 } from "@/components/conversation/session-panel"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline"
 import { WorkingLines } from "@/components/conversation/working-line"
+import { useAttachments } from "@/hooks/use-attachments"
 import { useConversation } from "@/hooks/use-conversation"
 import { useMarkRead } from "@/hooks/use-mark-read"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -53,12 +62,39 @@ import type {
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
   const conversation = useConversation(params.id)
+  const attachments = useAttachments(params.id)
+  const agentList = conversation.agents
+  const searchPaths = useCallback(
+    async (query: string) => {
+      const response = await fetch(
+        `/api/conversations/${params.id}/paths?q=${encodeURIComponent(query)}`
+      )
+      if (!response.ok) return []
+      const { paths } = (await response.json()) as {
+        paths: { path: string; relative: string; agentId: string }[]
+      }
+      return paths.map((match) => ({
+        path: match.path,
+        relative: match.relative,
+        agentName:
+          agentList.find((agent) => agent.id === match.agentId)?.name ?? "",
+      }))
+    },
+    [params.id, agentList]
+  )
+  const dropZone = useDropZone(
+    attachments,
+    conversation.conversation?.kind === "channel"
+      ? `#${conversation.conversation.name}`
+      : (conversation.conversation?.name ?? "")
+  )
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [configuring, setConfiguring] = useState(false)
   const [showingSheet, setShowingSheet] = useState(false)
   const [showingMembers, setShowingMembers] = useState(false)
+  const [showingFiles, setShowingFiles] = useState(false)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   useMarkRead(params.id, conversation.entries.at(-1)?.seq)
@@ -142,6 +178,9 @@ export default function ConversationPage() {
     member.startsWith("user:")
   ).length
   const agentCount = conversation.agents.length
+  const sharedCount = conversation.files.filter(
+    (file) => file.removedAt === null
+  ).length
   return (
     <div className="flex h-svh bg-background text-sm text-foreground">
       <AppSidebar
@@ -216,7 +255,10 @@ export default function ConversationPage() {
               aria-label={`Members: ${people} ${
                 people === 1 ? "person" : "people"
               }, ${agentCount} ${agentCount === 1 ? "agent" : "agents"}`}
-              onClick={() => setShowingMembers(!showingMembers)}
+              onClick={() => {
+                setShowingFiles(false)
+                setShowingMembers(!showingMembers)
+              }}
             >
               <AvatarGroup>
                 {conversation.agents.slice(0, 3).map((member) => (
@@ -238,6 +280,21 @@ export default function ConversationPage() {
               onClick={() => setConfiguring(true)}
             >
               <EllipsisIcon />
+            </Button>
+          )}
+          {!isDirect && (
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-expanded={showingFiles}
+              aria-label={`Shared files: ${sharedCount}`}
+              onClick={() => {
+                setShowingMembers(false)
+                setShowingFiles(!showingFiles)
+              }}
+            >
+              <FolderIcon />
+              {sharedCount}
             </Button>
           )}
           {isDirect && !isMobile && (
@@ -270,6 +327,26 @@ export default function ConversationPage() {
         </header>
         {isDirect && agent && (
           <TabsContent value="files" className="min-h-0 flex-1 overflow-y-auto">
+            <section
+              aria-labelledby="shared-files-heading"
+              className="flex flex-col gap-3 px-5 pt-5"
+            >
+              <h2
+                id="shared-files-heading"
+                className="m-0 text-sm font-semibold text-foreground-strong"
+              >
+                Shared files
+              </h2>
+              <SharedFilesList
+                files={conversation.files}
+                entries={conversation.entries}
+                agents={conversation.agents}
+                onRemove={async (file) =>
+                  showRefusal(await conversation.removeFile(file.id))
+                }
+              />
+            </section>
+            <Separator className="mx-5 mt-5 w-auto" />
             <FilesTab
               entries={conversation.entries}
               cwd={agent.sessionCwd}
@@ -286,7 +363,12 @@ export default function ConversationPage() {
             <SessionLogTab conversationId={params.id} agentId={agent.id} />
           </TabsContent>
         )}
-        <TabsContent value="messages" className="flex min-h-0 flex-1 flex-col">
+        <TabsContent
+          value="messages"
+          className="relative flex min-h-0 flex-1 flex-col"
+          {...dropZone.handlers}
+        >
+          {dropZone.overlay}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {isDirect && agent && (
               <div className="flex flex-col items-start gap-2 px-5 pt-4 pb-2">
@@ -309,13 +391,21 @@ export default function ConversationPage() {
                 </p>
               </div>
             )}
-            <Timeline
-              entries={conversation.entries}
-              agents={conversation.agents}
-              onAnswer={async (requestId, answer) =>
-                showRefusal(await conversation.answer(requestId, answer))
-              }
-            />
+            <SharedFilesContext.Provider
+              value={{
+                files: conversation.files,
+                entries: conversation.entries,
+                agents: conversation.agents,
+              }}
+            >
+              <Timeline
+                entries={conversation.entries}
+                agents={conversation.agents}
+                onAnswer={async (requestId, answer) =>
+                  showRefusal(await conversation.answer(requestId, answer))
+                }
+              />
+            </SharedFilesContext.Provider>
             <WorkingLines
               agents={conversation.agents}
               entries={conversation.entries}
@@ -358,8 +448,10 @@ export default function ConversationPage() {
               label={`Message ${
                 conversation.conversation.kind === "channel" ? "#" : ""
               }${conversation.conversation.name}`}
-              onSend={async (text) =>
-                showRefusal(await conversation.send(text))
+              attachments={attachments}
+              searchPaths={searchPaths}
+              onSend={async (text, files) =>
+                showRefusal(await conversation.send(text, files))
               }
             />
           </div>
@@ -401,6 +493,19 @@ export default function ConversationPage() {
       )}
       {isDirect && panel && !isMobile && (
         <SessionPanel key={panel.agentId} {...panel} />
+      )}
+      {!isDirect && (
+        <FilesPanel
+          asSheet={isMobile}
+          open={showingFiles}
+          onClose={() => setShowingFiles(false)}
+          files={conversation.files}
+          entries={conversation.entries}
+          agents={conversation.agents}
+          onRemove={async (file) =>
+            showRefusal(await conversation.removeFile(file.id))
+          }
+        />
       )}
       {!isDirect && (
         <MembersPanel

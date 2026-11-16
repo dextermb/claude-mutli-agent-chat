@@ -44,6 +44,49 @@ export function fakeNetwork() {
   const sent: SentRequest[] = []
   FakeEventSource.opened = []
 
+  class FakeXhr {
+    upload: { onprogress: ((event: ProgressEvent) => void) | null } = {
+      onprogress: null,
+    }
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
+    status = 0
+    responseText = ""
+    private method = "GET"
+    private url = ""
+
+    open(method: string, url: string) {
+      this.method = method
+      this.url = url
+    }
+
+    setRequestHeader() {}
+
+    send(body: Blob | null) {
+      sent.push({ method: this.method, url: this.url, body: undefined })
+      const size = body?.size ?? 0
+      queueMicrotask(() => {
+        const responder = routes.get(`${this.method} ${this.url}`)
+        if (!responder) {
+          this.onerror?.()
+          return
+        }
+        this.upload.onprogress?.(
+          new ProgressEvent("progress", {
+            lengthComputable: true,
+            loaded: size,
+            total: size,
+          })
+        )
+        const reply = responder(undefined)
+        this.status = reply.status
+        this.responseText = JSON.stringify(reply.body)
+        this.onload?.()
+      })
+    }
+  }
+
+  vi.stubGlobal("XMLHttpRequest", FakeXhr)
   vi.stubGlobal("EventSource", FakeEventSource)
   vi.stubGlobal(
     "fetch",

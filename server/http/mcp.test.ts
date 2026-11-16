@@ -85,6 +85,7 @@ describe("the chat MCP server", () => {
       "get_conversation",
       "list_conversations",
       "list_agents",
+      "list_files",
       "read_messages",
       "send_message",
       "start_conversation",
@@ -262,6 +263,74 @@ describe("the chat MCP server", () => {
         you: false,
       },
     ])
+  })
+
+  test("list_files gives the files on the shared list, and not a removed one", async () => {
+    const { args, store, conversation } = await startedAgent()
+    const kept = join(process.cwd(), "package.json")
+    const gone = join(process.cwd(), "missing-file.txt")
+    const shared = store.addUserMessage(conversation.id, "Files.")
+    store.shareFiles(
+      conversation.id,
+      shared.id,
+      [
+        { name: "package.json", path: kept, kind: "linked", size: 10 },
+        { name: "missing-file.txt", path: gone, kind: "linked", size: 3 },
+      ],
+      "user:me"
+    )
+    const removed = store
+      .listSharedFiles(conversation.id)
+      .find((file) => file.path === gone)!
+    store.removeSharedFile(removed.id, "user:me")
+
+    const listed = await callChat(args, "tools/call", {
+      name: "list_files",
+      arguments: {},
+    })
+
+    expect(toolValue(listed.body)).toEqual({
+      files: [
+        {
+          id: expect.any(String),
+          name: "package.json",
+          path: kept,
+          kind: "linked",
+          size: 10,
+          sharedBy: "User",
+          sharedAt: expect.any(String),
+          exists: true,
+        },
+      ],
+    })
+  })
+
+  test("read_messages gives the shared files of a message", async () => {
+    const { args, store, conversation } = await startedAgent()
+    const file = {
+      name: "ci-log.txt",
+      path: "/data/uploads/c1/ci-log.txt",
+      kind: "copied" as const,
+      size: 7,
+    }
+    const shared = store.addUserMessage(conversation.id, "The log.", [file])
+
+    const read = await callChat(args, "tools/call", {
+      name: "read_messages",
+      arguments: { limit: 1 },
+    })
+
+    expect(toolValue(read.body)).toMatchObject({
+      messages: [
+        {
+          seq: shared.seq,
+          author: "User",
+          at: shared.createdAt,
+          text: "The log.",
+          files: [file],
+        },
+      ],
+    })
   })
 
   test("an agent reads the messages of a conversation a page at a time, oldest first", async () => {

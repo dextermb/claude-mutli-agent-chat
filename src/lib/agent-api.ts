@@ -5,11 +5,15 @@ import type {
   LogLine,
   SessionCard,
   SessionState,
+  SharedFileView,
   TimelineEntry,
 } from "../../server/api-types.ts"
 
+export type { SharedFileView } from "../../server/api-types.ts"
+
 export type {
   MessageItem,
+  SharedFile,
   PermissionItem,
   QuestionItem,
   TimelineItem,
@@ -38,3 +42,4 @@ export type StreamMessage =
   | { type: "unread"; conversationId: string; count: number }
   | { type: "reset" }
   | { type: "line"; agentId: string; line: LogLine }
+  | { type: "files"; files: SharedFileView[] }

@@ -4,7 +4,7 @@ export function parseMentions(text: string, members: Mentionable[]): string[] {
   const found: { key: string; at: number }[] = []
   for (const member of members) {
     const pattern = new RegExp(
-      `(?<![\\w@-])@${escapeRegExp(member.name)}(?![\\w-])`
+      `(?<![\\w@-])@${escapeRegExp(member.name)}(?![\\w/-]|\\.[A-Za-z])`
     )
     const match = pattern.exec(text)
     if (match) found.push({ key: member.key, at: match.index })

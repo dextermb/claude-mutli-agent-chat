@@ -20,44 +20,12 @@ commands. There is one user, `user:me`, and no sign-in.
 in `server/http/server.ts` does the work, so a test can give it a
 `startSession` that starts the fake `claude` (`docs/agents.md`).
 
-## Routes
+## Pages
 
-| Route                                                  | Body                                           | Result                                                                                                                                                |
-| ------------------------------------------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/agents`                                      |                                                | `{ agents }`, by name                                                                                                                                 |
-| `POST /api/agents`                                     | The agent                                      | `201 { agent }`. `400` if a field is empty. No `cwd` makes a generic agent                                                                            |
-| `GET /api/agents/:id`                                  |                                                | `{ agent }`. `404` for an unknown agent                                                                                                               |
-| `PATCH /api/agents/:id`                                | Some fields of the agent                       | `{ agent }`. The other fields stay                                                                                                                    |
-| `POST /api/agents/:id/stop`                            |                                                | `202`. Stops the agent in each conversation. `404` for an unknown agent                                                                               |
-| `POST /api/agents/:id/restart`                         |                                                | `202`. Starts each live process of the agent again, with `--resume`. `404` for an unknown agent                                                       |
-| `GET /api/folders`                                     | `?path=<absolute path>`                        | `{ path, parent, folders }`: the subfolders of that folder, or of the home folder with no `path`. See "Folders"                                       |
-| `GET /api/conversations`                               |                                                | `{ conversations, unread }`. `unread` gives the unread count of each conversation that has one                                                        |
-| `POST /api/conversations`                              | A DM, a group chat or a channel                | `201 { conversation }`, or `200` with the DM that exists. A channel can have a `cwd`, and `400` if that folder does not exist                         |
-| `GET /api/conversations/:id`                           |                                                | `{ conversation, agents }`, each agent with its `state` and its `sessionCwd`, the folder of its session there                                         |
-| `PATCH /api/conversations/:id`                         | Some of `topic`, `private`, `replyMode`, `cwd` | `{ conversation }`. The other fields stay. `400` for a DM, a group chat or a bad field. See `docs/conversations.md`                                   |
-| `POST /api/conversations/:id/messages`                 | `{ text }`                                     | `202 { entry }`. `400` for an empty message. `404` for an unknown conversation                                                                        |
-| `POST /api/conversations/:id/read`                     | `{ seq }`                                      | `204`. The user saw the conversation up to `seq`. `400` with no integer `seq`. `404` for an unknown conversation                                      |
-| `GET /api/conversations/:id/timeline`                  |                                                | `{ items, lastEventId }`                                                                                                                              |
-| `GET /api/conversations/:id/events`                    |                                                | The event stream (SSE)                                                                                                                                |
-| `GET /api/events`                                      |                                                | The app stream (SSE)                                                                                                                                  |
-| `POST /api/conversations/:id/stop`                     |                                                | `202`. Interrupts each busy agent                                                                                                                     |
-| `GET /api/conversations/:id/agents/:agentId/session`   |                                                | `{ session }`, the session card. Before the first process, the card holds the configuration of the agent, with no session ID, 0 turns and a cost of 0 |
-| `POST /api/conversations/:id/agents/:agentId/stop`     |                                                | `202`. Interrupts that agent and empties its queue                                                                                                    |
-| `POST /api/conversations/:id/agents/:agentId/sessions` |                                                | `201 { session }`. New session. `404` if the agent is not a member                                                                                    |
-| `POST /api/conversations/:id/members`                  | `{ agentIds }`                                 | `{ conversation }`. `400` for a DM. See `docs/conversations.md`                                                                                       |
-| `DELETE /api/conversations/:id/members/:agentId`       |                                                | `{ conversation }`. `400` for a DM or the last agent of a group chat                                                                                  |
-| `GET /api/conversations/:id/agents/:agentId/log`       | `?before=<seq>`                                | `{ lines }`: the last 200 stored lines of that agent in that conversation, or the 200 before `seq`                                                    |
-| `POST /api/requests/:requestId`                        | `{ decision }` or `{ answers }`                | `202`. `404` if the request is not open                                                                                                               |
-| `POST /mcp`                                            | JSON-RPC                                       | The `chat` MCP server of the agents. `403` with no token of a live session. See `docs/mcp.md`                                                         |
-
-An agent needs a `name`, a `model` and a `permissionMode`. An empty `cwd` is
-stored as `null`, and the agent is generic. Its process never starts in the
-folder of the server: it gets the folder of the channel or a scratch folder
-(`docs/agents.md`). An empty `systemPrompt` is stored as `null`. The server checks an agent
-and a channel with the schemas in `server/schemas.ts`, and a refused body
-gets `400 { error, fields }` (`docs/forms.md`).
-
-The state of an agent with no live process is `exited`.
+| Page               | Open it for                                                        |
+| ------------------ | ------------------------------------------------------------------ |
+| `server/routes.md` | Each route, its body and its result                                |
+| `server/files.md`  | Uploads, shared files, the `@` search of paths, and Browse folders |
 
 ## A message
 
@@ -194,24 +162,6 @@ the agent had one. Each new process has a new session row with the Claude
 session ID of the row before it, so it uses `--resume`, and it gets the
 configuration of now. So a change to the agent applies at once, and the agent
 keeps its memory. New session is the way to forget (see "Sessions").
-
-## Folders
-
-`GET /api/folders` serves Browse on the agent page. `listFolders()` in
-`server/http/folders.ts` reads one folder:
-
-- `folders` holds each subfolder as `{ name, path }`, in alphabetical order.
-  A symbolic link to a folder counts. Files and names that start with `.`
-  are left out.
-- `path` is the folder that was read, and `parent` the folder above it, or
-  `null` at `/`.
-- A path that is not absolute gets `400` "Give an absolute path.", a missing
-  path `404` "The folder does not exist.", a file `400` "The path is not a
-  folder.", and a folder that the operating system refuses `400` "The server
-  cannot read this folder.".
-
-The route has no root folder. The server listens only on `127.0.0.1`, and an
-agent can already run shell commands in each folder that it can reach.
 
 ## Sessions
 

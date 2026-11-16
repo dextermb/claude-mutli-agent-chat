@@ -9,6 +9,7 @@ import {
   initialsOf,
 } from "@/components/conversation/agent-look"
 import { QuestionCard } from "@/components/conversation/question-card"
+import { MessageFiles } from "@/components/conversation/shared-files"
 import { ToolCallCard } from "@/components/conversation/tool-call-card"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type {
@@ -241,16 +242,23 @@ function EntryBody({
   }
   if (item.kind === "message") {
     return (
-      <p
-        aria-busy={item.status === "streaming"}
-        className={cn(
-          "m-0 leading-[22px] whitespace-pre-wrap",
-          item.status === "streaming" &&
-            "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+      <>
+        {item.text && (
+          <p
+            aria-busy={item.status === "streaming"}
+            className={cn(
+              "m-0 leading-[22px] whitespace-pre-wrap",
+              item.status === "streaming" &&
+                "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+            )}
+          >
+            {withInlineCode(item.text)}
+          </p>
         )}
-      >
-        {withInlineCode(item.text)}
-      </p>
+        {item.files && item.files.length > 0 && (
+          <MessageFiles files={item.files} afterSeq={entry.seq} />
+        )}
+      </>
     )
   }
   return null

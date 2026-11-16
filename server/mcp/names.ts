@@ -5,4 +5,5 @@ export const READ_TOOLS = [
   "list_conversations",
   "list_agents",
   "read_messages",
+  "list_files",
 ]

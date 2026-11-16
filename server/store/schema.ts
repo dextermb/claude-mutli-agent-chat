@@ -148,4 +148,24 @@ export const MIGRATIONS: {
       ALTER TABLE conversations ADD COLUMN cwd TEXT;
     `,
   },
+  {
+    version: 9,
+    sql: `
+      CREATE TABLE shared_files (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL
+          REFERENCES conversations (id) ON DELETE CASCADE,
+        item_id TEXT REFERENCES timeline_items (id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        path TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        shared_by TEXT NOT NULL,
+        shared_at TEXT NOT NULL,
+        removed_at TEXT,
+        removed_by TEXT,
+        UNIQUE (conversation_id, path)
+      );
+    `,
+  },
 ]

@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process"
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { createInterface } from "node:readline"
 import { childEnvironment } from "../server/session/environment.ts"
 
@@ -22,6 +22,7 @@ type Scenario = {
   name: string
   permissionMode: string
   runs: Run[]
+  extraFiles?: Record<string, string>
 }
 
 const FIXTURE_ROOT = "/tmp/claude-fixture"
@@ -123,6 +124,20 @@ const scenarios: Scenario[] = [
           "Reply with the single word ok. Do not use any tools.",
         ],
         extraArgs: ["--max-turns", "1"],
+      },
+    ],
+  },
+  {
+    name: "add-dir",
+    permissionMode: "default",
+    extraFiles: { "/tmp/claude-fixture/shared/shared.txt": "delta\nepsilon\n" },
+    runs: [
+      {
+        prompts: [
+          "Read /tmp/claude-fixture/shared/shared.txt with the Read tool, then reply with its first line only.",
+          "What is the first line of @notes.txt? Reply with that line only. Do not use any tools.",
+        ],
+        extraArgs: ["--add-dir", "/tmp/claude-fixture/shared"],
       },
     ],
   },
@@ -401,6 +416,10 @@ async function main() {
     rmSync(workDir, { recursive: true, force: true })
     mkdirSync(workDir, { recursive: true })
     writeFileSync(join(workDir, "notes.txt"), "alpha\nbeta\ngamma\n")
+    for (const [file, text] of Object.entries(scenario.extraFiles ?? {})) {
+      mkdirSync(dirname(file), { recursive: true })
+      writeFileSync(file, text)
+    }
     let sessionId: string | undefined
     try {
       for (const [index, run] of scenario.runs.entries()) {

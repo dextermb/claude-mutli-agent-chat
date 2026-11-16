@@ -26,6 +26,10 @@ adds the rest:
 | `claudeSessionNew` | With a Claude session ID: `--session-id <id>` in place of `--resume` |
 | `maxTurns`         | `--max-turns <n>`, if the agent has a limit (F36)                    |
 
+Each process also gets `--add-dir <uploads>/<conversation id>`, the uploads
+of its conversation, so it can read a copied file with no permission request
+(F38, `docs/server/files.md`).
+
 `claudeSessionNew` is true for an ID that the server chose and that has had
 no turn yet. Before the first turn, `--resume` of that ID fails (F30). After
 it, `--session-id` of that ID fails (F31). So the server clears the flag at

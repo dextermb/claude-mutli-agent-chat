@@ -75,7 +75,9 @@ Messages, Files and Session log (the current one has `aria-current="page"`),
 and a Configure link. A view changes the address in the same way as a tab,
 and closes the sheet.
 
-- **Files** (`files-tab.tsx`) lists each file that the agent read or changed:
+- **Files** starts with the section "Shared files", the list of shared files
+  of the DM with Remove (`docs/web-app/files.md`). Under it, `files-tab.tsx`
+  lists each file that the agent read or changed:
   the path without the folder of the session, the last action as a Badge
   ("Read", "Edited" or "Created"), the lines added and removed over all calls
   ("none" for a file that the agent only read), and the time of the last

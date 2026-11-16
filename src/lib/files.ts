@@ -1,4 +1,5 @@
 import type { TimelineEntry, ToolCallItem } from "@/lib/agent-api"
+import { clockTime } from "@/lib/time"
 
 export type FileRow = {
   path: string
@@ -45,4 +46,26 @@ function lastAction(item: ToolCallItem): FileRow["last"] {
   if (item.name === "Read") return "Read"
   if (item.name === "Write" && item.result?.kind === "diff") return "Created"
   return "Edited"
+}
+
+export function fileNote(
+  path: string,
+  entries: TimelineEntry[],
+  afterSeq: number,
+  nameOf: (authorKey: string) => string
+): string {
+  let read: TimelineEntry | null = null
+  let changed: TimelineEntry | null = null
+  for (const entry of entries) {
+    const { item } = entry
+    if (entry.seq <= afterSeq || item.kind !== "tool_call") continue
+    if (item.status !== "done" || !FILE_TOOLS.includes(item.name)) continue
+    if ((item.input.file_path ?? item.input.notebook_path) !== path) continue
+    if (item.name === "Read") read = entry
+    else changed = entry
+  }
+  const last = changed ?? read
+  if (!last) return "No agent read it yet."
+  const verb = changed ? "Edited" : "Read"
+  return `${verb} by ${nameOf(last.authorKey)} at ${clockTime(last.createdAt)}`
 }
