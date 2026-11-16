@@ -14,6 +14,7 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react"
 
 import {
@@ -56,12 +57,14 @@ export function Composer({
   onSend,
   attachments,
   searchPaths,
+  tools,
 }: {
   label: string
   members: Member[]
   onSend: (text: string, files: SharedFile[]) => void
   attachments?: ReturnType<typeof useAttachments>
   searchPaths?: (query: string) => Promise<PathOption[]>
+  tools?: ReactNode
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [text, setText] = useState("")
@@ -168,7 +171,7 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={send} className="flex flex-col gap-2">
+    <form aria-label={label} onSubmit={send} className="flex flex-col gap-2">
       {optionCount > 0 && (
         <div className="flex max-w-sm flex-col gap-1 rounded-[14px] border bg-popover p-1.5 text-popover-foreground shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
           {suggestions.length > 0 && (
@@ -316,7 +319,9 @@ export function Composer({
           {attachments && (
             <>
               <InputGroupButton
+                variant="outline"
                 size="icon-xs"
+                className="rounded-full"
                 aria-label="Attach a file"
                 onClick={() => fileInput.current?.click()}
               >
@@ -340,6 +345,7 @@ export function Composer({
               />
             </>
           )}
+          {tools}
           {attachments?.blocking ? (
             <span className="ml-auto text-xs text-foreground-faint">
               {blockingHint(attachments.blocking)}
@@ -354,6 +360,7 @@ export function Composer({
             type="submit"
             variant="default"
             size="icon-xs"
+            className="rounded-full"
             aria-label="Send"
             disabled={Boolean(attachments?.blocking)}
           >

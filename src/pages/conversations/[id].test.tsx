@@ -193,6 +193,17 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("the message box of a DM shows the model of the agent, as a link to its configuration", async () => {
+    openConversation([userMessage])
+
+    const box = within(
+      await screen.findByRole("form", { name: "Message test-runner" })
+    )
+    expect(
+      box.getByRole("link", { name: "Model: claude-sonnet-5-5" })
+    ).toHaveAttribute("href", "/agents/a1")
+  })
+
   test("Configure in the header of a DM opens the agent page", async () => {
     openConversation([userMessage])
 
