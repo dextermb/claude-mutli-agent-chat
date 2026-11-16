@@ -56,12 +56,18 @@ When the context of the last turn (`context.used` of the turn item,
 `/compact` with the text of `agent/compact.md`. The app value is
 `AGENTS_COMPACT_ABOVE_TOKENS`, or 100,000. Under about 100k, a compaction
 saves little, because the base of each session is 45k to 55k tokens and a
-compaction cannot go below it (F48).
+compaction cannot go below it (F48). Claude Code compacts by itself only at
+the window minus 33,000 tokens, which is about 967,000 on a model with a
+window of 1M (F63). So for an agent, the compaction before the stop is the
+one that keeps the context small.
 
 The compaction comes back as a `compaction` item (F41, F42 in
 `docs/protocol.md`). The user's `PreCompact` and `SessionStart` hooks run (F57, F58), as
 for each compaction. Each agent process has `AGENT_CHAT=1` in its
-environment, so a hook script can test it and skip its work in an agent.
+environment, and a hook gets it (F61), so a hook script can test it and skip
+its work in an agent. A `PreCompact` hook that exits with code 2 blocks the
+compaction (F61). The agent then sleeps with its full context, and the
+compaction item ends as `failed` (F62).
 
 ## The wake
 
@@ -80,6 +86,9 @@ A message, a mention, a `send_message` or Restart starts a process with
 - The gap comes from `ended_at` of the session row that ended with `sleep`.
   A shorter sleep gives no line, because the prompt cache still holds the
   context.
+- A wake after more than one hour writes most of the base to the cache again.
+  It costs about 30% more than a wake within the hour: 0.0126 against 0.0097
+  USD for a short answer on Haiku (F64, F52 in `docs/protocol.md`).
 - In a group chat or a channel, each prompt holds at most the last 30
   messages since the last turn of the agent (`AGENTS_WAKE_MESSAGES`,
   `docs/conversations.md`). This limit is for each prompt, not only after a
@@ -176,13 +185,3 @@ A server test gives `createServer()` its own `summarize` function. The test
 of `claudeSummarizer()` runs `server/test/fake-summarizer.ts` in place of
 `claude`. The fake writes its arguments and its input to a log, then prints
 `summarize.json`, or fails, or hangs (`FAKE_SUMMARIZER_MODE`).
-
-## Not measured yet
-
-- A wake after more than one hour. F47 gives the cache time, and the costs
-  come from the measured prices, not from a probe that waited.
-- `--autocompact`. An automatic compaction is recorded (F59), but only with
-  `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, not at the real window.
-- A compaction that fails for a reason other than `too_few_groups` (F60).
-- A `PreCompact` hook that fails, and whether it stops the compaction.
-- That a hook gets `AGENT_CHAT` from the environment of the process.

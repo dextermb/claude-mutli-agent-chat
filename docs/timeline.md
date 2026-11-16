@@ -143,7 +143,8 @@ result                           → a turn, as for each prompt
   Claude Code starts. An automatic compaction comes inside a turn, before
   its answer, so that turn also has messages and tool calls.
 - A compaction fails when the session has too little history
-  (`too_few_groups`). The turn goes on as usual.
+  (`too_few_groups`), on an interrupt, or when a `PreCompact` hook blocks it
+  (F62). The turn goes on as usual.
 - The summary (F42) is the text that the agent keeps in place of the old
   context.
 - The browser shows a compaction item as a divider
