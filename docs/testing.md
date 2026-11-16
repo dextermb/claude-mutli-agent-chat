@@ -20,6 +20,12 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
   test, it removes the rendered DOM, then the stubbed globals and the spies.
   So a test file does not call `vi.unstubAllGlobals()` or
   `vi.restoreAllMocks()` itself.
+- `setup.ts` also gives `findBy…` and `waitFor` of Testing Library 3000 ms,
+  not the default 1000 ms. The first test of a page file loads the lazy page,
+  and that takes from 500 to 990 ms on a quiet machine. Under load, a limit
+  of 1000 ms failed a different set of these first tests at each run. Use
+  the `waitFor` of Testing Library, not `vi.waitFor`, because only the first
+  one follows this setting.
 - `src/test/fake-screen.ts` holds the screen of the user:
   - jsdom has no `matchMedia`. `screenWidth(width)` stubs it, and answers
     each `(max-width: …px)` query for that width. A test calls
