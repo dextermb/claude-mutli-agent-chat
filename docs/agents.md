@@ -44,6 +44,35 @@ the session (`docs/mcp.md`).
 
 The folder of the process is its `cwd`, not an argument.
 
+## Permission modes
+
+The agent form gives six values for `--permission-mode`. The server sends
+the value as a free string, so the form is the only list of modes.
+
+| Mode                | A tool outside the allowed list …                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `manual`            | waits for approval in the chat (F5, F69 in `docs/protocol.md`)                                |
+| `acceptEdits`       | changes files with no request. Other tools wait for approval                                  |
+| `plan`              | reads and plans, and changes no file. Other tools wait for approval                           |
+| `auto`              | goes to a classifier. A refused call does not run, and no approval card shows (F66)           |
+| `dontAsk`           | does not run, and no approval card shows (F68). A read-only command, such as `ls`, still runs |
+| `bypassPermissions` | runs with no request. A blocked tool still never runs                                         |
+
+`manual` and `default` are one mode with two names. A new agent starts with
+`manual`. An agent that was saved with `default` shows `manual` in the form,
+and keeps `default` in the database until the user saves it. The CLI accepts
+both names, so no migration is necessary.
+
+In `auto` and `dontAsk`, a refused call comes back as a `tool_result` with
+`is_error: true`. So the tool-call line shows it as failed, with the reason
+of Claude Code as its error text (`docs/timeline.md`).
+
+The classifier of `auto` accepts a call that the user asks for by name, and
+`auto` accepts a change in the work folder with no classifier call (F67). So
+`auto` does not stop a delete that a prompt names. Each model of the form
+supports `auto`. A model with no support falls back to `manual` (`default`)
+and gives no error (F65).
+
 ## The folder of a process
 
 An agent can have a folder of its own (`agents.cwd`), or none. An agent with

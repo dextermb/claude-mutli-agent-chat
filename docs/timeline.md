@@ -59,7 +59,7 @@ Claude Code (for example `user_temporary` or `user_reject`), and a `result`:
 | `diff`        | Edit: the `+` and `-` lines of `structuredPatch`               | `+1 −1`, and the lines |
 | `diff`        | Write of a new file (`type: "create"`): the lines of `content` | `+1`, and the lines    |
 | `output`      | Bash: `stdout` and `stderr`                                    | The output             |
-| `error`       | A result with `is_error`, for example a denied call            | The error text         |
+| `error`       | A result with `is_error`, for example a denied call (F66, F68) | The error text         |
 
 Any other tool gives `result: null`.
 

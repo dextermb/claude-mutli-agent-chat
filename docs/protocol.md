@@ -147,6 +147,11 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F62 | **Each failed compaction has the same lines, and only `compact_error` differs.** `/compact` with no history: "Not enough messages to compact." An interrupt while it compacts: "API Error: Request was aborted.", and the session keeps its memory. A blocking `PreCompact` hook: F61. Too little history for an automatic compaction: `too_few_groups` (F60). Each one gives `compact_result: "failed"`, no `compact_boundary`, no summary line, and a `result` with `subtype: "success"`. | Probe |
 | F63 | **The automatic compaction starts at the window minus 33,000 tokens.** The debug log gives `effectiveWindow`, the window minus 20,000: 980,000 for Haiku 5.5 (a window of 1M), 80,000 with `--autocompact 100000`, 480,000 with `--autocompact 500000`. In the code of 2.1.311, the threshold is `effectiveWindow` minus 13,000, or `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` percent of `effectiveWindow` when that is lower. So an agent on a model with a 1M window compacts by itself only near 967,000 tokens. With `--autocompact 100000`, a context of 121k got `too_few_groups` two times, then compacted 133,261 → 17,640 tokens at the third prompt. `--autocompact` sets only the threshold: the requests over 100k ran, because the window of the model is the limit. | Probe |
 | F64 | **A wake after more than one hour writes most of the base again, but costs only about 30% more.** A session started, waited 62 minutes, and resumed: `cw 31,286, cr 12,848`, 0.0126 USD for a one-word answer, and it still knew the word. A resume within the hour (F52) cost 0.0097 USD. The first ~13k tokens stay in the cache after the hour, because each Claude Code session shares them and other sessions keep them warm. A fresh session in the same folder after the wait: `cw 27,821, cr 15,418`, 0.0057 USD. | Probe |
+| F65 | **`auto` works with each model of the agent form. A model with no support falls back to `default` and gives no error.** In the `models` list of the `initialize` answer, Opus 5.5, Sonnet 5.5 and Haiku 5.5 have `supportsAutoMode: true`, and `current_permission_mode` is `auto`. Haiku 4.5 has no `supportsAutoMode`, and with `--permission-mode auto` it gives `current_permission_mode: "default"`. The probe sent only `initialize`, so it made no request. | `mode-auto`, probe |
+| F66 | **In `auto`, a call that the classifier refuses sends no `can_use_tool` request.** A `system/permission_denied` line comes, with `decision_reason_type: "classifier"` and a `decision_reason` (for example `[Destructive or Unwanted Actions]`). Then a `tool_result` with `is_error: true` gives the text "Permission for this action was denied by the Claude Code auto mode classifier. Reason: …", and its `tool_result_meta` has `non_execution_kind: "automode-blocked"` and `decision: "reject"`. The `result` lists the call in `permission_denials`, and the turn goes on. So no approval card shows. The decoder reads `permission_denied` as `unknown`, and the timeline gets the denial from the `tool_result`. | `mode-auto` |
+| F67 | **The classifier accepts a call that the user asks for by name.** The `tool_result_meta` of each call names its decision: `ls` got `reason_type: "classifier"`. `rm -rf scratch` in the work folder got `reason_type: "mode"`, with no classifier call, also with a custom `hard_deny` rule. With the default rules, `rm -rf "$PROBE_TARGET"` (a variable that the classifier cannot see) also ran. A `curl` POST of a token file never became a tool call, because the model refused it. So the fixture gives the classifier a custom rule (`--settings` with `autoMode.hard_deny`: "Any rm command…") and a delete outside the work folder. | `mode-auto`, probe |
+| F68 | **`dontAsk` denies each call that needs a request, and sends no `can_use_tool` request.** `ls` ran (`reason_type: "subcommandResults"`). `rm -rf scratch` gave `system/permission_denied` with `decision_reason_type: "mode"`, then a `tool_result` with `is_error: true`: "Permission to use Bash has been denied because Claude Code is running in don't ask mode. …". Its `tool_result_meta` has `non_execution_kind: "permission-rule"`. The `result` lists it in `permission_denials`. | `mode-dontAsk` |
+| F69 | **`manual` is `default` with a new name.** The `initialize` answer and `system/init` both say `permissionMode: "default"`. `ls` ran with no request, and `rm -rf scratch` sent a `can_use_tool` request, the same as F5. | `mode-manual` |
 
 ## The decoder and the encoders
 
@@ -200,6 +205,8 @@ to stdout.
 | `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
 | `compact.jsonl` | A prompt, then `/compact` with instructions, then a prompt that needs the memory (F41, F42) |
 | `compact-auto.jsonl` | Six short prompts with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=1`: two automatic compactions that fail, then four that succeed (F59, F60) |
+| `mode-auto.jsonl` | `--permission-mode auto` with a custom `hard_deny` rule: `ls`, `rm -rf scratch` in the work folder, and a `rm -rf` outside it that the classifier refuses (F66, F67) |
+| `mode-dontAsk.jsonl`, `mode-manual.jsonl` | The same prompt in `dontAsk` (F68) and in `manual` (F69) |
 | `summarize.json` | The JSON answer of one summarizer run with `--output-format json`, not a stream (F46). The recorder does not make it: run the command of F46 again, with the input of `server/summary/summarizer.test.ts` |
 
 To record them again:
@@ -209,7 +216,7 @@ pnpm fixtures:record                       # each scenario
 pnpm fixtures:record server/protocol/fixtures interrupt   # one scenario
 ```
 
-The recorder (`scripts/record-fixtures.ts`) costs about 0.14 USD for each
+The recorder (`scripts/record-fixtures.ts`) costs about 0.17 USD for each
 full run. It uses a fixed work folder, `/tmp/claude-fixture/<scenario>`, so
 that no path of the machine gets into a file. Before it writes a file, it:
 
@@ -233,6 +240,9 @@ and the names of the user's plugins before the commit.
   test cannot make one without a real limit. The reducer adds a notice for
   each status other than `allowed`. When a real line comes, record it as a
   fixture, and check the names.
+- The cost of the classifier of `auto`. The `result` of each `mode-*`
+  fixture gives about 0.009 USD, and `modelUsage` names only the model of
+  the agent. So the `result` possibly leaves out the classifier calls.
 - Two sessions that write to the same folder at the same time. The user
   chooses the folder of each agent, and `docs/architecture.md` lists it as a
   risk.
