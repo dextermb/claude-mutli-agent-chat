@@ -40,6 +40,7 @@ export type SessionRow = {
   endedAt: string | null
   exitCode: number | null
   stderr: string | null
+  endReason: string | null
 }
 
 export type StoredLine = {
@@ -303,14 +304,15 @@ export function openStore(location: string) {
       endedAt: null,
       exitCode: null,
       stderr: null,
+      endReason: null,
     }
     db.prepare(
       `INSERT INTO agent_sessions (id, agent_id, conversation_id,
          claude_session_id, claude_session_new, config, state, started_at,
-         ended_at, exit_code, stderr)
+         ended_at, exit_code, stderr, end_reason)
        VALUES (:id, :agentId, :conversationId, :claudeSessionId,
          :claudeSessionNew, :config, :state, :startedAt, :endedAt, :exitCode,
-         :stderr)`
+         :stderr, :endReason)`
     ).run({
       ...created,
       claudeSessionNew: created.claudeSessionNew ? 1 : 0,
@@ -355,6 +357,7 @@ export function openStore(location: string) {
       endedAt: row.ended_at === null ? null : String(row.ended_at),
       exitCode: row.exit_code === null ? null : Number(row.exit_code),
       stderr: row.stderr === null ? null : String(row.stderr),
+      endReason: row.end_reason === null ? null : String(row.end_reason),
     }
   }
 
@@ -369,6 +372,7 @@ export function openStore(location: string) {
         | "endedAt"
         | "exitCode"
         | "stderr"
+        | "endReason"
       >
     >
   ) {
@@ -378,7 +382,7 @@ export function openStore(location: string) {
     db.prepare(
       `UPDATE agent_sessions SET claude_session_id = :claudeSessionId,
          claude_session_new = :claudeSessionNew, state = :state, ended_at = :endedAt, exit_code = :exitCode,
-         stderr = :stderr
+         stderr = :stderr, end_reason = :endReason
        WHERE id = :id`
     ).run({
       id,
@@ -388,6 +392,7 @@ export function openStore(location: string) {
       endedAt: next.endedAt,
       exitCode: next.exitCode,
       stderr: next.stderr,
+      endReason: next.endReason,
     })
   }
 

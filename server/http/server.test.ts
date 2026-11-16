@@ -136,6 +136,7 @@ describe("createServer", () => {
         turns: 1,
         costUsd: 0.00553128,
         context: { used: 39_853, window: 1_000_000 },
+        asleepSince: null,
         lastCompaction: null,
         configChanged: false,
       },
@@ -168,6 +169,7 @@ describe("createServer", () => {
         turns: 0,
         costUsd: 0,
         context: null,
+        asleepSince: null,
         lastCompaction: null,
         configChanged: false,
       },
@@ -198,6 +200,38 @@ describe("createServer", () => {
       postTokens: 11894,
       summary: expect.stringMatching(/^1\. Primary Request and Intent:/),
     })
+  })
+
+  test("an idle agent sleeps after its sleep time: its process stops, and the session card says since when", async () => {
+    const { base, started, agent, conversation } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      { minuteMs: 20 }
+    )
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 1 }),
+    })
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    const card = async () =>
+      (
+        (await (
+          await fetch(
+            `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+          )
+        ).json()) as { session: { state: string; asleepSince: string | null } }
+      ).session
+    await vi.waitFor(async () =>
+      expect(await card()).toMatchObject({
+        state: "exited",
+        asleepSince: expect.any(String),
+      })
+    )
+    expect(started).toHaveLength(1)
   })
 
   test("after a change to the agent, the session shows the configuration that runs, and that it changed", async () => {

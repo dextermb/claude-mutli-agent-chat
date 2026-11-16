@@ -317,6 +317,7 @@ export const testRunnerSession: SessionCard = {
   turns: 7,
   costUsd: 0.18,
   context: { used: 62_400, window: 200_000 },
+  asleepSince: null,
   lastCompaction: null,
   configChanged: false,
 }

@@ -167,6 +167,7 @@ describe("Store", () => {
       private: true,
       replyMode: "every",
       cwd: null,
+      sleepAfterMinutes: null,
       members: ["user:me", `agent:${agent.id}`],
     })
   })

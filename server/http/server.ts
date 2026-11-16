@@ -61,6 +61,8 @@ export type ServerOptions = {
   uploadLimit?: number
   eventLogSize?: number
   scratchRoot?: string
+  sleepAfterMinutes?: number
+  minuteMs?: number
 }
 
 type LiveSession = {
@@ -73,6 +75,7 @@ type LiveSession = {
   queue: string[]
   cwd: string
   facts: string[] | null
+  sleepTimer: ReturnType<typeof setTimeout> | null
   lastOutSeq: number
   exit: { code: number | null; stderr: string } | null
 }
@@ -101,6 +104,8 @@ const MAX_BODY_BYTES = 1_000_000
 const EVENT_LOG_SIZE = 500
 const LOG_PAGE = 200
 const SUMMARY_HEADING = "\nSummary:\n"
+const SLEEP_AFTER_MINUTES = 15
+const MINUTE_MS = 60_000
 
 export function createServer({
   store,
@@ -109,6 +114,8 @@ export function createServer({
   uploadLimit = UPLOAD_LIMIT,
   eventLogSize = EVENT_LOG_SIZE,
   scratchRoot = defaultScratchRoot(),
+  sleepAfterMinutes = SLEEP_AFTER_MINUTES,
+  minuteMs = MINUTE_MS,
 }: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
@@ -226,6 +233,7 @@ export function createServer({
       queue: [],
       cwd,
       facts: null,
+      sleepTimer: null,
       lastOutSeq: 0,
       exit: null,
     }
@@ -309,6 +317,7 @@ export function createServer({
     }
     if (event.type === "state") {
       session.state = event.state
+      if (event.state !== "idle") clearSleep(session)
       store.updateSession(session.id, { state: event.state })
       publish(session.conversationId, {
         type: "agent_state",
@@ -320,9 +329,43 @@ export function createServer({
         tokens.delete(session.token)
       }
       publishAgentState(session.agentId)
-      if (event.state === "idle") deliverNext(session)
+      if (event.state === "idle") {
+        deliverNext(session)
+        if (session.state === "idle") armSleep(session)
+      }
       if (event.state === "failed") addFailedNotice(session)
     }
+  }
+
+  function armSleep(session: LiveSession) {
+    const minutes = sleepMinutes(session)
+    clearSleep(session)
+    if (minutes === 0) return
+    session.sleepTimer = setTimeout(() => {
+      session.sleepTimer = null
+      fallAsleep(session)
+    }, minutes * minuteMs)
+  }
+
+  function clearSleep(session: LiveSession) {
+    if (session.sleepTimer) clearTimeout(session.sleepTimer)
+    session.sleepTimer = null
+  }
+
+  function sleepMinutes(session: LiveSession): number {
+    const conversation = store.getConversation(session.conversationId)
+    const agent = store.getAgent(session.agentId)
+    return (
+      conversation?.sleepAfterMinutes ??
+      agent?.sleepAfterMinutes ??
+      sleepAfterMinutes
+    )
+  }
+
+  function fallAsleep(session: LiveSession) {
+    if (session.state !== "idle" || session.queue.length > 0) return
+    store.updateSession(session.id, { endReason: "sleep" })
+    void session.handle?.stop()
   }
 
   function publishAgentState(agentId: string) {
@@ -358,6 +401,10 @@ export function createServer({
       turns: turns.reduce((sum, turn) => sum + turn.numTurns, 0),
       costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
       context: turns.at(-1)?.context ?? null,
+      asleepSince:
+        !findLive(agent.id, conversationId) && row?.endReason === "sleep"
+          ? row.endedAt
+          : null,
       lastCompaction: compaction
         ? {
             at: compaction.createdAt,
@@ -1187,6 +1234,7 @@ export function createServer({
       })
     },
     async close(): Promise<void> {
+      for (const session of live.values()) clearSleep(session)
       await Promise.all(
         [...live.values()].map((session) => session.handle?.stop())
       )
