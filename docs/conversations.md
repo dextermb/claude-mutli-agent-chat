@@ -87,6 +87,10 @@ mention is `@` and the full name of a member:
   does not count. So `@test-runner/notes.md` mentions nobody. The `@` list
   of the composer also completes files (`docs/web-app/files.md`).
 
+`mentionPattern(name)` holds this rule. The timeline of the web app uses it
+too, to show each mention in the colour of its agent
+(`docs/web-app/conversation.md`).
+
 ## The prompt
 
 In a DM, the prompt is the text of the message. Each shared file of the

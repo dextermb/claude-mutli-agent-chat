@@ -1,5 +1,5 @@
-import { RotateCcwIcon, TriangleAlertIcon } from "lucide-react"
-import { Fragment, useState } from "react"
+import { FileIcon, RotateCcwIcon, TriangleAlertIcon } from "lucide-react"
+import { Fragment, useState, type ReactNode } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +7,7 @@ import {
   AVATAR_COLOURS,
   HUMAN_AVATAR,
   initialsOf,
+  MENTION_COLOURS,
 } from "@/components/conversation/agent-look"
 import { QuestionCard } from "@/components/conversation/question-card"
 import { MessageFiles } from "@/components/conversation/shared-files"
@@ -21,6 +22,7 @@ import type {
 import { Separator } from "@/components/ui/separator"
 import { clockTime, dayKey, dayName, longDay } from "@/lib/time"
 import { cn } from "@/lib/utils"
+import { mentionPattern } from "../../../server/conversation/mentions.ts"
 
 type Answer = (requestId: string, answer: RequestAnswer) => void
 
@@ -63,6 +65,7 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
               <AuthorGroup
                 group={group}
                 agent={agent}
+                agents={agents}
                 requests={requests}
                 subagentCalls={subagentCalls}
                 onAnswer={onAnswer}
@@ -114,12 +117,14 @@ function DayHeading({ createdAt }: { createdAt: string }) {
 function AuthorGroup({
   group,
   agent,
+  agents,
   requests,
   subagentCalls,
   onAnswer,
 }: {
   group: Group
   agent: ConversationAgent | undefined
+  agents: ConversationAgent[]
   requests: Map<string, PermissionItem>
   subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
@@ -155,6 +160,7 @@ function AuthorGroup({
             key={entry.id}
             entry={entry}
             agent={agent}
+            agents={agents}
             requests={requests}
             subagentCalls={subagentCalls}
             onAnswer={onAnswer}
@@ -168,12 +174,14 @@ function AuthorGroup({
 function EntryBody({
   entry,
   agent,
+  agents,
   requests,
   subagentCalls,
   onAnswer,
 }: {
   entry: TimelineEntry
   agent: ConversationAgent | undefined
+  agents: ConversationAgent[]
   requests: Map<string, PermissionItem>
   subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
@@ -252,7 +260,7 @@ function EntryBody({
                 "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
             )}
           >
-            {withInlineCode(item.text)}
+            {withInlineCode(item.text, agents)}
           </p>
         )}
         {item.files && item.files.length > 0 && (
@@ -264,7 +272,7 @@ function EntryBody({
   return null
 }
 
-function withInlineCode(text: string) {
+function withInlineCode(text: string, agents: ConversationAgent[]) {
   return text.split(/`([^`\n]+)`/).map((part, index) =>
     index % 2 === 1 ? (
       <code
@@ -274,9 +282,61 @@ function withInlineCode(text: string) {
         {part}
       </code>
     ) : (
-      part
+      <Fragment key={index}>{withMentions(part, agents)}</Fragment>
     )
   )
+}
+
+type Mention = { at: number; text: string; agent?: ConversationAgent }
+
+const FILE_MENTION = /(?<![\w@-])@([\w./-]*[\w-])/g
+
+function withMentions(text: string, agents: ConversationAgent[]) {
+  const agentMentions: Mention[] = agents.flatMap((agent) =>
+    [...text.matchAll(mentionPattern(agent.name, "g"))].map((match) => ({
+      at: match.index,
+      text: match[0],
+      agent,
+    }))
+  )
+  const fileMentions: Mention[] = [...text.matchAll(FILE_MENTION)]
+    .filter((match) => /\/|\.\w+$/.test(match[1]))
+    .map((match) => ({ at: match.index, text: match[0] }))
+  const parts: ReactNode[] = []
+  let end = 0
+  for (const mention of [...agentMentions, ...fileMentions].sort(
+    (a, b) => a.at - b.at
+  )) {
+    parts.push(text.slice(end, mention.at))
+    parts.push(
+      mention.agent ? (
+        <span
+          key={mention.at}
+          className={cn(
+            "rounded-sm px-1 font-medium",
+            MENTION_COLOURS[mention.agent.colour]
+          )}
+        >
+          {mention.text}
+        </span>
+      ) : (
+        <span
+          key={mention.at}
+          className="rounded-sm bg-link/10 px-1 font-mono text-[13px] text-link"
+        >
+          <FileIcon
+            aria-hidden="true"
+            className="mr-1 inline size-3.5 align-[-2px]"
+          />
+          <span className="sr-only">@</span>
+          {mention.text.slice(1)}
+        </span>
+      )
+    )
+    end = mention.at + mention.text.length
+  }
+  parts.push(text.slice(end))
+  return parts
 }
 
 function FailedNotice({
