@@ -1,4 +1,11 @@
-import { ArrowUpIcon } from "lucide-react"
+import {
+  ArrowUpIcon,
+  FileIcon,
+  FolderIcon,
+  PaperclipIcon,
+  RotateCcwIcon,
+  XIcon,
+} from "lucide-react"
 import {
   useId,
   useLayoutEffect,
@@ -21,8 +28,20 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import { Button } from "@/components/ui/button"
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
 import { Kbd } from "@/components/ui/kbd"
-import type { AgentWithState } from "@/lib/agent-api"
+import { Progress } from "@/components/ui/progress"
+import type { Attachment, useAttachments } from "@/hooks/use-attachments"
+import type { AgentWithState, SharedFile } from "@/lib/agent-api"
+import { cn } from "@/lib/utils"
 
 const MENTION_AT_CARET = /(?:^|\s)@([\w-]*)$/
 
@@ -32,11 +51,14 @@ export function Composer({
   label,
   members,
   onSend,
+  attachments,
 }: {
   label: string
   members: Member[]
-  onSend: (text: string) => void
+  onSend: (text: string, files: SharedFile[]) => void
+  attachments?: ReturnType<typeof useAttachments>
 }) {
+  const fileInput = useRef<HTMLInputElement>(null)
   const [text, setText] = useState("")
   const [caret, setCaret] = useState(0)
   const [active, setActive] = useState({ query: "", index: 0 })
@@ -83,9 +105,12 @@ export function Composer({
   function send(event?: FormEvent) {
     event?.preventDefault()
     const message = text.trim()
-    if (message === "") return
-    onSend(message)
+    const files = attachments?.shared ?? []
+    if (attachments?.blocking) return
+    if (message === "" && files.length === 0) return
+    onSend(message, files)
     update("", 0)
+    attachments?.clear()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -163,6 +188,24 @@ export function Composer({
         </div>
       )}
       <InputGroup>
+        {attachments && attachments.attachments.length > 0 && (
+          <InputGroupAddon align="block-start">
+            <ul
+              aria-label="Files for this message"
+              className="m-0 grid w-full list-none grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-2 p-0"
+            >
+              {attachments.attachments.map((item) => (
+                <li key={item.key} className="min-w-0">
+                  <AttachmentChip
+                    item={item}
+                    onRemove={() => attachments.remove(item.key)}
+                    onRetry={() => attachments.retry(item.key)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </InputGroupAddon>
+        )}
         <InputGroupTextarea
           ref={box}
           aria-label={label}
@@ -184,15 +227,49 @@ export function Composer({
           onKeyDown={onKeyDown}
         />
         <InputGroupAddon align="block-end">
-          <span className="ml-auto flex items-center gap-1 text-xs text-foreground-faint">
-            <Kbd>{suggestions.length > 0 ? "Tab" : "Enter"}</Kbd>
-            {suggestions.length > 0 ? "to pick" : "to send"}
-          </span>
+          {attachments && (
+            <>
+              <InputGroupButton
+                size="icon-xs"
+                aria-label="Attach a file"
+                onClick={() => fileInput.current?.click()}
+              >
+                <PaperclipIcon />
+              </InputGroupButton>
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                aria-label="Files to attach"
+                className="hidden"
+                onChange={(event) => {
+                  attachments.addFiles(
+                    [...(event.currentTarget.files ?? [])].map((file) => ({
+                      file,
+                      isFolder: false,
+                    }))
+                  )
+                  event.currentTarget.value = ""
+                }}
+              />
+            </>
+          )}
+          {attachments?.blocking ? (
+            <span className="ml-auto text-xs text-foreground-faint">
+              {blockingHint(attachments.blocking)}
+            </span>
+          ) : (
+            <span className="ml-auto flex items-center gap-1 text-xs text-foreground-faint">
+              <Kbd>{suggestions.length > 0 ? "Tab" : "Enter"}</Kbd>
+              {suggestions.length > 0 ? "to pick" : "to send"}
+            </span>
+          )}
           <InputGroupButton
             type="submit"
             variant="default"
             size="icon-xs"
             aria-label="Send"
+            disabled={Boolean(attachments?.blocking)}
           >
             <ArrowUpIcon />
           </InputGroupButton>
@@ -200,4 +277,98 @@ export function Composer({
       </InputGroup>
     </form>
   )
+}
+
+const BADGES: Record<
+  Attachment["status"],
+  { text: string; className: string }
+> = {
+  linked: { text: "Linked", className: "text-status-online" },
+  copied: { text: "Copied", className: "text-muted-foreground" },
+  copying: { text: "Copy", className: "text-status-working" },
+  refused: { text: "Refused", className: "text-status-error" },
+  failed: { text: "Failed", className: "text-status-error" },
+}
+
+function AttachmentChip({
+  item,
+  onRemove,
+  onRetry,
+}: {
+  item: Attachment
+  onRemove: () => void
+  onRetry: () => void
+}) {
+  const badge = BADGES[item.status]
+  const problem = item.status === "refused" || item.status === "failed"
+  return (
+    <Item
+      size="sm"
+      variant="outline"
+      className={cn(
+        "flex-nowrap bg-rail",
+        problem && "border-destructive bg-error-soft"
+      )}
+    >
+      <ItemMedia variant="icon">
+        {item.status === "refused" ? <FolderIcon /> : <FileIcon />}
+      </ItemMedia>
+      <ItemContent className="min-w-0">
+        <ItemTitle className="w-full min-w-0">
+          <span className="truncate">{item.name}</span>
+          <Badge variant="outline" className={badge.className}>
+            {item.status === "copying"
+              ? `Copy: ${Math.round(item.progress * 100)}%`
+              : badge.text}
+          </Badge>
+        </ItemTitle>
+        <ItemDescription
+          className={cn("truncate", item.path && !problem && "font-mono")}
+        >
+          {item.problem ?? item.path ?? formatSize(item.size)}
+        </ItemDescription>
+        {item.status === "copying" && (
+          <Progress
+            value={Math.round(item.progress * 100)}
+            aria-label={`Copy of ${item.name}`}
+          />
+        )}
+      </ItemContent>
+      <ItemActions>
+        {item.status === "failed" && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Retry ${item.name}`}
+            onClick={onRetry}
+          >
+            <RotateCcwIcon />
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Remove ${item.name}`}
+          onClick={onRemove}
+        >
+          <XIcon />
+        </Button>
+      </ItemActions>
+    </Item>
+  )
+}
+
+function blockingHint(item: Attachment): string {
+  if (item.status === "copying")
+    return `Send waits until ${item.name} is copied.`
+  if (item.status === "refused") return "Remove the folder to send."
+  return `Retry or remove ${item.name} to send.`
+}
+
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

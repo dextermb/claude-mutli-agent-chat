@@ -920,6 +920,88 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("the user attaches a file, it is copied to the uploads, and Send shares it", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    network.on(
+      "PUT",
+      "/api/conversations/c1/uploads?name=ci-log.txt",
+      {
+        name: "ci-log.txt",
+        path: "/data/uploads/c1/ci-log.txt",
+        size: 7,
+      },
+      201
+    )
+    network.on("POST", "/api/conversations/c1/messages", {}, 202)
+    await screen.findByRole("heading", { name: "test-runner" })
+
+    await user.upload(
+      screen.getByLabelText("Files to attach"),
+      new File(["line 1\n"], "ci-log.txt", { type: "text/plain" })
+    )
+
+    const chips = within(
+      await screen.findByRole("list", { name: "Files for this message" })
+    )
+    expect(await chips.findByText("Copied")).toBeInTheDocument()
+    expect(chips.getByText("/data/uploads/c1/ci-log.txt")).toBeInTheDocument()
+    await user.type(
+      screen.getByRole("textbox", { name: "Message test-runner" }),
+      "Here is the log.{Enter}"
+    )
+
+    expect(
+      network.sent.filter(
+        (request) => request.url === "/api/conversations/c1/messages"
+      )
+    ).toEqual([
+      {
+        method: "POST",
+        url: "/api/conversations/c1/messages",
+        body: {
+          text: "Here is the log.",
+          files: [
+            {
+              name: "ci-log.txt",
+              path: "/data/uploads/c1/ci-log.txt",
+              kind: "copied",
+              size: 7,
+            },
+          ],
+        },
+      },
+    ])
+    expect(
+      screen.queryByRole("list", { name: "Files for this message" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("a copy that fails blocks Send until the user removes the file", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    await screen.findByRole("heading", { name: "test-runner" })
+
+    await user.upload(
+      screen.getByLabelText("Files to attach"),
+      new File(["x"], "big.bin")
+    )
+
+    const chips = within(
+      await screen.findByRole("list", { name: "Files for this message" })
+    )
+    expect(await chips.findByText("Failed")).toBeInTheDocument()
+    expect(chips.getByText("The copy did not work.")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled()
+    expect(
+      screen.getByText("Retry or remove big.bin to send.")
+    ).toBeInTheDocument()
+
+    await user.click(chips.getByRole("button", { name: "Remove big.bin" }))
+
+    expect(screen.getByRole("button", { name: "Send" })).toBeEnabled()
+  })
+
   test("the user can stop a working agent, and the status follows the agent", async () => {
     const user = userEvent.setup()
     network.on("POST", "/api/conversations/c1/stop", {}, 202)

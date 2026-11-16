@@ -40,6 +40,7 @@ import {
 } from "@/components/conversation/session-panel"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline"
 import { WorkingLines } from "@/components/conversation/working-line"
+import { useAttachments } from "@/hooks/use-attachments"
 import { useConversation } from "@/hooks/use-conversation"
 import { useMarkRead } from "@/hooks/use-mark-read"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -53,6 +54,7 @@ import type {
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
   const conversation = useConversation(params.id)
+  const attachments = useAttachments(params.id)
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -358,8 +360,9 @@ export default function ConversationPage() {
               label={`Message ${
                 conversation.conversation.kind === "channel" ? "#" : ""
               }${conversation.conversation.name}`}
-              onSend={async (text) =>
-                showRefusal(await conversation.send(text))
+              attachments={attachments}
+              onSend={async (text, files) =>
+                showRefusal(await conversation.send(text, files))
               }
             />
           </div>
