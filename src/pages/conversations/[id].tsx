@@ -45,11 +45,9 @@ import { FilesTab } from "@/components/conversation/files/files-tab"
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session/session-log-tab"
 import { SharedFilesContext } from "@/components/conversation/files/shared-files"
-import {
-  MembersPanel,
-  SessionPanel,
-  SessionSheet,
-} from "@/components/conversation/session/session-panel"
+import { MembersPanel } from "@/components/conversation/session/members-panel"
+import { SessionPanel } from "@/components/conversation/session/session-panel"
+import { SessionSheet } from "@/components/conversation/session/session-sheet"
 import { entryAnchor, Timeline } from "@/components/conversation/timeline/timeline"
 import { WorkingLines } from "@/components/conversation/working-line"
 import { useAttachments } from "@/hooks/use-attachments"
