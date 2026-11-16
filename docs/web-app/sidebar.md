@@ -9,11 +9,12 @@ start a conversation or add its members.
 the conversation page. It has two columns:
 
 - **The workspace rail** (64 px, `rail` ground, `nav` "Workspace"). It holds
-  the "AL" tile, Home, Direct messages, Activity, Agents, and the avatar of
-  the user with an online dot. Home and Agents link to `/`, because the home
-  page is the agents page. Agents is the active button on an agent page, and
-  Home on each other page. Direct messages and Activity have no page yet, so
-  each is a disabled button with the tooltip "Not built yet".
+  the "AL" tile, Home, Agents, and the avatar of the user with an online dot.
+  Home and Agents link to `/`, because the home page is the agents page.
+  Agents is the active button on an agent page, and Home on each other page.
+  The rail has no Direct messages page, because the sidebar lists each DM. It
+  has no Activity page, because the unread counts and the footer show what is
+  new.
 - **The sidebar** (256 px, `nav` "Conversations"). It uses the shadcn
   `Sidebar` parts with `collapsible="none"`. It lists:
   - the channels, with `#` or a lock,

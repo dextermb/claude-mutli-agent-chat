@@ -1,8 +1,7 @@
 # Make the app follow the design boards
 
-**Status:** Tier 1 and Tier 2 are done and merged (2026-11-15). This plan
-holds only the boards that need a feature of their own (Tier 3). Each one
-needs its own plan before it is built. Done from Tier 3 on 2026-11-15:
+**Status:** done (2026-11-16). Tier 1 and Tier 2 are merged (2026-11-15).
+The rest of Tier 3 is dropped, so nothing is ahead. Done from Tier 3:
 Channel settings, the agent page, Browse for the working directory, the
 Live mark of the Session log, the tabs on a phone (they moved into the
 Session sheet), and file sharing with `@` file completion (2026-11-16).
@@ -36,10 +35,12 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
 - **People** (other humans, their names and presence, a name in place of
   "You", and people in Start a chat and Add members). The app runs locally,
   so it has only one user.
-
-## Tier 3: still ahead
-
-- **The rail pages** Direct messages and Activity. Their buttons are
-  disabled with the tooltip "Not built yet".
-- **The composer button** Run a slash command. Attach a file is built with
-  file sharing.
+- **The rail pages Direct messages and Activity** (dropped 2026-11-16). The
+  sidebar lists each agent as a DM row, so a DM page shows the same list
+  again. The unread counts and the footer ("1 needs approval") show what is
+  new. The disabled rail buttons are removed.
+- **The composer button Run a slash command** (dropped 2026-11-16). In a group
+  chat or a channel, a message goes into a wrapped prompt (`[User] /compact`),
+  so Claude Code never gets it as a command, and one command cannot go to
+  more than one agent. The server sends `/compact` itself before an agent
+  sleeps, and the model is part of the agent configuration.
