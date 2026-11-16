@@ -1002,6 +1002,73 @@ describe("the DM page", () => {
     expect(screen.getByRole("button", { name: "Send" })).toBeEnabled()
   })
 
+  test("a message shows its shared files with their state, the last agent action, and a copy of the path", async () => {
+    const user = userEvent.setup()
+    const log = "/data/uploads/c1/ci-log.txt"
+    const notes = "/home/user/code/web-app/src/notes.txt"
+    network.on("GET", "/api/conversations/c1/files", {
+      files: [
+        {
+          id: "f1",
+          name: "ci-log.txt",
+          path: log,
+          kind: "copied",
+          size: 7,
+          sharedBy: "User",
+          sharedAt: localTime(15, 14, 3),
+          removedAt: localTime(15, 14, 20),
+          exists: false,
+        },
+        {
+          id: "f2",
+          name: "notes.txt",
+          path: notes,
+          kind: "linked",
+          size: 12,
+          sharedBy: "User",
+          sharedAt: localTime(15, 14, 3),
+          removedAt: null,
+          exists: true,
+        },
+      ],
+    })
+    openConversation([
+      {
+        ...userMessage,
+        item: {
+          kind: "message",
+          id: "u1",
+          text: "Look at these.",
+          status: "done",
+          files: [
+            { name: "ci-log.txt", path: log, kind: "copied", size: 7 },
+            { name: "notes.txt", path: notes, kind: "linked", size: 12 },
+          ],
+        },
+      },
+      readCall,
+    ])
+
+    const shared = within(
+      await screen.findByRole("list", { name: "Shared files" })
+    )
+    const [removed, linked] = shared.getAllByRole("listitem")
+    expect(removed).toHaveTextContent("ci-log.txt")
+    expect(removed).toHaveTextContent("Removed")
+    expect(removed).toHaveTextContent("Removed from the shared files at 14:20.")
+    expect(
+      within(removed).queryByRole("button", { name: /Copy the path/ })
+    ).not.toBeInTheDocument()
+    expect(linked).toHaveTextContent("Linked")
+    expect(linked).toHaveTextContent(notes)
+    expect(linked).toHaveTextContent("Read by test-runner at 14:05")
+
+    await user.click(
+      within(linked).getByRole("button", { name: "Copy the path of notes.txt" })
+    )
+    expect(await navigator.clipboard.readText()).toBe(notes)
+  })
+
   test("the user can stop a working agent, and the status follows the agent", async () => {
     const user = userEvent.setup()
     network.on("POST", "/api/conversations/c1/stop", {}, 202)

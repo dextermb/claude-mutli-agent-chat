@@ -33,6 +33,7 @@ import { Composer } from "@/components/conversation/composer"
 import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
+import { SharedFilesContext } from "@/components/conversation/shared-files"
 import {
   MembersPanel,
   SessionPanel,
@@ -311,13 +312,21 @@ export default function ConversationPage() {
                 </p>
               </div>
             )}
-            <Timeline
-              entries={conversation.entries}
-              agents={conversation.agents}
-              onAnswer={async (requestId, answer) =>
-                showRefusal(await conversation.answer(requestId, answer))
-              }
-            />
+            <SharedFilesContext.Provider
+              value={{
+                files: conversation.files,
+                entries: conversation.entries,
+                agents: conversation.agents,
+              }}
+            >
+              <Timeline
+                entries={conversation.entries}
+                agents={conversation.agents}
+                onAnswer={async (requestId, answer) =>
+                  showRefusal(await conversation.answer(requestId, answer))
+                }
+              />
+            </SharedFilesContext.Provider>
             <WorkingLines
               agents={conversation.agents}
               entries={conversation.entries}
