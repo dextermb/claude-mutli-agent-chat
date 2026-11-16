@@ -1,9 +1,15 @@
-import { FileIcon, RotateCcwIcon, TriangleAlertIcon } from "lucide-react"
+import {
+  CopyIcon,
+  FileIcon,
+  RotateCcwIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 import { Fragment, useState, type ReactNode } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Button } from "@/components/ui/button"
 import {
   AVATAR_COLOURS,
   initialsOf,
@@ -283,7 +289,22 @@ function EntryBody({
       <>
         {text &&
           (agent ? (
-            text
+            <div className="flex flex-col items-start gap-1">
+              {text}
+              {item.status === "done" && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Copy the message"
+                  className="-ml-1.5 text-muted-foreground"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(item.text)
+                  }}
+                >
+                  <CopyIcon />
+                </Button>
+              )}
+            </div>
           ) : (
             <Bubble variant="muted" align="end">
               <BubbleContent>{text}</BubbleContent>

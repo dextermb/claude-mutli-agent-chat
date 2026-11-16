@@ -728,6 +728,32 @@ describe("the DM page", () => {
     expect(within(bash).getByText("hello")).toBeInTheDocument()
   })
 
+  test("the user can copy a message of the agent, but not one that still arrives", async () => {
+    const user = userEvent.setup()
+    const piece = {
+      ...agentMessage,
+      id: "s1/item-9",
+      item: {
+        ...agentMessage.item,
+        id: "item-9",
+        text: "I will run",
+        status: "streaming",
+      },
+    } as TimelineEntry
+    openConversation([userMessage, agentMessage, piece])
+    const agentBlock = (await screen.findAllByRole("article"))[1]
+
+    const copy = within(agentBlock).getAllByRole("button", {
+      name: "Copy the message",
+    })
+    expect(copy).toHaveLength(1)
+    await user.click(copy[0])
+
+    expect(await navigator.clipboard.readText()).toBe(
+      "I will use a fixed clock."
+    )
+  })
+
   test("text between backticks in a message shows as code", async () => {
     openConversation([
       userMessage,
