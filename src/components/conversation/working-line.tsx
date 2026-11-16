@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { mainInput } from "@/components/conversation/tool-call-card"
+import { mainInput } from "@/components/conversation/tool-call-line"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Trace,
@@ -22,7 +22,7 @@ export function WorkingLines({
   const now = useNow(working.length > 0)
   if (working.length === 0) return null
   return (
-    <Trace className="gap-1 py-1 pr-5 pl-[72px]">
+    <Trace className="gap-1 px-5 py-1">
       {working.map((agent) => {
         const start = turnStartOf(agent, entries)
         const seconds = start ? Math.floor((now - Date.parse(start)) / 1000) : 0

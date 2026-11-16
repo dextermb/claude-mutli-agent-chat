@@ -312,6 +312,7 @@ export const testRunnerSession: SessionCard = {
   allowedTools: ["Read", "Bash(pnpm test:*)"],
   turns: 7,
   costUsd: 0.18,
+  context: { used: 62_400, window: 200_000 },
   configChanged: false,
 }
 

@@ -73,6 +73,72 @@ describe("reduceTimeline", () => {
     })
   })
 
+  test("an Edit keeps the lines of its diff, with the kind of each line", () => {
+    const items = replay("tools")
+
+    expect(toolCall(items, "toolu_019iScCjJs6DMS6gsgz5x8Sw")).toMatchObject({
+      result: {
+        lines: [
+          { kind: "same", text: "alpha" },
+          { kind: "remove", text: "beta" },
+          { kind: "add", text: "BETA" },
+          { kind: "same", text: "gamma" },
+        ],
+        more: 0,
+      },
+    })
+  })
+
+  test("a Write of a new file keeps each line of the file as an added line", () => {
+    const items = replay("tools")
+
+    expect(toolCall(items, "toolu_01HBsBRQtD8ZZUUCTm5G4hhu")).toMatchObject({
+      result: { lines: [{ kind: "add", text: "done" }], more: 0 },
+    })
+  })
+
+  test("a diff keeps its first 200 lines, and counts the lines that it drops", () => {
+    const write = decodeLine(
+      JSON.stringify({
+        type: "user",
+        message: {
+          role: "user",
+          content: [
+            { type: "tool_result", tool_use_id: "toolu_big", content: "ok" },
+          ],
+        },
+        tool_use_result: {
+          type: "create",
+          filePath: "/tmp/big.txt",
+          content: Array.from({ length: 250 }, (_, i) => `line ${i + 1}`).join(
+            "\n"
+          ),
+        },
+      })
+    )
+    const call = decodeLine(
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", id: "toolu_big", name: "Write", input: {} },
+          ],
+        },
+      })
+    )
+    const state = reduceTimeline(emptyTimeline(), call).state
+    const result = reduceTimeline(state, write).state.items[0]
+
+    expect(result).toMatchObject({
+      result: { kind: "diff", added: 250, removed: 0, more: 50 },
+    })
+    expect(
+      result.kind === "tool_call" && result.result?.kind === "diff"
+        ? result.result.lines?.at(-1)
+        : null
+    ).toEqual({ kind: "add", text: "line 200" })
+  })
+
   test("a Write of a new file gives a diff that adds each line of the file", () => {
     const items = replay("tools")
 
@@ -81,6 +147,18 @@ describe("reduceTimeline", () => {
       status: "done",
       result: { kind: "diff", added: 1, removed: 0 },
     })
+  })
+
+  test("a turn keeps how full the context is after the last request of the agent", () => {
+    const turns = ofKind(replay("tools"), "turn")
+
+    expect(turns.at(-1)?.context).toEqual({ used: 53_040, window: 1_000_000 })
+  })
+
+  test("a turn of a resumed session gets the context window of its model", () => {
+    const turns = ofKind(replay("resume-1"), "turn")
+
+    expect(turns.at(-1)?.context).toEqual({ used: 39_853, window: 1_000_000 })
   })
 
   test("a Bash call shows the output of the command", () => {

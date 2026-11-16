@@ -18,9 +18,19 @@ import type {
 
 export type ToolCallResult =
   | { kind: "lines"; count: number }
-  | { kind: "diff"; added: number; removed: number }
+  | {
+      kind: "diff"
+      added: number
+      removed: number
+      lines?: DiffLine[]
+      more?: number
+    }
   | { kind: "output"; stdout: string; stderr: string }
   | { kind: "error"; message: string }
+
+export type DiffLine = { kind: "add" | "remove" | "same"; text: string }
+
+const DIFF_LINE_CAP = 200
 
 export type ToolCallItem = {
   kind: "tool_call"
@@ -79,6 +89,7 @@ export type TurnItem = {
   durationMs: number
   costUsd: number
   numTurns: number
+  context?: { used: number; window: number }
 }
 
 export type NoticeItem =
@@ -135,6 +146,7 @@ export type TimelineState = {
   draftId: string | null
   costSoFar: number
   rateLimitStatus: string
+  lastRequest?: { model: string; contextTokens: number }
 }
 
 export type TimelineStep = {
@@ -247,7 +259,19 @@ function reduceAssistant(
   state: TimelineState,
   line: AssistantLine
 ): TimelineStep {
-  let step: TimelineStep = { state, changes: [] }
+  let step: TimelineStep = {
+    state:
+      line.parentToolUseId === null && line.contextTokens > 0
+        ? {
+            ...state,
+            lastRequest: {
+              model: line.model,
+              contextTokens: line.contextTokens,
+            },
+          }
+        : state,
+    changes: [],
+  }
   for (const block of line.blocks) {
     if (block.type === "text") {
       step = completeMessage(step, block.text)
@@ -369,8 +393,20 @@ function reduceResult(state: TimelineState, line: ResultLine): TimelineStep {
     durationMs: line.durationMs,
     costUsd: line.totalCostUsd - state.costSoFar,
     numTurns: line.numTurns,
+    ...contextOf(state, line),
   }))
   return { ...step, state: { ...step.state, costSoFar: line.totalCostUsd } }
+}
+
+function contextOf(
+  state: TimelineState,
+  line: ResultLine
+): Pick<TurnItem, "context"> {
+  const request = state.lastRequest
+  const window = request ? line.contextWindows[request.model] : undefined
+  return request && window
+    ? { context: { used: request.contextTokens, window } }
+    : {}
 }
 
 function turnStatus(terminalReason: string): TurnItem["status"] {
@@ -444,7 +480,12 @@ function toolCallResult(result: ToolResult): ToolCallResult | null {
     return { kind: "lines", count: file.numLines }
   }
   if (structured.type === "create" && typeof structured.content === "string") {
-    return { kind: "diff", added: lineCount(structured.content), removed: 0 }
+    return diffOf(
+      structured.content
+        .split("\n")
+        .slice(0, lineCount(structured.content))
+        .map((text) => ({ kind: "add", text }))
+    )
   }
   if (Array.isArray(structured.structuredPatch)) {
     return diff(structured.structuredPatch)
@@ -460,14 +501,30 @@ function toolCallResult(result: ToolResult): ToolCallResult | null {
 }
 
 function diff(hunks: unknown[]): ToolCallResult {
-  const lines = hunks.flatMap((hunk) => {
-    const hunkLines = asObject(hunk).lines
-    return Array.isArray(hunkLines) ? hunkLines : []
-  })
+  return diffOf(
+    hunks.flatMap((hunk) => {
+      const hunkLines = asObject(hunk).lines
+      return Array.isArray(hunkLines) ? hunkLines.map(String).map(diffLine) : []
+    })
+  )
+}
+
+function diffLine(line: string): DiffLine {
+  const kind = line.startsWith("+")
+    ? "add"
+    : line.startsWith("-")
+      ? "remove"
+      : "same"
+  return { kind, text: line.slice(1) }
+}
+
+function diffOf(lines: DiffLine[]): ToolCallResult {
   return {
     kind: "diff",
-    added: lines.filter((line) => String(line).startsWith("+")).length,
-    removed: lines.filter((line) => String(line).startsWith("-")).length,
+    added: lines.filter((line) => line.kind === "add").length,
+    removed: lines.filter((line) => line.kind === "remove").length,
+    lines: lines.slice(0, DIFF_LINE_CAP),
+    more: Math.max(0, lines.length - DIFF_LINE_CAP),
   }
 }
 

@@ -353,6 +353,7 @@ export function createServer({
       allowedTools: config.allowedTools,
       turns: turns.reduce((sum, turn) => sum + turn.numTurns, 0),
       costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
+      context: turns.at(-1)?.context ?? null,
       configChanged: JSON.stringify(config) !== JSON.stringify(now),
     }
   }

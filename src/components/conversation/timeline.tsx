@@ -1,17 +1,26 @@
-import { FileIcon, RotateCcwIcon, TriangleAlertIcon } from "lucide-react"
+import {
+  CopyIcon,
+  FileIcon,
+  RotateCcwIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 import { Fragment, useState, type ReactNode } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Button } from "@/components/ui/button"
 import {
   AVATAR_COLOURS,
-  HUMAN_AVATAR,
   initialsOf,
   MENTION_COLOURS,
 } from "@/components/conversation/agent-look"
 import { QuestionCard } from "@/components/conversation/question-card"
 import { MessageFiles } from "@/components/conversation/shared-files"
-import { ToolCallCard } from "@/components/conversation/tool-call-card"
+import {
+  OutputBlock,
+  ToolCallLine,
+} from "@/components/conversation/tool-call-line"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type {
   ConversationAgent,
@@ -20,6 +29,7 @@ import type {
   ToolCallItem,
 } from "@/lib/agent-api"
 import { Separator } from "@/components/ui/separator"
+import { Trace } from "@/components/ui/trace"
 import { clockTime, dayKey, dayName, longDay } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { mentionPattern } from "../../../server/conversation/mentions.ts"
@@ -129,44 +139,58 @@ function AuthorGroup({
   subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
 }) {
-  const name = agent ? agent.name : "You"
+  const createdAt = group.entries[0].createdAt
+  const entries = runsOfCalls(group.entries).map((run) => {
+    const bodies = run.map((entry) => (
+      <EntryBody
+        key={entry.id}
+        entry={entry}
+        agent={agent}
+        agents={agents}
+        requests={requests}
+        subagentCalls={subagentCalls}
+        onAnswer={onAnswer}
+      />
+    ))
+    return run[0].item.kind === "tool_call" ? (
+      <Trace key={run[0].id}>{bodies}</Trace>
+    ) : (
+      bodies
+    )
+  })
+  if (!agent) {
+    return (
+      <article
+        aria-label={`You, ${clockTime(createdAt)}`}
+        className="flex flex-col items-end gap-1 px-5 py-2"
+      >
+        {entries}
+        <time dateTime={createdAt} className="text-xs text-foreground-faint">
+          {clockTime(createdAt)}
+        </time>
+      </article>
+    )
+  }
   return (
-    <article className="flex gap-3 px-5 py-2">
-      <Avatar className="flex-none">
-        <AvatarFallback
-          className={agent ? AVATAR_COLOURS[agent.colour] : HUMAN_AVATAR}
-        >
-          {initialsOf(name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div
-          className={cn(
-            "flex gap-2",
-            agent ? "items-center" : "items-baseline"
-          )}
-        >
-          <span className="font-semibold text-foreground-strong">{name}</span>
-          {agent && <Badge>Agent</Badge>}
-          <time
-            dateTime={group.entries[0].createdAt}
-            className="text-xs text-foreground-faint"
-          >
-            {clockTime(group.entries[0].createdAt)}
-          </time>
-        </div>
-        {group.entries.map((entry) => (
-          <EntryBody
-            key={entry.id}
-            entry={entry}
-            agent={agent}
-            agents={agents}
-            requests={requests}
-            subagentCalls={subagentCalls}
-            onAnswer={onAnswer}
-          />
-        ))}
+    <article
+      aria-label={`${agent.name}, ${clockTime(createdAt)}`}
+      className="flex flex-col gap-2 px-5 py-2"
+    >
+      <div className="flex items-center gap-2">
+        <Avatar size="sm" className="flex-none">
+          <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
+            {initialsOf(agent.name)}
+          </AvatarFallback>
+        </Avatar>
+        <span className="font-semibold text-foreground-strong">
+          {agent.name}
+        </span>
+        <Badge>Agent</Badge>
+        <time dateTime={createdAt} className="text-xs text-foreground-faint">
+          {clockTime(createdAt)}
+        </time>
       </div>
+      <div className="flex min-w-0 flex-col gap-2">{entries}</div>
     </article>
   )
 }
@@ -189,7 +213,7 @@ function EntryBody({
   const { item } = entry
   if (item.kind === "tool_call") {
     return (
-      <ToolCallCard
+      <ToolCallLine
         call={item}
         cwd={agent?.sessionCwd ?? ""}
         request={requests.get(item.toolUseId)}
@@ -249,20 +273,43 @@ function EntryBody({
     )
   }
   if (item.kind === "message") {
+    const text = item.text && (
+      <p
+        aria-busy={item.status === "streaming"}
+        className={cn(
+          "m-0 leading-[22px] whitespace-pre-wrap",
+          item.status === "streaming" &&
+            "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+        )}
+      >
+        {withInlineCode(item.text, agents)}
+      </p>
+    )
     return (
       <>
-        {item.text && (
-          <p
-            aria-busy={item.status === "streaming"}
-            className={cn(
-              "m-0 leading-[22px] whitespace-pre-wrap",
-              item.status === "streaming" &&
-                "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
-            )}
-          >
-            {withInlineCode(item.text, agents)}
-          </p>
-        )}
+        {text &&
+          (agent ? (
+            <div className="flex flex-col items-start gap-1">
+              {text}
+              {item.status === "done" && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Copy the message"
+                  className="-ml-1.5 text-muted-foreground"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(item.text)
+                  }}
+                >
+                  <CopyIcon />
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Bubble variant="muted" align="end">
+              <BubbleContent>{text}</BubbleContent>
+            </Bubble>
+          ))}
         {item.files && item.files.length > 0 && (
           <MessageFiles files={item.files} afterSeq={entry.seq} />
         )}
@@ -368,9 +415,9 @@ function FailedNotice({
         )}
       </p>
       {open && (
-        <pre className="m-0 max-w-[640px] overflow-x-auto rounded-[14px] border bg-rail px-3 py-2 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
-          {stderr}
-        </pre>
+        <div className="max-w-[640px]">
+          <OutputBlock text={stderr} failed />
+        </div>
       )}
     </div>
   )
@@ -408,6 +455,23 @@ function hasToolCall(entries: TimelineEntry[], toolUseId: string): boolean {
   return entries.some(
     ({ item }) => item.kind === "tool_call" && item.toolUseId === toolUseId
   )
+}
+
+function runsOfCalls(entries: TimelineEntry[]): TimelineEntry[][] {
+  const runs: TimelineEntry[][] = []
+  for (const entry of entries) {
+    const last = runs.at(-1)
+    if (
+      last &&
+      last[0].item.kind === "tool_call" &&
+      entry.item.kind === "tool_call"
+    ) {
+      last.push(entry)
+    } else {
+      runs.push([entry])
+    }
+  }
+  return runs
 }
 
 function groupByAuthor(entries: TimelineEntry[]): Group[] {

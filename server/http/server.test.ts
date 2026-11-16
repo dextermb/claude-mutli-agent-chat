@@ -108,7 +108,7 @@ describe("createServer", () => {
     })
   })
 
-  test("the session of an agent gives the data of the session card", async () => {
+  test("the session of an agent gives the data of the session card, with the context of the last turn", async () => {
     const { base, agent, conversation } = await startServer()
     await fetch(`${base}/api/agents/${agent.id}`, {
       method: "PATCH",
@@ -135,6 +135,7 @@ describe("createServer", () => {
         allowedTools: [],
         turns: 1,
         costUsd: 0.00553128,
+        context: { used: 39_853, window: 1_000_000 },
         configChanged: false,
       },
     })
@@ -165,6 +166,7 @@ describe("createServer", () => {
         allowedTools: ["Read"],
         turns: 0,
         costUsd: 0,
+        context: null,
         configChanged: false,
       },
     })

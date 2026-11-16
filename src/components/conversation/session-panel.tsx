@@ -17,6 +17,10 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
+import {
+  contextPercent,
+  contextTokens,
+} from "@/components/conversation/composer-tools"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import {
   AlertDialog,
@@ -400,6 +404,12 @@ function SessionFacts({
         />
         <Row term="Turns" value={String(card.turns)} />
         <Row term="Cost" value={formatCost(card.costUsd)} />
+        {card.context && (
+          <Row
+            term="Context"
+            value={`${contextPercent(card.context)}% · ${contextTokens(card.context)}`}
+          />
+        )}
       </dl>
     </>
   )
