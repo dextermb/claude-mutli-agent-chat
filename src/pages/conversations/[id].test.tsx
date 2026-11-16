@@ -809,16 +809,17 @@ describe("the DM page", () => {
         .emit(1, { type: "item", entry: piece })
     )
 
-    expect(screen.getByText("I will use")).toHaveAttribute("aria-busy", "true")
+    expect(
+      screen.getByText("I will use").closest("[aria-busy]")
+    ).toHaveAttribute("aria-busy", "true")
     act(() =>
       network
         .stream("/api/conversations/c1/events")
         .emit(2, { type: "item", entry: agentMessage })
     )
-    expect(screen.getByText("I will use a fixed clock.")).toHaveAttribute(
-      "aria-busy",
-      "false"
-    )
+    expect(
+      screen.getByText("I will use a fixed clock.").closest("[aria-busy]")
+    ).toHaveAttribute("aria-busy", "false")
   })
 
   test("while an agent works, a line at the end of the thread says so", async () => {
@@ -1002,6 +1003,125 @@ describe("the DM page", () => {
     resizeAll()
 
     expect(reply.closest("[data-lines]")).toHaveAttribute("data-lines", "many")
+  })
+
+  function openReply(text: string, status = "done") {
+    openConversation([
+      userMessage,
+      {
+        ...agentMessage,
+        item: { kind: "message", id: "item-1", text, status },
+      } as TimelineEntry,
+    ])
+  }
+
+  test("a reply in Markdown shows bold text, a list and a heading", async () => {
+    openReply(
+      "## The cause\n\nThe test reads the **real clock**.\n\n- Use a fixed clock.\n- Run it again."
+    )
+
+    const reply = within((await screen.findAllByRole("article"))[1])
+    expect(
+      reply.getByRole("heading", { name: "The cause" })
+    ).toBeInTheDocument()
+    expect(
+      reply.getByText("real clock", { selector: "strong" })
+    ).toBeInTheDocument()
+    expect(
+      within(reply.getByRole("list")).getAllByRole("listitem")
+    ).toHaveLength(2)
+  })
+
+  test("a link in a reply opens in a new tab", async () => {
+    openReply(
+      "See [the Vitest docs](https://vitest.dev/api/vi) for fake timers."
+    )
+
+    const link = await screen.findByRole("link", { name: "the Vitest docs" })
+    expect(link).toHaveAttribute("href", "https://vitest.dev/api/vi")
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noreferrer")
+  })
+
+  test("HTML in a reply shows as text, and a script link has no target", async () => {
+    openReply(
+      'Look: <img src=x onerror="alert(1)"> and [this](javascript:alert(1)).'
+    )
+
+    const reply = within((await screen.findAllByRole("article"))[1])
+    expect(
+      reply.getByText(/<img src=x onerror="alert\(1\)">/)
+    ).toBeInTheDocument()
+    expect(reply.queryByRole("img")).not.toBeInTheDocument()
+    expect(reply.getByText("this").closest("a")).not.toHaveAttribute(
+      "href",
+      expect.stringContaining("javascript")
+    )
+  })
+
+  test("a fenced block in a reply shows as code that the user can copy", async () => {
+    const user = userEvent.setup()
+    openReply(
+      "Pin the clock:\n\n```ts\nvi.useFakeTimers()\nvi.setSystemTime(0)\n```"
+    )
+
+    const reply = within((await screen.findAllByRole("article"))[1])
+    expect(reply.getByText("ts")).toBeInTheDocument()
+    await user.click(reply.getByRole("button", { name: "Copy" }))
+
+    expect(await navigator.clipboard.readText()).toBe(
+      "vi.useFakeTimers()\nvi.setSystemTime(0)"
+    )
+  })
+
+  test("a mention in a list keeps its colour, and a mention in code stays plain", async () => {
+    openReply(
+      "- Ask @test-runner to check it.\n\nThe hook reads `@test-runner`."
+    )
+
+    const reply = within((await screen.findAllByRole("article"))[1])
+    expect(
+      within(reply.getByRole("listitem")).getByText("@test-runner")
+    ).toHaveClass("text-agent-aqua")
+    expect(
+      reply.getByText("@test-runner", { selector: "code" })
+    ).not.toHaveClass("text-agent-aqua")
+  })
+
+  test("a message of the user shows Markdown and keeps each line break", async () => {
+    openConversation([
+      {
+        ...userMessage,
+        item: {
+          kind: "message",
+          id: "u1",
+          text: "Run **only** the auth tests.\nThen stop.",
+          status: "done",
+        },
+      } as TimelineEntry,
+    ])
+
+    const message = (await screen.findAllByRole("article"))[0]
+    expect(
+      within(message).getByText("only", { selector: "strong" })
+    ).toBeInTheDocument()
+    expect(message.querySelector("br")).toBeInTheDocument()
+  })
+
+  test("a fenced block of a known language gets syntax colours", async () => {
+    openReply("```ts\nconst now: number = Date.now()\n```")
+
+    const reply = (await screen.findAllByRole("article"))[1]
+    await vi.waitFor(
+      () =>
+        expect(
+          reply.querySelector("pre span[style*='color']")
+        ).toBeInTheDocument(),
+      { timeout: 4000 }
+    )
+    expect(reply.querySelector("pre")).toHaveTextContent(
+      "const now: number = Date.now()"
+    )
   })
 
   test("text between backticks in a message shows as code", async () => {

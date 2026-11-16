@@ -77,6 +77,7 @@ boards, but the boards show some things that the app does not build:
 | Page                            | Open it for                                                                                          |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `docs/web-app/conversation.md`  | `useConversation()`, the parts of the timeline, the status words, a refused action, and the `@` list |
+| `docs/web-app/messages.md`      | The Markdown of a message, the code blocks and their colours, and the mentions                       |
 | `docs/web-app/components.md`    | The directories of `src/components` and the helpers in `src/lib`                                     |
 | `docs/web-app/session-panel.md` | The session panel, the members of a channel, Stop turn, New session, Remove, and the DM tabs         |
 | `docs/web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs Start a chat, Create a channel and Members            |
