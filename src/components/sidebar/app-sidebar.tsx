@@ -9,6 +9,7 @@ import { useState } from "react"
 import { Link, useLocation } from "wouter"
 
 import { CreateChannelDialog } from "@/components/dialogs/create-channel-dialog"
+import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { StartChatDialog } from "@/components/dialogs/start-chat-dialog"
 import { AgentRow } from "@/components/sidebar/agent-row"
 import { ConversationRow } from "@/components/sidebar/conversation-row"
@@ -27,6 +28,11 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import {
+  agentTarget,
+  conversationTarget,
+  type DeleteTarget,
+} from "@/lib/delete-targets"
 
 export function AppSidebar({
   currentId,
@@ -39,6 +45,7 @@ export function AppSidebar({
 }) {
   const { conversations, agents, unread } = useWorkspace()
   const [dialog, setDialog] = useState<"chat" | "channel" | null>(null)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const [location, setLocation] = useLocation()
   const isMobile = useIsMobile()
 
@@ -61,11 +68,17 @@ export function AppSidebar({
   }
 
   function rowProps(conversation: Conversation) {
+    const channel = conversation.kind === "channel"
     return {
       conversation,
       current: conversation.id === currentId,
       unread: unread[conversation.id] ?? 0,
       onNavigate: () => onOpenChange(false),
+      deletion: {
+        label: `Delete ${channel ? "#" : ""}${conversation.name}`,
+        hint: channel ? "Delete channel" : "Delete group chat",
+        onClick: () => setDeleting(conversationTarget(conversation, agents)),
+      },
     }
   }
 
@@ -157,6 +170,12 @@ export function AppSidebar({
                       unread={dm ? (unread[dm.id] ?? 0) : 0}
                       onNavigate={() => onOpenChange(false)}
                       onOpenDirectMessage={() => void openDirectMessage(agent)}
+                      deletion={{
+                        label: `Delete ${agent.name}`,
+                        hint: "Delete agent",
+                        onClick: () =>
+                          setDeleting(agentTarget(agent, conversations)),
+                      }}
                     />
                   )
                 })}
@@ -175,6 +194,17 @@ export function AppSidebar({
         onStarted={(conversation) => {
           setDialog(null)
           navigate(`/conversations/${conversation.id}`)
+        }}
+      />
+      <DeleteDialog
+        target={deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        onDeleted={() => {
+          const left = deleting?.conversationIds.includes(currentId)
+          setDeleting(null)
+          if (left) navigate("/")
         }}
       />
       <CreateChannelDialog
