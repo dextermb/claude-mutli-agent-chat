@@ -43,6 +43,12 @@ export type SessionCard = {
   turns: number
   costUsd: number
   context: { used: number; window: number } | null
+  lastCompaction: {
+    at: string
+    preTokens: number
+    postTokens: number
+    summary: string
+  } | null
   configChanged: boolean
 }
 

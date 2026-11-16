@@ -105,6 +105,12 @@ answer, the Item goes, and one line says "Allowed", "Denied" or "Expired".
 A new session shows as a dashed divider in the link colour, with a restart
 icon: "New session · 09:12".
 
+A compaction shows as a dashed divider in the faint colour, with a fold
+icon: "test-runner compacted its memory: 39,857 → 11,894 tokens · $0.002 ·
+14:30". The cost comes from the turn of the compaction, which has no line of
+its own. While it runs, it says "test-runner compacts its memory… · 14:30".
+Like a new session, it is not inside the block of the agent.
+
 A failed process shows one line: "test-runner stopped with an error (exit code
 1)." "Show details" opens the stderr of the process, in the error CodeBlock.
 

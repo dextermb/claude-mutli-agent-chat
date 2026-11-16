@@ -313,6 +313,7 @@ export const testRunnerSession: SessionCard = {
   turns: 7,
   costUsd: 0.18,
   context: { used: 62_400, window: 200_000 },
+  lastCompaction: null,
   configChanged: false,
 }
 
@@ -321,4 +322,15 @@ export const sessionStart = agentEntry(16, {
   id: "start",
   status: "done",
   claudeSessionId: "4f1c9a2e-7b3d-4e5f-8a6b-1c2d3e4f5a6b",
+})
+
+export const compaction = agentEntry(17, {
+  kind: "compaction",
+  id: "item-30",
+  status: "done",
+  trigger: "manual",
+  preTokens: 39_857,
+  postTokens: 11_894,
+  summary:
+    "This session is being continued from a previous conversation.\n\nSummary:\n1. The user asked me to remember the word kiwi.",
 })

@@ -16,6 +16,7 @@ import {
   agentMessage,
   bashCall,
   colourQuestion,
+  compaction,
   deniedCall,
   directMessage,
   editCall,
@@ -434,6 +435,74 @@ describe("the DM page", () => {
     expect(screen.getAllByRole("article")).toHaveLength(3)
   })
 
+  test("a compaction shows as a divider with the tokens before and after, between the messages", async () => {
+    openConversation([
+      userMessage,
+      agentMessage,
+      { ...compaction, createdAt: localTime(15, 14, 30) },
+      { ...userMessage, id: "u2", seq: 20 },
+    ])
+
+    const divider = await screen.findByText(
+      "test-runner compacted its memory: 39,857 → 11,894 tokens · 14:30"
+    )
+
+    expect(divider.closest("article")).toBeNull()
+    expect(screen.getAllByRole("article")).toHaveLength(3)
+  })
+
+  test("the turn of a compaction shows its cost in the divider, not as a turn line of its own", async () => {
+    openConversation([
+      userMessage,
+      { ...compaction, createdAt: localTime(15, 14, 30) },
+      {
+        ...finishedTurn,
+        id: "s1/item-31",
+        seq: 18,
+        createdAt: localTime(15, 14, 30),
+        item: {
+          kind: "turn",
+          id: "item-31",
+          status: "done",
+          durationMs: 3900,
+          costUsd: 0.0024,
+          numTurns: 0,
+        },
+      },
+    ])
+
+    expect(
+      await screen.findByText(
+        "test-runner compacted its memory: 39,857 → 11,894 tokens · $0.002 · 14:30"
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Done in 3\.9 s/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole("article")).toHaveLength(1)
+  })
+
+  test("a compaction that runs says that the agent compacts its memory now", async () => {
+    openConversation([
+      userMessage,
+      {
+        ...compaction,
+        createdAt: localTime(15, 14, 30),
+        item: {
+          kind: "compaction",
+          id: "item-30",
+          status: "running",
+          trigger: null,
+          preTokens: null,
+          postTokens: null,
+          summary: null,
+        },
+      },
+    ])
+
+    expect(
+      await screen.findByText("test-runner compacts its memory… · 14:30")
+    ).toBeInTheDocument()
+  })
+
   test("the session card says when the agent configuration changed after the process started", async () => {
     openConversation([userMessage])
     network.on("GET", "/api/conversations/c1/agents/a1/session", {
@@ -447,6 +516,42 @@ describe("the DM page", () => {
         "The configuration changed. Start a new session to use it."
       )
     ).toBeInTheDocument()
+  })
+
+  test("the session card shows the last compaction, and its summary opens on request", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/c1/agents/a1/session", {
+      session: {
+        ...testRunnerSession,
+        lastCompaction: {
+          at: localTime(15, 14, 30),
+          preTokens: 39_857,
+          postTokens: 11_894,
+          summary: "1. The user asked me to remember the word kiwi.",
+        },
+      },
+    })
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    expect(
+      await within(panel).findByText(
+        "Compacted at 14:30 · 39,857 → 11,894 tokens"
+      )
+    ).toBeInTheDocument()
+    expect(
+      within(panel).queryByText(
+        "1. The user asked me to remember the word kiwi."
+      )
+    ).not.toBeInTheDocument()
+
+    await user.click(
+      within(panel).getByRole("button", { name: "Show the summary" })
+    )
+
+    expect(
+      within(panel).getByText("1. The user asked me to remember the word kiwi.")
+    ).toBeVisible()
   })
 
   test("the files tab lists each file that the agent read or changed, and keeps the tab in the address", async () => {

@@ -283,6 +283,33 @@ describe("reduceTimeline", () => {
     })
   })
 
+  test("a compaction makes one item with its trigger, its tokens and its summary, and the next prompt runs as usual", () => {
+    const items = replay("compact")
+
+    expect(items.map((item) => item.kind)).toEqual([
+      "message",
+      "turn",
+      "compaction",
+      "turn",
+      "message",
+      "turn",
+    ])
+    expect(ofKind(items, "compaction")).toEqual([
+      {
+        kind: "compaction",
+        id: expect.any(String),
+        status: "done",
+        trigger: "manual",
+        preTokens: 39857,
+        postTokens: 11894,
+        summary: expect.stringMatching(
+          /^This session is being continued from a previous conversation/
+        ),
+      },
+    ])
+    expect(ofKind(items, "message").at(-1)?.text).toBe("kiwi")
+  })
+
   test("a turn that reaches the turn limit ends at the limit, and the next prompt runs as usual", () => {
     const items = replay("max-turns")
 

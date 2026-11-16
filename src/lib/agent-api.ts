@@ -12,6 +12,7 @@ import type {
 export type { SharedFileView } from "../../server/api-types.ts"
 
 export type {
+  CompactionItem,
   DiffLine,
   MessageItem,
   SharedFile,

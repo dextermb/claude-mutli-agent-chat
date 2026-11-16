@@ -176,7 +176,12 @@ its latest session row:
 | `directory`                               | `config.cwd`, with the home folder as `~`                                                      |
 | `turns`, `costUsd`                        | The sums of `numTurns` and `costUsd` of the turn items of each row with that Claude session ID |
 | `context`                                 | `context` of the last of those turn items (`docs/timeline.md`), or `null`                      |
+| `lastCompaction`                          | The last `done` compaction item of those rows: `at`, `preTokens`, `postTokens` and `summary`   |
 | `configChanged`                           | True when the agent configuration now differs from `config`                                    |
+
+The `summary` of `lastCompaction` is the text after the line "Summary:" of
+the compaction item (F42 in `docs/protocol.md`). Claude Code writes its own
+preamble before that line, and the card does not need it.
 
 A change to an agent does not reach a process that runs. The card shows the
 configuration that runs, and `configChanged` says that New session would use
