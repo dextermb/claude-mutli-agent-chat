@@ -32,6 +32,10 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer"
 import {
+  ContextFigure,
+  ModelLink,
+} from "@/components/conversation/composer-tools"
+import {
   FilesPanel,
   SharedFilesList,
 } from "@/components/conversation/files-panel"
@@ -450,6 +454,15 @@ export default function ConversationPage() {
               }${conversation.conversation.name}`}
               attachments={attachments}
               searchPaths={searchPaths}
+              tools={
+                isDirect &&
+                agent && (
+                  <>
+                    <ModelLink agentId={agent.id} model={agent.model} />
+                    {card?.context && <ContextFigure context={card.context} />}
+                  </>
+                )
+              }
               onSend={async (text, files) =>
                 showRefusal(await conversation.send(text, files))
               }

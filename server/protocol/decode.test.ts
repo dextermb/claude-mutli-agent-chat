@@ -69,6 +69,8 @@ describe("decodeLine", () => {
           input: { file_path: "/private/tmp/claude-fixture/tools/notes.txt" },
         },
       ],
+      model: "claude-haiku-5-5",
+      contextTokens: 39_963,
     })
   })
 
@@ -165,6 +167,7 @@ describe("decodeLine", () => {
         durationMs: 9161,
         numTurns: 7,
         totalCostUsd: 0.01164317,
+        contextWindows: { "claude-haiku-5-5": 1_000_000 },
         sessionId: "074f7c64-3c94-4c49-8714-412f5e85ada2",
         permissionDenials: [
           { toolName: "Bash", toolUseId: "toolu_01E4tqR95AiboUZk2gyU639w" },
@@ -181,6 +184,7 @@ describe("decodeLine", () => {
         durationMs: 24385,
         numTurns: 2,
         totalCostUsd: 0,
+        contextWindows: {},
         sessionId: "5d2cb421-09e3-48c6-b8f9-cf45c8763482",
         permissionDenials: [],
       },

@@ -131,11 +131,13 @@ describe("the DM page", () => {
       within(screen.getByRole("banner")).getByText("Idle")
     ).toBeInTheDocument()
     const messages = screen.getAllByRole("article")
-    expect(within(messages[0]).getByText("You")).toBeInTheDocument()
+    expect(messages[0]).toHaveAccessibleName("You, 14:03")
     expect(
       within(messages[0]).getByText("Fix the flaky auth test.")
     ).toBeInTheDocument()
+    expect(within(messages[0]).queryByText("Y")).not.toBeInTheDocument()
     expect(within(messages[1]).getByText("test-runner")).toBeInTheDocument()
+    expect(within(messages[1]).getByText("TR")).toBeInTheDocument()
     expect(
       within(messages[1]).getByText("I will use a fixed clock.")
     ).toBeInTheDocument()
@@ -189,6 +191,31 @@ describe("the DM page", () => {
         "test-runner stopped. Your next message starts it again and resumes the session."
       )
     ).toBeInTheDocument()
+  })
+
+  test("the message box of a DM shows the model of the agent, as a link to its configuration", async () => {
+    openConversation([userMessage])
+
+    const box = within(
+      await screen.findByRole("form", { name: "Message test-runner" })
+    )
+    expect(
+      box.getByRole("link", { name: "Model: claude-sonnet-5-5" })
+    ).toHaveAttribute("href", "/agents/a1")
+  })
+
+  test("the message box of a DM shows how full the context is, and the token count on hover", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    const box = within(
+      await screen.findByRole("form", { name: "Message test-runner" })
+    )
+
+    await user.hover(await box.findByText("31% context"))
+
+    const bar = await screen.findByRole("progressbar", { name: "Context" })
+    expect(bar).toHaveAttribute("aria-valuenow", "31")
+    expect(screen.getByText("62,400 / 200,000 tokens")).toBeInTheDocument()
   })
 
   test("Configure in the header of a DM opens the agent page", async () => {
@@ -248,7 +275,7 @@ describe("the DM page", () => {
     ).toEqual(["Friday 13 November", "Yesterday", "Today"])
   })
 
-  test("the session card shows the model, the mode, the folder, the session id, the turns and the cost", async () => {
+  test("the session card shows the model, the mode, the folder, the session id, the turns, the cost and the context", async () => {
     openConversation([userMessage])
 
     const panel = await screen.findByRole("complementary", { name: "Session" })
@@ -268,6 +295,7 @@ describe("the DM page", () => {
         ["Session ID", "4f1c9a2e"],
         ["Turns", "7"],
         ["Cost", "$0.18"],
+        ["Context", "31% · 62,400 / 200,000"],
       ])
     )
     expect(within(panel).getByText("Bash(pnpm test:*)")).toBeInTheDocument()
@@ -282,6 +310,7 @@ describe("the DM page", () => {
         state: "exited",
         turns: 0,
         costUsd: 0,
+        context: null,
       },
     })
 
@@ -675,13 +704,9 @@ describe("the DM page", () => {
     const push = await screen.findByRole("region", {
       name: "Bash git push origin release-train",
     })
-    expect(
-      within(push).getByRole("img", { name: "Running" })
-    ).toBeInTheDocument()
+    expect(push).toHaveTextContent(/^Running git push origin release-train/)
     const done = screen.getByRole("region", { name: "Bash echo hello" })
-    expect(
-      within(done).queryByRole("img", { name: "Running" })
-    ).not.toBeInTheDocument()
+    expect(done).toHaveTextContent(/^Ran echo hello/)
   })
 
   test("after 3 seconds, the working line shows the time since the message of the user", async () => {
@@ -697,24 +722,97 @@ describe("the DM page", () => {
     expect(line).toHaveTextContent("test-runner is working · 2 min 32 s")
   })
 
-  test("shows each tool call with its main input and its result", async () => {
+  test("shows each tool call as a line with a verb, its main input and its result", async () => {
     openConversation([userMessage, readCall, editCall, bashCall, deniedCall])
 
     const read = await screen.findByRole("region", {
       name: "Read src/notes.txt",
     })
-    expect(within(read).getByText("4 lines")).toBeInTheDocument()
+    expect(read).toHaveTextContent("Read src/notes.txt4 lines")
     const edit = screen.getByRole("region", { name: "Edit src/notes.txt" })
-    expect(within(edit).getByText("+1")).toBeInTheDocument()
-    expect(within(edit).getByText("−1")).toBeInTheDocument()
+    expect(edit).toHaveTextContent("Edited src/notes.txt+1 −1")
     const bash = screen.getByRole("region", { name: "Bash echo hello" })
-    expect(within(bash).getByText("hello")).toBeInTheDocument()
+    expect(bash).toHaveTextContent(/^Ran echo hello/)
     const denied = screen.getByRole("region", {
       name: "Bash rm src/notes.txt",
     })
+    expect(denied).toHaveTextContent(/^Failed to run rm src\/notes\.txt/)
     expect(
       within(denied).getByText("The user denied this.")
     ).toBeInTheDocument()
+  })
+
+  test("the diff of an edit opens from its line, and says how many lines it does not show", async () => {
+    const user = userEvent.setup()
+    openConversation([
+      userMessage,
+      {
+        ...editCall,
+        item: {
+          ...editCall.item,
+          result: {
+            kind: "diff",
+            added: 1,
+            removed: 1,
+            lines: [
+              { kind: "remove", text: "beta" },
+              { kind: "add", text: "BETA" },
+            ],
+            more: 12,
+          },
+        },
+      } as TimelineEntry,
+    ])
+    const edit = await screen.findByRole("region", {
+      name: "Edit src/notes.txt",
+    })
+
+    await user.click(
+      within(edit).getByRole("button", { name: /^Edited src\/notes\.txt/ })
+    )
+
+    expect(within(edit).getByText("beta")).toBeInTheDocument()
+    expect(within(edit).getByText("BETA")).toBeInTheDocument()
+    expect(within(edit).getByText("12 more lines")).toBeInTheDocument()
+  })
+
+  test("the output of a command opens from its line", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage, bashCall])
+    const bash = await screen.findByRole("region", { name: "Bash echo hello" })
+    expect(within(bash).queryByText("hello")).not.toBeInTheDocument()
+
+    await user.click(
+      within(bash).getByRole("button", { name: /^Ran echo hello/ })
+    )
+
+    expect(within(bash).getByText("hello")).toBeInTheDocument()
+  })
+
+  test("the user can copy a message of the agent, but not one that still arrives", async () => {
+    const user = userEvent.setup()
+    const piece = {
+      ...agentMessage,
+      id: "s1/item-9",
+      item: {
+        ...agentMessage.item,
+        id: "item-9",
+        text: "I will run",
+        status: "streaming",
+      },
+    } as TimelineEntry
+    openConversation([userMessage, agentMessage, piece])
+    const agentBlock = (await screen.findAllByRole("article"))[1]
+
+    const copy = within(agentBlock).getAllByRole("button", {
+      name: "Copy the message",
+    })
+    expect(copy).toHaveLength(1)
+    await user.click(copy[0])
+
+    expect(await navigator.clipboard.readText()).toBe(
+      "I will use a fixed clock."
+    )
   })
 
   test("text between backticks in a message shows as code", async () => {
@@ -786,7 +884,7 @@ describe("the DM page", () => {
     expect(within(ping).getByText("Stopped")).toBeInTheDocument()
   })
 
-  test("the tool calls of a subagent show inside its Agent card, behind a button", async () => {
+  test("the tool calls of a subagent show inside its line, behind a button", async () => {
     const user = userEvent.setup()
     openConversation([agentCall, subagentRead])
 
@@ -797,7 +895,7 @@ describe("the DM page", () => {
       screen.queryByRole("region", { name: "Read src/notes.txt" })
     ).not.toBeInTheDocument()
 
-    await user.click(within(card).getByRole("button", { name: "1 tool call" }))
+    await user.click(within(card).getByRole("button", { name: /1 tool call$/ }))
 
     expect(
       within(card).getByRole("region", { name: "Read src/notes.txt" })
@@ -827,7 +925,7 @@ describe("the DM page", () => {
     })
 
     expect(
-      within(card).getByRole("button", { name: "1 tool call" })
+      within(card).getByRole("button", { name: /1 tool call$/ })
     ).toHaveAttribute("aria-expanded", "true")
     expect(
       within(card).getByRole("button", { name: "Allow once" })

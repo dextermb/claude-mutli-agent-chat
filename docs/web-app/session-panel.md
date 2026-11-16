@@ -10,8 +10,9 @@ right of a conversation, as in the design. In a DM, `SessionPanel` is always
 there, with the name "Session" and a visible heading. It has two cards:
 
 - **Session**: Model, Permissions, Directory, Session ID (8 characters, with
-  "Copy session ID" for the full ID), Turns and Cost. The values that Claude
-  Code reads are mono, and Turns and Cost use tabular numbers.
+  "Copy session ID" for the full ID), Turns, Cost, and after the first turn
+  Context ("31% · 62,400 / 200,000"). The values that Claude Code reads are
+  mono, and the numbers use tabular numbers.
   `useSessionCard()` (`src/hooks/use-session-card.ts`) loads it from
   `GET …/agents/:agentId/session`, and loads it again when the state of the
   agent changes or a turn or a divider of that agent comes.
