@@ -1,12 +1,12 @@
-import { CopyIcon, TriangleAlertIcon } from "lucide-react"
+import { TriangleAlertIcon } from "lucide-react"
 
 import { QuestionCard } from "@/components/conversation/cards/question-card"
 import { MessageFiles } from "@/components/conversation/files/message-files"
+import { AgentReply } from "@/components/conversation/timeline/agent-reply"
 import { FailedNotice } from "@/components/conversation/timeline/failed-notice"
 import { MessageText } from "@/components/conversation/timeline/message-text"
 import { ToolCallLine } from "@/components/conversation/tool-call/tool-call-line"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
-import { Button } from "@/components/ui/button"
 import type {
   ConversationAgent,
   PermissionItem,
@@ -96,37 +96,28 @@ export function EntryBody({
   }
   if (item.kind === "message") {
     const text = item.text && (
-      <p
+      <div
         aria-busy={item.status === "streaming"}
         className={cn(
-          "m-0 leading-[22px] whitespace-pre-wrap",
+          "flex min-w-0 flex-col gap-2 leading-[22px] wrap-break-word",
           item.status === "streaming" &&
-            "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+            "[&>*:last-child]:after:ml-0.5 [&>*:last-child]:after:animate-pulse [&>*:last-child]:after:text-muted-foreground [&>*:last-child]:after:content-['▍'] motion-reduce:[&>*:last-child]:after:animate-none"
         )}
       >
-        <MessageText text={item.text} agents={agents} />
-      </p>
+        <MessageText
+          text={item.text}
+          agents={agents}
+          done={item.status !== "streaming"}
+        />
+      </div>
     )
     return (
       <>
         {text &&
           (agent ? (
-            <div className="flex flex-col items-start gap-1">
+            <AgentReply text={item.text} done={item.status === "done"}>
               {text}
-              {item.status === "done" && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Copy the message"
-                  className="-ml-1.5 text-muted-foreground"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(item.text)
-                  }}
-                >
-                  <CopyIcon />
-                </Button>
-              )}
-            </div>
+            </AgentReply>
           ) : (
             <Bubble variant="muted" align="end">
               <BubbleContent>{text}</BubbleContent>

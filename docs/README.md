@@ -26,6 +26,7 @@ gives the parts of the app, the main decisions, and the risks.
 | -------------------------- | ---------------------------------------------------------------------------- |
 | `web-app.md`               | The pages, how to run the app, the shared types, and the design boards       |
 | `web-app/conversation.md`  | `useConversation()`, the parts of the timeline, and the `@` list             |
+| `web-app/messages.md`      | The Markdown of a message, the code blocks, and the mentions                 |
 | `web-app/components.md`    | The directories of `src/components` and the helpers in `src/lib`             |
 | `web-app/session-panel.md` | The session panel, the members of a channel, and the DM tabs                 |
 | `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar                |

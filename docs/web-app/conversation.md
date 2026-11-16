@@ -59,6 +59,20 @@ and the time. The content is under it, at full width. The block is named
 "test-runner, 14:03". Each message of the agent that is done has a ghost
 button "Copy the message".
 
+`timeline/agent-reply.tsx` puts the button in one of two places:
+
+- A message of one rendered line has the button at the right edge of the
+  message column, in the same row. So the buttons of one-line messages are
+  in one column.
+- A message of more lines has the button under the text, at the left.
+
+The count is of rendered lines, not of line breaks in the text. A long
+paragraph that wraps has more than one line. The text has a height of 22 px
+for each line, so a height of 26 px or less is one line. A `ResizeObserver`
+measures the height again when the width changes. The text always keeps the
+width of the first column. Thus the move of the button cannot change the
+count of lines.
+
 ### A tool call
 
 Calls that follow each other in a block share one `Trace`. Each call is a
@@ -135,22 +149,9 @@ before the first block of each day: "Today", "Yesterday", or "Friday 13
 November". A block ends at a change of day, so that the heading sits between
 two blocks. `src/lib/time.ts` holds the formats.
 
-A message that is still arriving has `aria-busy="true"`, and ends with a
-blinking caret (`▍`, a CSS `::after`, so the text of the message stays the
-same). Text between two
-backticks on one line shows as `code`, in mono on the `muted` ground. The
-timeline renders no other markdown.
-
-Outside the code, the timeline marks two kinds of mention. Neither changes the
-text of the message:
-
-| Mention          | Rule                                                                                        | Look                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `@test-runner`   | `mentionPattern()` of `server/conversation/mentions.ts`, for each agent of the conversation | The colour of that agent (`MENTION_COLOURS` in `agent-look.ts`), on a 10 % tint of it    |
-| `@src/notes.txt` | `@` and a path with a `/` or an extension, not after a letter (`dev@example.com`)           | A file icon, then the path in mono `link` on a 10 % tint of `link`. The `@` is `sr-only` |
-
-So a mention of an agent that is not in the conversation stays plain text, the
-same as on the server (`docs/conversations.md`).
+The text of a message is Markdown, with the mentions marked. See
+`docs/web-app/messages.md` for the rules, the code blocks, the caret of a
+message that still arrives, and the mentions.
 
 A turn summary shows
 `Done in 9.2 s · $0.012 · 7 turns`, or `Stopped after 24.4 s`, or, at the

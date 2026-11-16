@@ -26,30 +26,35 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
     `screenWidth(375)` to show the page on a phone.
   - `windowFocus(focused)` sets what `document.hasFocus()` answers. A test
     of a read calls `windowFocus(true)`.
+- `src/test/fake-layout.ts` holds the layout, because jsdom has none:
+  - `fakeResizeObserver()` stubs `ResizeObserver`. `resizeAll()` then calls
+    each observer, as a change of the window width does.
+  - `elementHeight(height)` sets what `offsetHeight` answers for each
+    element.
 
 ## The seams under test
 
-| Seam                              | Test file                                       |
-| --------------------------------- | ----------------------------------------------- |
-| `fileToRoutePath()`, file to URL  | `src/router/file-routes.test.ts`                |
-| `<App />` rendered at a URL       | `src/App.test.tsx`                              |
-| `decodeLine()`, a stdout line     | `server/protocol/decode.test.ts`                |
-| `encode…()`, a stdin line         | `server/protocol/encode.test.ts`                |
-| `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`                |
-| `buildArgs()`, the command line   | `server/session/args.test.ts`                   |
-| `sessionFacts()`, the facts       | `server/session/environment-prompt.test.ts`     |
-| `AgentSession`, a fake `claude`   | `server/session/session.test.ts`                |
-| `Store`, an in-memory database    | `server/store/store.test.ts`                    |
-| `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
-| `POST /mcp`, the chat tools       | `server/http/mcp.test.ts`                       |
-| `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`            |
-| `useWorkspace()`, fake network    | `src/hooks/use-workspace.test.ts`               |
-| `filesOf()`, the Files tab rows   | `src/lib/files.test.ts`                         |
-| The DM page, fake network         | `src/pages/conversations/[id].test.tsx`         |
+| Seam                              | Test file                                                |
+| --------------------------------- | -------------------------------------------------------- |
+| `fileToRoutePath()`, file to URL  | `src/router/file-routes.test.ts`                         |
+| `<App />` rendered at a URL       | `src/App.test.tsx`                                       |
+| `decodeLine()`, a stdout line     | `server/protocol/decode.test.ts`                         |
+| `encode…()`, a stdin line         | `server/protocol/encode.test.ts`                         |
+| `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`                         |
+| `buildArgs()`, the command line   | `server/session/args.test.ts`                            |
+| `sessionFacts()`, the facts       | `server/session/environment-prompt.test.ts`              |
+| `AgentSession`, a fake `claude`   | `server/session/session.test.ts`                         |
+| `Store`, an in-memory database    | `server/store/store.test.ts`                             |
+| `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                             |
+| `POST /mcp`, the chat tools       | `server/http/mcp.test.ts`                                |
+| `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`                     |
+| `useWorkspace()`, fake network    | `src/hooks/use-workspace.test.ts`                        |
+| `filesOf()`, the Files tab rows   | `src/lib/files.test.ts`                                  |
+| The DM page, fake network         | `src/pages/conversations/[id].test.tsx`                  |
 | `Composer`, the mention list      | `src/components/conversation/composer/composer.test.tsx` |
-| The Start a chat dialog           | `src/components/dialogs/start-chat-dialog.test.tsx`     |
-| The Create a channel dialog       | `src/components/dialogs/create-channel-dialog.test.tsx` |
-| The agent page, fake network      | `src/pages/agents/[id].test.tsx`                |
+| The Start a chat dialog           | `src/components/dialogs/start-chat-dialog.test.tsx`      |
+| The Create a channel dialog       | `src/components/dialogs/create-channel-dialog.test.tsx`  |
+| The agent page, fake network      | `src/pages/agents/[id].test.tsx`                         |
 
 The server tests read the recorded fixtures through `server/test/fixtures.ts`.
 An expected value comes from a recorded line, so a test shows what Claude Code

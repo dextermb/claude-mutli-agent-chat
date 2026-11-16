@@ -52,3 +52,4 @@ directory gives the same information.
 | `format-size.ts`     | The text of a file size                              |
 | `attachment-hint.ts` | The hint that tells why Send waits                   |
 | `folder-list.ts`     | The shape of the folder list of the server           |
+| `highlight.ts`       | The syntax colours of a code block, with Shiki       |
