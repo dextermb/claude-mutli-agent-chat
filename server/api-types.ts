@@ -42,6 +42,7 @@ export type SessionCard = {
   allowedTools: string[]
   turns: number
   costUsd: number
+  context: { used: number; window: number } | null
   configChanged: boolean
 }
 

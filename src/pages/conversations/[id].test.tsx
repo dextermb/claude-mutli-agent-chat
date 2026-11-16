@@ -204,6 +204,20 @@ describe("the DM page", () => {
     ).toHaveAttribute("href", "/agents/a1")
   })
 
+  test("the message box of a DM shows how full the context is, and the token count on hover", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    const box = within(
+      await screen.findByRole("form", { name: "Message test-runner" })
+    )
+
+    await user.hover(await box.findByText("31% context"))
+
+    const bar = await screen.findByRole("progressbar", { name: "Context" })
+    expect(bar).toHaveAttribute("aria-valuenow", "31")
+    expect(screen.getByText("62,400 / 200,000 tokens")).toBeInTheDocument()
+  })
+
   test("Configure in the header of a DM opens the agent page", async () => {
     openConversation([userMessage])
 
@@ -261,7 +275,7 @@ describe("the DM page", () => {
     ).toEqual(["Friday 13 November", "Yesterday", "Today"])
   })
 
-  test("the session card shows the model, the mode, the folder, the session id, the turns and the cost", async () => {
+  test("the session card shows the model, the mode, the folder, the session id, the turns, the cost and the context", async () => {
     openConversation([userMessage])
 
     const panel = await screen.findByRole("complementary", { name: "Session" })
@@ -281,6 +295,7 @@ describe("the DM page", () => {
         ["Session ID", "4f1c9a2e"],
         ["Turns", "7"],
         ["Cost", "$0.18"],
+        ["Context", "31% · 62,400 / 200,000"],
       ])
     )
     expect(within(panel).getByText("Bash(pnpm test:*)")).toBeInTheDocument()
@@ -295,6 +310,7 @@ describe("the DM page", () => {
         state: "exited",
         turns: 0,
         costUsd: 0,
+        context: null,
       },
     })
 

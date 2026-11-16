@@ -31,7 +31,10 @@ import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer"
-import { ModelLink } from "@/components/conversation/composer-tools"
+import {
+  ContextFigure,
+  ModelLink,
+} from "@/components/conversation/composer-tools"
 import {
   FilesPanel,
   SharedFilesList,
@@ -453,7 +456,12 @@ export default function ConversationPage() {
               searchPaths={searchPaths}
               tools={
                 isDirect &&
-                agent && <ModelLink agentId={agent.id} model={agent.model} />
+                agent && (
+                  <>
+                    <ModelLink agentId={agent.id} model={agent.model} />
+                    {card?.context && <ContextFigure context={card.context} />}
+                  </>
+                )
               }
               onSend={async (text, files) =>
                 showRefusal(await conversation.send(text, files))
