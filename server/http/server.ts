@@ -84,6 +84,7 @@ type LiveSession = {
   compactingForSleep: boolean
   contextTokens: number
   runningJobs: Set<string>
+  asleepForMs: number | null
   lastOutSeq: number
   exit: { code: number | null; stderr: string } | null
 }
@@ -195,7 +196,7 @@ export function createServer({
     const agent = store.getAgent(agentId)
     const conversation = store.getConversation(conversationId)
     if (!agent || !conversation) return undefined
-    return start(
+    const session = start(
       store.createSession({
         agentId,
         conversationId,
@@ -204,6 +205,10 @@ export function createServer({
         config: configOf(agent, folderFor(agent, conversation)),
       })
     )
+    if (session && earlier?.endReason === "sleep" && earlier.endedAt) {
+      session.asleepForMs = Date.now() - Date.parse(earlier.endedAt)
+    }
+    return session
   }
 
   function folderFor(agent: Agent, conversation: Conversation): string {
@@ -249,6 +254,7 @@ export function createServer({
       compactingForSleep: false,
       contextTokens: 0,
       runningJobs: new Set(),
+      asleepForMs: null,
       lastOutSeq: 0,
       exit: null,
     }
@@ -554,10 +560,12 @@ export function createServer({
     if (queued === undefined) return
     const facts = factsOf(session)
     const notes = [
+      gapNote(session.asleepForMs),
       facts ? factsNote(session.facts, facts) : undefined,
       queued.note,
     ].filter((note) => note !== undefined && note !== null)
     if (facts) session.facts = facts
+    session.asleepForMs = null
     session.handle?.prompt(
       queued.text,
       notes.length > 0 ? notes.join("\n") : undefined
@@ -1295,6 +1303,12 @@ export function createServer({
       await new Promise<void>((resolve) => http.close(() => resolve()))
     },
   }
+}
+
+function gapNote(asleepForMs: number | null): string | undefined {
+  const minutes = Math.floor((asleepForMs ?? 0) / 60_000)
+  if (minutes < 60) return undefined
+  return `[Chat app] You were asleep for ${Math.floor(minutes / 60)} h ${minutes % 60} min.`
 }
 
 function summaryPart(text: string): string {

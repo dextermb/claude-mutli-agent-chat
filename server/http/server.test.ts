@@ -6,6 +6,7 @@ import {
   agentStates,
   answerRequest,
   cleanups,
+  factsTo,
   nextPendingCard,
   openAppEvents,
   openEvents,
@@ -261,6 +262,49 @@ describe("createServer", () => {
     expect(promptsTo(sentTo, "reviewer-bot")[1]).toMatch(/^\/compact Keep:/)
     const { items } = await timeline(base, conversation.id)
     expect(items.map(({ item }) => item.kind)).toContain("compaction")
+  })
+
+  test("an agent that slept more than one hour learns how long in its first prompt", async () => {
+    const { base, store, sentTo, agent, conversation } = await startServer()
+    const asleep = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    })
+    store.updateSession(asleep.id, {
+      state: "exited",
+      endedAt: new Date(Date.now() - (3 * 60 + 12) * 60_000).toISOString(),
+      endReason: "sleep",
+    })
+
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    expect(factsTo(sentTo, "reviewer-bot")[0].split("\n").slice(0, 2)).toEqual([
+      "[Chat app] You were asleep for 3 h 12 min.",
+      "[Chat app] This session:",
+    ])
+  })
+
+  test("an agent that slept less than one hour gets no line about its sleep", async () => {
+    const { base, store, sentTo, agent, conversation } = await startServer()
+    const asleep = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    })
+    store.updateSession(asleep.id, {
+      state: "exited",
+      endedAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+      endReason: "sleep",
+    })
+
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    expect(factsTo(sentTo, "reviewer-bot")[0]).toMatch(
+      /^\[Chat app\] This session:/
+    )
   })
 
   test("an agent with a background job that runs does not sleep", async () => {
