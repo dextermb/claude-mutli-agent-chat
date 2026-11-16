@@ -1,7 +1,8 @@
 # File sharing
 
 **Status:** awaiting go-ahead. Nothing is built. The decisions below are
-proposals. Six questions are open.
+proposals. Seven questions are open. On 2026-11-16 the user chose `@` as the
+trigger of file completion (decisions 15 to 19).
 
 This is the Tier 3 item "File sharing" of `docs/plans/design-boards.md`. It
 also builds the Attach a file button of the item "The composer buttons".
@@ -124,6 +125,42 @@ Boards: FileDrop, FileChips and FileInThread in the "Agent Chat" canvas.
     the browser with `multiple`. Each picked file goes through the same steps
     as a dropped file.
 
+### File completion with `@`
+
+15. **`@` completes agents and files.** The list after `@` has two groups:
+    **Members**, as today, then **Files**. The user picks one row, so a file
+    and an agent never mix. This follows Claude Code, where `@src/auth.ts`
+    means a file, so the users and the agents already read it that way.
+    `#` was the second choice (as in VS Code chat: `@` agents, `#` files,
+    `/` commands). It was rejected because the app shows a channel as
+    `#name`, and a later link to a channel would clash with it. `/` stays for
+    slash commands.
+16. **The folders.** In a DM, the folder of the agent. In a group chat or a
+    channel, the folders of all the agent members. Each file row names its
+    agent and folder, for example "test-runner · ~/code/web-app". Two agents
+    with the same folder show it once.
+17. **The search route.** `GET /api/conversations/:id/paths?q=<text>` gives
+    the best 20 files and folders whose path contains the typed text, with
+    `{ path, relative, agentId }` for each. In a git repository it reads
+    `git ls-files --cached --others --exclude-standard`, which is fast and
+    keeps out what `.gitignore` names. Else it uses the bounded walk of
+    decision 3. The server keeps the list of each folder for 30 s, so the
+    list stays fast while the user types. A shorter path ranks first, then
+    a match at the start of a name.
+18. **What the pick does.** The composer inserts `@<relative path> ` in the
+    text, for example `@src/auth.test.ts`, and keeps the absolute path. On
+    Send, each picked path goes into `files` as a `linked` shared file
+    (decision 9). So each agent gets `[Shared file: /abs/path]` (decision
+    10), also an agent with another folder, and the thread shows the file
+    under "Shared files". A picked path that the user then deletes from the
+    text is not sent.
+19. **The mention parser must not take a path.** Today
+    `server/conversation/mentions.ts` refuses only a letter, a digit or `-`
+    after a name. So `@test-runner/notes.md` mentions test-runner. The new
+    rule: a name must also not be followed by `/`, or by `.` and a letter. A
+    file at the top of a folder whose path is the name of a member is
+    inserted as `@./<name>`.
+
 ## Open questions
 
 1. **The size limit of one upload.** My recommendation: 25 MB. A larger
@@ -144,7 +181,12 @@ Boards: FileDrop, FileChips and FileInThread in the "Agent Chat" canvas.
 5. **Open a shared file from the thread.** My recommendation: leave it out
    now (decision 12), and add it later with a route that serves only the
    paths of shared files of that conversation.
-6. **Old uploads.** Nothing deletes them. My recommendation: leave them.
+6. **Does `claude -p` expand `@path` in a prompt?** The interactive CLI
+   attaches the file of an `@path`. If `-p` with `stream-json` input does
+   the same, the agent gets the content at once. If it does not, the
+   `[Shared file: …]` line still gives the path. The live check of slice 0
+   answers it. The design does not depend on the answer.
+7. **Old uploads.** Nothing deletes them. My recommendation: leave them.
    They are small, and an agent may still need one. A later change can add a
    clean-up.
 
@@ -169,6 +211,12 @@ Send
        ├─ store: message item { text, files }   (timeline_items.payload)
        ├─ stream: { type: "item", entry }
        └─ prompt: text + "[Shared file: <path>]" lines
+
+@ in the composer
+  └─ GET /api/conversations/:id/paths?q=<text>
+       └─ git ls-files, else the bounded walk, cached 30 s for each folder
+  ◀─ Members group + Files group
+  pick a file ─▶ text "@src/auth.ts " + linked path kept for Send
 
 Process start
   └─ mkdir <uploads>/<conversation id>
@@ -202,21 +250,22 @@ Test-first, one slice at a time. The seams: `createServer()` for the routes,
 `buildArgs()` for `--add-dir`, the conversation page for the composer and the
 thread, and `filesOf()` for the notes.
 
-| Slice                  | Content                                                                                                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0. Live check          | One recording with `--add-dir` (about 0.01 USD): a `Read` of a file in the added folder, in `default` mode, with no permission request. If it asks, decision 6 changes. |
-| 1. Uploads             | `AGENTS_UPLOADS`, the upload route, safe names, the size limit.                                                                                                         |
-| 2. `--add-dir`         | The folder at the process start, `claudeArgs()`, the preview.                                                                                                           |
-| 3. Messages with files | The message route, the checks, `MessageItem.files`, the prompt lines, `read_messages`.                                                                                  |
-| 4. Composer            | Attach a file, chips, progress, Remove, Send disabled with its hint. Copied only at first.                                                                              |
-| 5. Linked              | The fingerprint, the find route and its bounded walk, the drag from a tool call card.                                                                                   |
-| 6. Drop zone           | The overlay, its two texts, Esc.                                                                                                                                        |
-| 7. Thread              | "Shared files", the badges, the notes, Copy the path.                                                                                                                   |
-| 8. Missing             | After question 4.                                                                                                                                                       |
+| Slice                  | Content                                                                                                                                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Live check          | One recording (about 0.02 USD): a `Read` of a file in an `--add-dir` folder, in `default` mode, with no permission request (if it asks, decision 6 changes), and a prompt with `@notes.txt` (question 6). |
+| 1. Uploads             | `AGENTS_UPLOADS`, the upload route, safe names, the size limit.                                                                                                                                           |
+| 2. `--add-dir`         | The folder at the process start, `claudeArgs()`, the preview.                                                                                                                                             |
+| 3. Messages with files | The message route, the checks, `MessageItem.files`, the prompt lines, `read_messages`.                                                                                                                    |
+| 4. Composer            | Attach a file, chips, progress, Remove, Send disabled with its hint. Copied only at first.                                                                                                                |
+| 5. Linked              | The fingerprint, the find route and its bounded walk, the drag from a tool call card.                                                                                                                     |
+| 6. Drop zone           | The overlay, its two texts, Esc.                                                                                                                                                                          |
+| 7. Thread              | "Shared files", the badges, the notes, Copy the path.                                                                                                                                                     |
+| 7b. `@` files          | The mention parser rule, the paths route and its cache, the Files group of the `@` list, the linked path on Send.                                                                                         |
+| 8. Missing             | After question 4.                                                                                                                                                                                         |
 
 Docs in the same change: `docs/server.md` is at 249 lines, so the new routes
 go into a split: `docs/server.md` stays as the index, with
 `docs/server/routes.md` and `docs/server/files.md`. Also
-`docs/conversations.md` (the prompt lines), `docs/agents.md` (`--add-dir`),
+`docs/conversations.md` (the prompt lines and the mention rule), `docs/agents.md` (`--add-dir`),
 `docs/mcp.md`, `docs/web-app/conversation.md`, `docs/README.md`, and
 `docs/plans/design-boards.md`.
