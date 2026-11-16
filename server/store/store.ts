@@ -207,6 +207,16 @@ export function openStore(location: string) {
     ).run(conversationId, memberKey)
   }
 
+  function listAuthorKeys(conversationId: string): string[] {
+    return db
+      .prepare(
+        `SELECT DISTINCT author_key FROM timeline_items
+         WHERE conversation_id = ? ORDER BY author_key`
+      )
+      .all(conversationId)
+      .map((row) => String(row.author_key))
+  }
+
   function deleteConversation(id: string) {
     db.prepare("DELETE FROM conversations WHERE id = ?").run(id)
   }
@@ -802,6 +812,7 @@ export function openStore(location: string) {
     removeSharedFile,
     removeMember,
     deleteConversation,
+    listAuthorKeys,
     deleteAgent,
     joinedSeq,
     findDirectMessage,

@@ -178,4 +178,32 @@ describe("delete", () => {
       conversation: { members: ["user:me", `agent:${runner.id}`] },
     })
   })
+
+  test("a conversation names the authors of its messages that are no longer members, and marks a deleted agent", async () => {
+    const { base, store, agent } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const channel = await createConversation(base, {
+      kind: "channel",
+      name: "release-train",
+      agentIds: [agent.id, runner.id],
+    })
+    store.addMessage(channel.id, `agent:${agent.id}`, "PR #212 looks good.")
+    store.addMessage(channel.id, `agent:${runner.id}`, "44 tests pass.")
+    await remove(base, `/api/agents/${agent.id}`)
+
+    const response = await fetch(`${base}/api/conversations/${channel.id}`)
+    const body = (await response.json()) as {
+      agents: { name: string }[]
+      authors: { id: string; name: string; deletedAt: string | null }[]
+    }
+
+    expect(body.agents.map(({ name }) => name)).toEqual(["test-runner"])
+    expect(body.authors).toEqual([
+      expect.objectContaining({
+        id: agent.id,
+        name: "reviewer-bot",
+        deletedAt: expect.any(String),
+      }),
+    ])
+  })
 })

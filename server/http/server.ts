@@ -1319,7 +1319,12 @@ export function createServer({
           },
         ]
       })
-      return send(response, 200, { conversation, agents })
+      const members = new Set(conversation.members)
+      const authors = store
+        .listAuthorKeys(conversation.id)
+        .filter((key) => key.startsWith("agent:") && !members.has(key))
+        .flatMap((key) => store.getAgent(key.slice("agent:".length)) ?? [])
+      return send(response, 200, { conversation, agents, authors })
     }
 
     if (route("GET", "api/conversations")) {
