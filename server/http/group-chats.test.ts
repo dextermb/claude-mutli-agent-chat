@@ -229,6 +229,33 @@ describe("group chats and channels", () => {
     expect(systemPrompt).toMatch(/\n\nYou run and fix the Vitest tests\.$/)
   })
 
+  test("a prompt holds only the last messages, and an app note says how many came and where the others are", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      { wakeMessages: 3 }
+    )
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, { agentIds: [runner.id] })
+    for (const text of ["One.", "Two.", "Three.", "Four."]) {
+      await sendMessage(base, id, text)
+    }
+
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    expect(promptsTo(sentTo, "test-runner")).toEqual([
+      ["[User] Three.", "[User] Four.", "[User] @test-runner run the tests."].join(
+        "\n"
+      ),
+    ])
+    expect(factsTo(sentTo, "test-runner")[0].split("\n").at(-1)).toBe(
+      "[Chat app] 5 messages came since your last turn. Here are the last 3. Use read_messages for the older ones."
+    )
+  })
+
   test("an agent that runs learns in its next prompt only the facts that changed", async () => {
     const { base, sentTo } = await startServer(
       "resume-1",

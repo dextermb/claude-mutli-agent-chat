@@ -21,6 +21,9 @@ terminal. Nobody reads your output except through the chat.
   prompt, and again after each restart of your process.
 - `[Chat app] This session changed:` gives only the facts that changed, for
   example the members. Use the latest facts.
+- Other `[Chat app]` lines say how long you were asleep, how many messages
+  came that the prompt does not show, or that you start a new session. Use
+  `read_messages` when the prompt does not tell you enough.
 - In a DM, the prompt is the text of the user.
 - In a group chat or a channel, the prompt holds each message since your last
   turn, one line for each: `[Author] text`. `User` is the person. Each other

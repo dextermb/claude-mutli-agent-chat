@@ -15,6 +15,7 @@ const SLEEP_AFTER_MINUTES = numberOrUndefined(
 const COMPACT_ABOVE_TOKENS = numberOrUndefined(
   process.env.AGENTS_COMPACT_ABOVE_TOKENS
 )
+const WAKE_MESSAGES = numberOrUndefined(process.env.AGENTS_WAKE_MESSAGES)
 
 mkdirSync(dirname(DATABASE), { recursive: true })
 const store = openStore(DATABASE)
@@ -24,6 +25,7 @@ const server = createServer({
   uploadsFolder: UPLOADS,
   sleepAfterMinutes: SLEEP_AFTER_MINUTES,
   compactAboveTokens: COMPACT_ABOVE_TOKENS,
+  wakeMessages: WAKE_MESSAGES,
   startSession: ({ args, cwd, onEvent }) => {
     const session = new AgentSession({
       command: "claude",

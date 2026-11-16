@@ -9,6 +9,12 @@ const reply = process.env.FAKE_CLAUDE_REPLY
 const input = createInterface({ input: process.stdin })[Symbol.asyncIterator]()
 const requestIds = new Map<string, string>()
 
+if (mode === "no-transcript" && process.argv.includes("--resume")) {
+  const id = process.argv[process.argv.indexOf("--resume") + 1]
+  process.stderr.write(`No conversation found with session ID: ${id}\n`)
+  process.exit(1)
+}
+
 if (mode === "hang") {
   process.on("SIGTERM", () => undefined)
 }

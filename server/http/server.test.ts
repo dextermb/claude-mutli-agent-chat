@@ -6,6 +6,7 @@ import {
   agentStates,
   answerRequest,
   cleanups,
+  factsTo,
   nextPendingCard,
   openAppEvents,
   openEvents,
@@ -261,6 +262,95 @@ describe("createServer", () => {
     expect(promptsTo(sentTo, "reviewer-bot")[1]).toMatch(/^\/compact Keep:/)
     const { items } = await timeline(base, conversation.id)
     expect(items.map(({ item }) => item.kind)).toContain("compaction")
+  })
+
+  test("an agent that slept more than one hour learns how long in its first prompt", async () => {
+    const { base, store, sentTo, agent, conversation } = await startServer()
+    const asleep = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    })
+    store.updateSession(asleep.id, {
+      state: "exited",
+      endedAt: new Date(Date.now() - (3 * 60 + 12) * 60_000).toISOString(),
+      endReason: "sleep",
+    })
+
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    expect(factsTo(sentTo, "reviewer-bot")[0].split("\n").slice(0, 2)).toEqual([
+      "[Chat app] You were asleep for 3 h 12 min.",
+      "[Chat app] This session:",
+    ])
+  })
+
+  test("an agent that slept less than one hour gets no line about its sleep", async () => {
+    const { base, store, sentTo, agent, conversation } = await startServer()
+    const asleep = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    })
+    store.updateSession(asleep.id, {
+      state: "exited",
+      endedAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+      endReason: "sleep",
+    })
+
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    expect(factsTo(sentTo, "reviewer-bot")[0]).toMatch(
+      /^\[Chat app\] This session:/
+    )
+  })
+
+  test("when Claude Code deleted the transcript, the agent starts a new session with the summary that it kept", async () => {
+    const { base, store, started, sentTo, agent, conversation } =
+      await startServer("resume-1", ":memory:", undefined, () => ({
+        mode: "no-transcript",
+      }))
+    const earlier = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: "0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d",
+    })
+    store.saveItems(earlier.id, [
+      {
+        kind: "compaction",
+        id: "item-1",
+        status: "done",
+        trigger: "manual",
+        preTokens: 57_513,
+        postTokens: 17_620,
+        summary:
+          "This session is being continued.\n\nSummary:\n1. The user asked me to remember the word kiwi.",
+      },
+    ])
+    store.updateSession(earlier.id, { state: "exited", endReason: "sleep" })
+
+    await sendMessage(base, conversation.id, "Which word did I ask you to remember?")
+
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.at(-1)?.item.kind).toBe("turn")
+    })
+    expect(started[0]).toContain("--resume")
+    expect(started[1].slice(-2)[0]).toBe("--session-id")
+    expect(started[1].at(-1)).not.toBe("0f3c2b8e-5d1a-4c6e-9b7f-2a4d6e8c0b1d")
+    expect(factsTo(sentTo, "reviewer-bot")[0].split("\n").slice(0, 3)).toEqual([
+      "[Chat app] Claude Code deleted the transcript of your earlier session, so this is a new session. Use read_messages for the earlier messages of this conversation.",
+      "[Chat app] The summary that you kept in your earlier session:",
+      "1. The user asked me to remember the word kiwi.",
+    ])
+    expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
+      "Which word did I ask you to remember?",
+    ])
+    const { items } = await timeline(base, conversation.id)
+    expect(items.map(({ item }) => item.kind)).toContain("session_start")
+    expect(items.map(({ item }) => item.kind)).not.toContain("notice")
   })
 
   test("an agent with a background job that runs does not sleep", async () => {

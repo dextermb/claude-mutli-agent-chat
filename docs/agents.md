@@ -144,6 +144,11 @@ session.
 The server also stops an idle process after its sleep time. See
 `docs/sleep.md`.
 
+Claude Code deletes the transcript of a session 30 days after its last turn,
+and then `--resume` fails (F43, F30 in `docs/protocol.md`). The user can set
+a longer period with `cleanupPeriodDays` in the user settings. The server
+starts a new session when this happens (`docs/sleep.md`).
+
 `system/init` comes only after the first prompt, and again at the start of
 each turn (F15). Store the Claude session ID from the first one, so that the
 next process can `--resume` it.
@@ -160,14 +165,15 @@ The tests start it in place of `claude`:
 
 `FAKE_CLAUDE_FIXTURE` names the fixture. `FAKE_CLAUDE_MODE` selects a mode:
 
-| Mode                | At the first prompt, the fake …                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| `play`              | plays the fixture                                                                                 |
-| `crash`             | writes `fake claude (crash): crash on the first prompt` to stderr, then exits with code 1         |
-| `not-json`          | writes a line that is not JSON, then plays the fixture                                            |
-| `env`               | writes the names of its `CLAUDE*` variables and the value of `AGENT_CHAT`, then plays the fixture |
-| `hold-after-result` | plays the fixture until the first `result` line, then writes nothing more                         |
-| `hang`              | plays the fixture, but ignores the end of stdin and `SIGTERM`                                     |
+| Mode                | At the first prompt, the fake …                                                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `play`              | plays the fixture                                                                                                                                  |
+| `crash`             | writes `fake claude (crash): crash on the first prompt` to stderr, then exits with code 1                                                          |
+| `not-json`          | writes a line that is not JSON, then plays the fixture                                                                                             |
+| `env`               | writes the names of its `CLAUDE*` variables and the value of `AGENT_CHAT`, then plays the fixture                                                  |
+| `no-transcript`     | when it starts with `--resume`, writes "No conversation found with session ID: …" to stderr and exits with code 1 (F30). Else it plays the fixture |
+| `hold-after-result` | plays the fixture until the first `result` line, then writes nothing more                                                                          |
+| `hang`              | plays the fixture, but ignores the end of stdin and `SIGTERM`                                                                                      |
 
 With `FAKE_CLAUDE_REPLY`, the fake replaces the text of each reply with that
 text, and leaves out the text pieces.
