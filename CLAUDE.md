@@ -37,6 +37,8 @@ manager is pnpm.
 - `docs/store.md`: the SQLite tables and the queries.
 - `docs/server.md`: the routes and the event stream of the agent server.
 - `docs/conversations.md`: who gets a turn, mentions, and the prompt shape.
+- `docs/sleep.md`: the sleep time of an agent, and the compaction before an
+  idle process stops.
 - `docs/web-app.md`: the pages of the web app. It is the index of
   `docs/web-app/`: the conversation, the session panel, the sidebar and the
   agent page.

@@ -15,14 +15,15 @@ not know these facts:
 
 ## The parts
 
-| Part                                     | What it holds                                       |
-| ---------------------------------------- | --------------------------------------------------- |
-| `agent/environment.md`                   | The static rule: the behaviour of the chat app      |
-| `ENVIRONMENT_RULE`                       | The text of `agent/environment.md`                  |
-| `sessionFacts()`                         | The facts of the session: one line for each fact    |
-| `factsNote(sent, now)`                   | The block of facts that goes before the next prompt |
-| `agent/.claude-plugin/plugin.json`       | The `chat` plugin, which `--plugin-dir` loads       |
-| `buildArgs(agent, session, environment)` | The rule, then the system prompt of the agent       |
+| Part                                     | What it holds                                                   |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `agent/environment.md`                   | The static rule: the behaviour of the chat app                  |
+| `ENVIRONMENT_RULE`                       | The text of `agent/environment.md`                              |
+| `agent/compact.md`                       | The instructions of `/compact` before a sleep (`docs/sleep.md`) |
+| `sessionFacts()`                         | The facts of the session: one line for each fact                |
+| `factsNote(sent, now)`                   | The block of facts that goes before the next prompt             |
+| `agent/.claude-plugin/plugin.json`       | The `chat` plugin, which `--plugin-dir` loads                   |
+| `buildArgs(agent, session, environment)` | The rule, then the system prompt of the agent                   |
 
 These are in `server/session/environment-prompt.ts`. The server reads
 `agent/environment.md` one time, when it starts. So a change to the file

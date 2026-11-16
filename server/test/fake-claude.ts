@@ -23,9 +23,13 @@ const initializeAnswer = fixture.find(
     object(line.response).request_id === recordedInitialize?.line.request_id
 )
 
+let holding = false
+
 for (const { dir, line } of fixture) {
   if (dir === "out") {
+    if (holding) continue
     if (line !== initializeAnswer?.line) write(line)
+    if (mode === "hold-after-result" && line.type === "result") holding = true
     continue
   }
   const received = await nextInput()
@@ -44,6 +48,7 @@ for (const { dir, line } of fixture) {
       name.startsWith("CLAUDE")
     )
     process.stdout.write(`env: ${names.sort().join(" ")}\n`)
+    process.stdout.write(`AGENT_CHAT: ${process.env.AGENT_CHAT ?? "unset"}\n`)
   }
   if (line.type === "control_request") {
     requestIds.set(String(line.request_id), String(received.request_id))

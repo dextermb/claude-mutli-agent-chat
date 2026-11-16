@@ -141,6 +141,7 @@ describe("Store", () => {
       systemPrompt: "You review pull requests.",
       description: "Reviews each pull request.",
       maxTurns: 30,
+      sleepAfterMinutes: null,
     })
   })
 
@@ -166,6 +167,7 @@ describe("Store", () => {
       private: true,
       replyMode: "every",
       cwd: null,
+      sleepAfterMinutes: null,
       members: ["user:me", `agent:${agent.id}`],
     })
   })

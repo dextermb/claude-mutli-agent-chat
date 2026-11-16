@@ -168,4 +168,12 @@ export const MIGRATIONS: {
       );
     `,
   },
+  {
+    version: 10,
+    sql: `
+      ALTER TABLE agents ADD COLUMN sleep_after_minutes INTEGER;
+      ALTER TABLE conversations ADD COLUMN sleep_after_minutes INTEGER;
+      ALTER TABLE agent_sessions ADD COLUMN end_reason TEXT;
+    `,
+  },
 ]

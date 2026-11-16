@@ -18,6 +18,7 @@ gives the parts of the app, the main decisions, and the risks.
 | `server/routes.md`     | Each route, its body and its result                                          |
 | `server/files.md`      | Uploads, shared files, the `@` search of paths, and Browse folders           |
 | `conversations.md`     | Who gets a turn, mentions, and the shape of a prompt                         |
+| `sleep.md`             | The sleep time, the timer, and the compaction before an idle process stops   |
 
 ## The web app
 

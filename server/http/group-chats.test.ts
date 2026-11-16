@@ -820,6 +820,75 @@ describe("group chats and channels", () => {
     })
   })
 
+  test("a channel keeps its own sleep time, and a time above 55 minutes is refused", async () => {
+    const { base } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const created = await channel(base, { agentIds: [runner.id] })
+
+    const kept = await changeSettings(base, created.id, {
+      sleepAfterMinutes: 5,
+    })
+    const tooLong = await changeSettings(base, created.id, {
+      sleepAfterMinutes: 56,
+    })
+
+    expect(await kept.json()).toMatchObject({
+      conversation: { sleepAfterMinutes: 5 },
+    })
+    expect(tooLong.status).toBe(400)
+    expect(await tooLong.json()).toMatchObject({
+      fields: {
+        sleepAfterMinutes:
+          "Give a whole number from 0 to 55, or leave it empty.",
+      },
+    })
+  })
+
+  test("the sleep time of a channel wins over the sleep time of its agent, and 0 means never", async () => {
+    const { base } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      { minuteMs: 20 }
+    )
+    const runner = await createAgent(base, "test-runner")
+    await fetch(`${base}/api/agents/${runner.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 0 }),
+    })
+    const quiet = await channel(base, { agentIds: [runner.id] })
+    await changeSettings(base, quiet.id, { sleepAfterMinutes: 1 })
+    const busy = await channel(base, {
+      name: "release-train-2",
+      agentIds: [runner.id],
+    })
+
+    await sendMessage(base, quiet.id, "@test-runner run the tests.")
+    await sendMessage(base, busy.id, "@test-runner run the tests.")
+    await untilTurns(base, quiet.id, 1)
+    await untilTurns(base, busy.id, 1)
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    const card = async (conversationId: string) =>
+      (
+        (await (
+          await fetch(
+            `${base}/api/conversations/${conversationId}/agents/${runner.id}/session`
+          )
+        ).json()) as { session: Record<string, unknown> }
+      ).session
+    expect(await card(quiet.id)).toMatchObject({
+      state: "exited",
+      asleepSince: expect.any(String),
+    })
+    expect(await card(busy.id)).toMatchObject({
+      state: "idle",
+      asleepSince: null,
+    })
+  })
+
   test("a DM and a group chat refuse a change to the settings", async () => {
     const { base } = await startServer()
     const runner = await createAgent(base, "test-runner")

@@ -19,6 +19,8 @@ function optionalFolder() {
     .transform((value) => (value ? value : null))
 }
 
+const SLEEP_TIME = "Give a whole number from 0 to 55, or leave it empty."
+
 export const agentSchema = z.object({
   name: filled("Give the agent a name."),
   colour: z.string().default(""),
@@ -36,7 +38,17 @@ export const agentSchema = z.object({
     .positive("Give a whole number of 1 or more, or leave it empty.")
     .nullable()
     .default(null),
+  sleepAfterMinutes: sleepTime(),
 })
+
+function sleepTime() {
+  return z
+    .number({ error: SLEEP_TIME })
+    .int(SLEEP_TIME)
+    .min(0, SLEEP_TIME)
+    .max(55, SLEEP_TIME)
+    .nullish()
+}
 
 export const channelSchema = z.object({
   name: filled("Give the channel a name.").regex(
@@ -53,6 +65,7 @@ export const channelSchema = z.object({
     .enum(["mention", "every"], { error: "Pick a reply mode." })
     .default("mention"),
   cwd: optionalFolder(),
+  sleepAfterMinutes: sleepTime(),
   agentIds: z.array(z.string()).default([]),
 })
 
@@ -61,6 +74,7 @@ export const channelSettingsSchema = channelSchema.pick({
   private: true,
   replyMode: true,
   cwd: true,
+  sleepAfterMinutes: true,
 })
 
 export type AgentDraft = z.input<typeof agentSchema>

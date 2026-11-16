@@ -18,6 +18,7 @@ export type Agent = {
   systemPrompt: string | null
   description: string | null
   maxTurns: number | null
+  sleepAfterMinutes: number | null
   createdAt: string
 }
 
@@ -43,6 +44,7 @@ export type SessionCard = {
   turns: number
   costUsd: number
   context: { used: number; window: number } | null
+  asleepSince: string | null
   lastCompaction: {
     at: string
     preTokens: number
@@ -68,12 +70,17 @@ export type Conversation = {
   private: boolean
   replyMode: "mention" | "every"
   cwd: string | null
+  sleepAfterMinutes: number | null
   members: string[]
   createdAt: string
 }
 
-export type NewConversation = Omit<Conversation, "id" | "createdAt" | "cwd"> & {
+export type NewConversation = Omit<
+  Conversation,
+  "id" | "createdAt" | "cwd" | "sleepAfterMinutes"
+> & {
   cwd?: string | null
+  sleepAfterMinutes?: number | null
 }
 
 export type TimelineEntry = {

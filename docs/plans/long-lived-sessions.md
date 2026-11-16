@@ -1,13 +1,13 @@
 # Long-lived agents: sleep, wake and memory
 
-**Status:** in progress. Slice 1 (the facts in the prompt, F40) is built,
-and its lasting parts are in `docs/agent-environment.md` and
-`docs/protocol.md`. Slice 2 (the compaction lines, the divider and the last
-summary on the session card) is built, and its lasting parts are in
-`docs/timeline.md`, `docs/server.md` and `docs/web-app/`. Slices 3–6 are
-ahead. The measurements are done
-(2026-11-16, Claude Code 2.1.311, Haiku 5.5, about 0.57 USD, of which one
-probe took 0.28 USD: F52). All the questions are decided (decisions 1–8).
+**Status:** in progress. Slices 1–3 are built: the facts in the prompt
+(F40), the compaction lines with the divider and the last summary on the
+session card, and the sleep timer. Their lasting parts are in
+`docs/agent-environment.md`, `docs/protocol.md`, `docs/timeline.md`,
+`docs/server.md`, `docs/sleep.md` and `docs/web-app/`. Slices 4–6 are
+ahead. The measurements are done (2026-11-16, Claude Code 2.1.311, Haiku 5.5,
+about 0.57 USD, of which one probe took 0.28 USD: F52). All the questions
+are decided (decisions 1–8).
 
 An agent can stay in a DM, a group chat or a channel for weeks. Today, its
 `claude` process never stops on its own, and its Claude session grows until
@@ -459,8 +459,8 @@ conversations                                           │ N
 - One conversation has N summaries. Each one covers the messages up to its
   `through_seq`. The latest one is the one in use. The older ones show the
   history and cost little.
-- Migration 9 adds the three columns and the table. It needs no rebuild of
-  a table.
+- Migration 10 (slice 3) added the three columns. Slice 5 adds the table
+  in a new migration. Neither needs a rebuild of a table.
 - The compaction needs no table. Its item lives in `timeline_items`, as each
   other item.
 
@@ -475,11 +475,18 @@ In slices, test-first with the `tdd` skill. Each slice ships alone.
 2. **Compaction lines.** Built. An automatic compaction
    (`trigger: "auto"`) is not recorded yet. Record it before slice 3 relies
    on it.
-3. **The sleep timer.** `sleep_after_minutes` on the agent and the channel,
-   `end_reason`, the timer and its guards, the compaction before the stop,
-   and `AGENT_CHAT=1` in the environment of each agent process. The agent
-   page and the session card show "Asleep since 14:02" for a latest row with
-   `end_reason = "sleep"`. A test drives the clock with fake timers.
+3. **The sleep timer.** Built (`docs/sleep.md`). The live check passed on
+   Haiku: the agent compacted 57,513 → 17,620 tokens after 1 minute, its
+   process stopped, and the next message resumed the same Claude session
+   and answered from the summary. Three changes from the plan:
+   - The tests do not use fake timers. They run real processes and HTTP, so
+     `createServer()` takes `minuteMs`, and a test makes a minute 20 ms.
+   - Only the session card says "Asleep since". The agent page shows one
+     status for all the conversations of an agent, and sleep belongs to one
+     conversation.
+   - `end_reason` is `sleep` or null. The other reasons of the ERD
+     (`stop`, `restart`, `new`, `removed`, `failed`, `server`) wait until a
+     slice needs them.
 4. **The wake prompt.** The gap line, the facts block, the limit of 30
    messages and the pointer to `read_messages`. The fallback to a new Claude
    session when the resume fails. After 30 days with no turn, this is the

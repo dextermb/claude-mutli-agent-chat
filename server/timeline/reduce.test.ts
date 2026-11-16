@@ -310,6 +310,14 @@ describe("reduceTimeline", () => {
     expect(ofKind(items, "message").at(-1)?.text).toBe("kiwi")
   })
 
+  test("the turn of a compaction gives no context, because the size is not known until the next request", () => {
+    const turns = ofKind(replay("compact"), "turn")
+
+    expect(turns[0].context).toBeDefined()
+    expect(turns[1].context).toBeUndefined()
+    expect(turns[2].context).toBeDefined()
+  })
+
   test("a turn that reaches the turn limit ends at the limit, and the next prompt runs as usual", () => {
     const items = replay("max-turns")
 

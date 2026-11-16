@@ -177,6 +177,7 @@ its latest session row:
 | `turns`, `costUsd`                        | The sums of `numTurns` and `costUsd` of the turn items of each row with that Claude session ID |
 | `context`                                 | `context` of the last of those turn items (`docs/timeline.md`), or `null`                      |
 | `lastCompaction`                          | The last `done` compaction item of those rows: `at`, `preTokens`, `postTokens` and `summary`   |
+| `asleepSince`                             | `ended_at` of the row when its `end_reason` is `sleep` and no process of it runs, or `null`    |
 | `configChanged`                           | True when the agent configuration now differs from `config`                                    |
 
 The `summary` of `lastCompaction` is the text after the line "Summary:" of

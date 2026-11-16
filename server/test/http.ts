@@ -9,7 +9,11 @@ import {
   type Conversation,
   type Store,
 } from "../store/store.ts"
-import { createServer, type StartSession } from "../http/server.ts"
+import {
+  createServer,
+  type ServerOptions,
+  type StartSession,
+} from "../http/server.ts"
 
 const FAKE_CLAUDE = new URL("./fake-claude.ts", import.meta.url).pathname
 
@@ -28,7 +32,9 @@ export async function startServer(
   location = ":memory:",
   members?: Members,
   perAgent: (agentName: string) => FakeAgent = () => ({}),
-  options: { eventLogSize?: number; uploadLimit?: number } = {}
+  options: Partial<
+    Omit<ServerOptions, "store" | "startSession" | "uploadsFolder">
+  > = {}
 ) {
   const store = openStore(location)
   const scratchRoot = mkdtempSync(join(tmpdir(), "scratch-test-"))

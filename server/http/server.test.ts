@@ -10,6 +10,7 @@ import {
   openAppEvents,
   openEvents,
   postJson,
+  promptsTo,
   runCleanups,
   sendMessage,
   startServer,
@@ -136,6 +137,7 @@ describe("createServer", () => {
         turns: 1,
         costUsd: 0.00553128,
         context: { used: 39_853, window: 1_000_000 },
+        asleepSince: null,
         lastCompaction: null,
         configChanged: false,
       },
@@ -168,6 +170,7 @@ describe("createServer", () => {
         turns: 0,
         costUsd: 0,
         context: null,
+        asleepSince: null,
         lastCompaction: null,
         configChanged: false,
       },
@@ -197,6 +200,95 @@ describe("createServer", () => {
       preTokens: 39857,
       postTokens: 11894,
       summary: expect.stringMatching(/^1\. Primary Request and Intent:/),
+    })
+  })
+
+  test("an idle agent sleeps after its sleep time: its process stops, and the session card says since when", async () => {
+    const { base, started, agent, conversation } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      { minuteMs: 20 }
+    )
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 1 }),
+    })
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    const card = async () =>
+      (
+        (await (
+          await fetch(
+            `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+          )
+        ).json()) as { session: { state: string; asleepSince: string | null } }
+      ).session
+    await vi.waitFor(async () =>
+      expect(await card()).toMatchObject({
+        state: "exited",
+        asleepSince: expect.any(String),
+      })
+    )
+    expect(started).toHaveLength(1)
+  })
+
+  test("an agent with a large context compacts its memory before it sleeps", async () => {
+    const { base, sentTo, agent, conversation } = await startServer(
+      "compact",
+      ":memory:",
+      undefined,
+      undefined,
+      { minuteMs: 20, compactAboveTokens: 10_000 }
+    )
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 1 }),
+    })
+    await sendMessage(base, conversation.id, "Remember kiwi.")
+
+    await vi.waitFor(async () => {
+      const response = await fetch(
+        `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+      )
+      expect(await response.json()).toMatchObject({
+        session: { state: "exited", asleepSince: expect.any(String) },
+      })
+    })
+    expect(promptsTo(sentTo, "reviewer-bot")[1]).toMatch(/^\/compact Keep:/)
+    const { items } = await timeline(base, conversation.id)
+    expect(items.map(({ item }) => item.kind)).toContain("compaction")
+  })
+
+  test("an agent with a background job that runs does not sleep", async () => {
+    const { base, agent, conversation } = await startServer(
+      "background",
+      ":memory:",
+      undefined,
+      () => ({ mode: "hold-after-result" }),
+      { minuteMs: 20 }
+    )
+    await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sleepAfterMinutes: 1 }),
+    })
+    await sendMessage(base, conversation.id, "Run the job.")
+    await vi.waitFor(async () => {
+      const { items } = await timeline(base, conversation.id)
+      expect(items.at(-1)?.item.kind).toBe("turn")
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    const response = await fetch(
+      `${base}/api/conversations/${conversation.id}/agents/${agent.id}/session`
+    )
+    expect(await response.json()).toMatchObject({
+      session: { state: "idle", asleepSince: null },
     })
   })
 
@@ -702,6 +794,33 @@ describe("createServer", () => {
         name: "Give the agent a name.",
         model: "Pick a model.",
       },
+    })
+  })
+
+  test("an agent keeps its sleep time, a time above 55 minutes is refused, and no time is null", async () => {
+    const { base } = await startServer()
+
+    const kept = await postJson(base, "/api/agents", {
+      ...testRunner,
+      sleepAfterMinutes: 20,
+    })
+    const tooLong = await postJson(base, "/api/agents", {
+      ...testRunner,
+      sleepAfterMinutes: 56,
+    })
+    const none = await postJson(base, "/api/agents", testRunner)
+
+    expect(await kept.json()).toMatchObject({
+      agent: { sleepAfterMinutes: 20 },
+    })
+    expect(tooLong.status).toBe(400)
+    expect(await tooLong.json()).toMatchObject({
+      fields: {
+        sleepAfterMinutes: "Give a whole number from 0 to 55, or leave it empty.",
+      },
+    })
+    expect(await none.json()).toMatchObject({
+      agent: { sleepAfterMinutes: null },
     })
   })
 

@@ -108,6 +108,13 @@ context. `window` is the `contextWindow` of the model of that line, from the
 `result` line. A turn with no such line, or no window for its model, has no
 `context`.
 
+A compaction makes the reducer forget the last request, so the turn of a
+compaction has no `context`, and the session card hides its Context row. The
+size after a compaction is known only at the next request: `post_tokens`
+does not count the system prompt, the tools and the hook output, which
+Claude Code adds again. In a live check, `post_tokens` was 17,620, and the
+next request held 58,472.
+
 A turn that ends with `terminal_reason: "max_turns"` (the turn limit of the
 agent, F36) is `limit`. The turns of a limit come from `--max-turns`, so the
 reducer needs no other field of the `result` line.

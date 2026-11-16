@@ -40,6 +40,7 @@ export type SessionRow = {
   endedAt: string | null
   exitCode: number | null
   stderr: string | null
+  endReason: string | null
 }
 
 export type StoredLine = {
@@ -71,16 +72,17 @@ export function openStore(location: string) {
   function createAgent(agent: NewAgent): Agent {
     const created: Agent = {
       ...agent,
+      sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
     }
     db.prepare(
       `INSERT INTO agents (id, name, colour, model, permission_mode, cwd,
          autostart, allowed_tools, disallowed_tools, system_prompt, description,
-         max_turns, created_at)
+         max_turns, sleep_after_minutes, created_at)
        VALUES (:id, :name, :colour, :model, :permissionMode, :cwd,
          :autostart, :allowedTools, :disallowedTools, :systemPrompt, :description,
-         :maxTurns, :createdAt)`
+         :maxTurns, :sleepAfterMinutes, :createdAt)`
     ).run({
       ...created,
       autostart: created.autostart ? 1 : 0,
@@ -96,10 +98,11 @@ export function openStore(location: string) {
          permission_mode = :permissionMode, cwd = :cwd, autostart = :autostart,
          allowed_tools = :allowedTools, disallowed_tools = :disallowedTools,
          system_prompt = :systemPrompt, description = :description,
-         max_turns = :maxTurns
+         max_turns = :maxTurns, sleep_after_minutes = :sleepAfterMinutes
        WHERE id = :id`
     ).run({
       ...agent,
+      sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
       id,
       autostart: agent.autostart ? 1 : 0,
       allowedTools: JSON.stringify(agent.allowedTools),
@@ -124,14 +127,15 @@ export function openStore(location: string) {
     const created: Conversation = {
       ...conversation,
       cwd: conversation.cwd ?? null,
+      sleepAfterMinutes: conversation.sleepAfterMinutes ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
     }
     db.prepare(
       `INSERT INTO conversations (id, kind, name, topic, private, reply_mode,
-         cwd, created_at)
+         cwd, sleep_after_minutes, created_at)
        VALUES (:id, :kind, :name, :topic, :private, :replyMode, :cwd,
-         :createdAt)`
+         :sleepAfterMinutes, :createdAt)`
     ).run({
       id: created.id,
       kind: created.kind,
@@ -140,6 +144,7 @@ export function openStore(location: string) {
       private: created.private ? 1 : 0,
       replyMode: created.replyMode,
       cwd: created.cwd,
+      sleepAfterMinutes: created.sleepAfterMinutes,
       createdAt: created.createdAt,
     })
     const addMember = db.prepare(
@@ -176,7 +181,10 @@ export function openStore(location: string) {
   function updateConversation(
     id: string,
     change: Partial<
-      Pick<Conversation, "name" | "topic" | "private" | "replyMode" | "cwd">
+      Pick<
+        Conversation,
+        "name" | "topic" | "private" | "replyMode" | "cwd" | "sleepAfterMinutes"
+      >
     >
   ): Conversation | undefined {
     const current = getConversation(id)
@@ -184,7 +192,8 @@ export function openStore(location: string) {
     const next = { ...current, ...change }
     db.prepare(
       `UPDATE conversations SET name = :name, topic = :topic, private = :private,
-         reply_mode = :replyMode, cwd = :cwd
+         reply_mode = :replyMode, cwd = :cwd,
+         sleep_after_minutes = :sleepAfterMinutes
        WHERE id = :id`
     ).run({
       id,
@@ -193,6 +202,7 @@ export function openStore(location: string) {
       private: next.private ? 1 : 0,
       replyMode: next.replyMode,
       cwd: next.cwd,
+      sleepAfterMinutes: next.sleepAfterMinutes ?? null,
     })
     return getConversation(id)
   }
@@ -294,14 +304,15 @@ export function openStore(location: string) {
       endedAt: null,
       exitCode: null,
       stderr: null,
+      endReason: null,
     }
     db.prepare(
       `INSERT INTO agent_sessions (id, agent_id, conversation_id,
          claude_session_id, claude_session_new, config, state, started_at,
-         ended_at, exit_code, stderr)
+         ended_at, exit_code, stderr, end_reason)
        VALUES (:id, :agentId, :conversationId, :claudeSessionId,
          :claudeSessionNew, :config, :state, :startedAt, :endedAt, :exitCode,
-         :stderr)`
+         :stderr, :endReason)`
     ).run({
       ...created,
       claudeSessionNew: created.claudeSessionNew ? 1 : 0,
@@ -346,6 +357,7 @@ export function openStore(location: string) {
       endedAt: row.ended_at === null ? null : String(row.ended_at),
       exitCode: row.exit_code === null ? null : Number(row.exit_code),
       stderr: row.stderr === null ? null : String(row.stderr),
+      endReason: row.end_reason === null ? null : String(row.end_reason),
     }
   }
 
@@ -360,6 +372,7 @@ export function openStore(location: string) {
         | "endedAt"
         | "exitCode"
         | "stderr"
+        | "endReason"
       >
     >
   ) {
@@ -369,7 +382,7 @@ export function openStore(location: string) {
     db.prepare(
       `UPDATE agent_sessions SET claude_session_id = :claudeSessionId,
          claude_session_new = :claudeSessionNew, state = :state, ended_at = :endedAt, exit_code = :exitCode,
-         stderr = :stderr
+         stderr = :stderr, end_reason = :endReason
        WHERE id = :id`
     ).run({
       id,
@@ -379,6 +392,7 @@ export function openStore(location: string) {
       endedAt: next.endedAt,
       exitCode: next.exitCode,
       stderr: next.stderr,
+      endReason: next.endReason,
     })
   }
 
@@ -772,6 +786,8 @@ function toConversation(row: Row, members: string[]): Conversation {
     private: row.private === 1,
     replyMode: String(row.reply_mode) as Conversation["replyMode"],
     cwd: row.cwd === null ? null : String(row.cwd),
+    sleepAfterMinutes:
+      row.sleep_after_minutes === null ? null : Number(row.sleep_after_minutes),
     members,
     createdAt: String(row.created_at),
   }
@@ -791,6 +807,8 @@ function toAgent(row: Row): Agent {
     systemPrompt: row.system_prompt === null ? null : String(row.system_prompt),
     description: row.description === null ? null : String(row.description),
     maxTurns: row.max_turns === null ? null : Number(row.max_turns),
+    sleepAfterMinutes:
+      row.sleep_after_minutes === null ? null : Number(row.sleep_after_minutes),
     createdAt: String(row.created_at),
   }
 }

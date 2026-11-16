@@ -18,6 +18,7 @@ import {
 } from "../schemas.ts"
 import { defaultScratchRoot, homeShort } from "../paths.ts"
 import { buildArgs } from "../session/args.ts"
+import { COMPACT_PROMPT } from "../session/compact-prompt.ts"
 import {
   ENVIRONMENT_RULE,
   factsNote,
@@ -61,6 +62,9 @@ export type ServerOptions = {
   uploadLimit?: number
   eventLogSize?: number
   scratchRoot?: string
+  sleepAfterMinutes?: number
+  compactAboveTokens?: number
+  minuteMs?: number
 }
 
 type LiveSession = {
@@ -73,6 +77,10 @@ type LiveSession = {
   queue: string[]
   cwd: string
   facts: string[] | null
+  sleepTimer: ReturnType<typeof setTimeout> | null
+  compactingForSleep: boolean
+  contextTokens: number
+  runningJobs: Set<string>
   lastOutSeq: number
   exit: { code: number | null; stderr: string } | null
 }
@@ -101,6 +109,9 @@ const MAX_BODY_BYTES = 1_000_000
 const EVENT_LOG_SIZE = 500
 const LOG_PAGE = 200
 const SUMMARY_HEADING = "\nSummary:\n"
+const SLEEP_AFTER_MINUTES = 15
+const COMPACT_ABOVE_TOKENS = 100_000
+const MINUTE_MS = 60_000
 
 export function createServer({
   store,
@@ -109,6 +120,9 @@ export function createServer({
   uploadLimit = UPLOAD_LIMIT,
   eventLogSize = EVENT_LOG_SIZE,
   scratchRoot = defaultScratchRoot(),
+  sleepAfterMinutes = SLEEP_AFTER_MINUTES,
+  compactAboveTokens = COMPACT_ABOVE_TOKENS,
+  minuteMs = MINUTE_MS,
 }: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
@@ -226,6 +240,10 @@ export function createServer({
       queue: [],
       cwd,
       facts: null,
+      sleepTimer: null,
+      compactingForSleep: false,
+      contextTokens: 0,
+      runningJobs: new Set(),
       lastOutSeq: 0,
       exit: null,
     }
@@ -273,6 +291,9 @@ export function createServer({
       )
       if (entries.length > 0) publishUnread(session.conversationId)
       for (const entry of entries) {
+        if (entry.item.kind === "turn" && entry.item.context) {
+          session.contextTokens = entry.item.context.used
+        }
         publish(session.conversationId, { type: "item", entry })
         if (entry.item.kind === "message" && entry.item.status === "done") {
           for (const agentId of mentionedAgents(
@@ -285,6 +306,10 @@ export function createServer({
         }
       }
       for (const item of event.items) {
+        if (item.kind === "tool_call" && item.job) {
+          if (item.job.status === "running") session.runningJobs.add(item.id)
+          else session.runningJobs.delete(item.id)
+        }
         if (item.kind !== "permission" && item.kind !== "question") continue
         if (item.status === "pending") {
           openRequests.set(item.requestId, { session, card: item })
@@ -309,6 +334,7 @@ export function createServer({
     }
     if (event.type === "state") {
       session.state = event.state
+      if (event.state !== "idle") clearSleep(session)
       store.updateSession(session.id, { state: event.state })
       publish(session.conversationId, {
         type: "agent_state",
@@ -320,9 +346,56 @@ export function createServer({
         tokens.delete(session.token)
       }
       publishAgentState(session.agentId)
-      if (event.state === "idle") deliverNext(session)
+      if (event.state === "idle") {
+        deliverNext(session)
+        if (session.state !== "idle") session.compactingForSleep = false
+        else if (session.compactingForSleep) stopAsleep(session)
+        else armSleep(session)
+      }
       if (event.state === "failed") addFailedNotice(session)
     }
+  }
+
+  function armSleep(session: LiveSession) {
+    const minutes = sleepMinutes(session)
+    clearSleep(session)
+    if (minutes === 0) return
+    session.sleepTimer = setTimeout(() => {
+      session.sleepTimer = null
+      fallAsleep(session)
+    }, minutes * minuteMs)
+  }
+
+  function clearSleep(session: LiveSession) {
+    if (session.sleepTimer) clearTimeout(session.sleepTimer)
+    session.sleepTimer = null
+  }
+
+  function sleepMinutes(session: LiveSession): number {
+    const conversation = store.getConversation(session.conversationId)
+    const agent = store.getAgent(session.agentId)
+    return (
+      conversation?.sleepAfterMinutes ??
+      agent?.sleepAfterMinutes ??
+      sleepAfterMinutes
+    )
+  }
+
+  function fallAsleep(session: LiveSession) {
+    if (session.state !== "idle" || session.queue.length > 0) return
+    if (session.runningJobs.size > 0) return
+    if (session.contextTokens >= compactAboveTokens) {
+      session.compactingForSleep = true
+      session.handle?.prompt(COMPACT_PROMPT)
+      return
+    }
+    stopAsleep(session)
+  }
+
+  function stopAsleep(session: LiveSession) {
+    session.compactingForSleep = false
+    store.updateSession(session.id, { endReason: "sleep" })
+    void session.handle?.stop()
   }
 
   function publishAgentState(agentId: string) {
@@ -358,6 +431,10 @@ export function createServer({
       turns: turns.reduce((sum, turn) => sum + turn.numTurns, 0),
       costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
       context: turns.at(-1)?.context ?? null,
+      asleepSince:
+        !findLive(agent.id, conversationId) && row?.endReason === "sleep"
+          ? row.endedAt
+          : null,
       lastCompaction: compaction
         ? {
             at: compaction.createdAt,
@@ -1187,6 +1264,7 @@ export function createServer({
       })
     },
     async close(): Promise<void> {
+      for (const session of live.values()) clearSleep(session)
       await Promise.all(
         [...live.values()].map((session) => session.handle?.stop())
       )

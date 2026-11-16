@@ -85,6 +85,10 @@ Maximum turns is a number input in the Runtime card. An empty field sends
 turn limit" in the thread (`docs/web-app/conversation.md`). The design shows
 30 for a saved agent. A new agent starts with no limit, as before.
 
+"Sleep after (minutes)" is a number input under Maximum turns. Empty sends
+`null`, the app value, and 0 means never. A channel can set its own time in
+Channel settings, and that time wins (`docs/sleep.md`).
+
 "Start when the app opens" (`autostart`) is off for a new agent. The design
 shows it on. When it is on, the server starts the DM process of the agent at
 each server start (`docs/server.md`).
