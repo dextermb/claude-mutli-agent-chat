@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs"
 import {
   createServer as createHttpServer,
   type IncomingMessage,
@@ -19,6 +20,7 @@ import { environmentPrompt } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import { listFolders } from "./folders.ts"
+import { saveUpload, UPLOAD_LIMIT, uploadsOf } from "./uploads.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
@@ -41,6 +43,8 @@ export type StartSession = (options: {
 export type ServerOptions = {
   store: Store
   startSession: StartSession
+  uploadsFolder: string
+  uploadLimit?: number
   eventLogSize?: number
 }
 
@@ -83,6 +87,8 @@ const LOG_PAGE = 200
 export function createServer({
   store,
   startSession,
+  uploadsFolder,
+  uploadLimit = UPLOAD_LIMIT,
   eventLogSize = EVENT_LOG_SIZE,
 }: ServerOptions) {
   const live = new Map<string, LiveSession>()
@@ -177,6 +183,8 @@ export function createServer({
     }
     live.set(session.id, session)
     tokens.set(session.token, session)
+    const uploads = uploadsOf(uploadsFolder, row.conversationId)
+    mkdirSync(uploads, { recursive: true })
     session.handle = startSession({
       agent,
       args: buildArgs(agent, row, {
@@ -186,6 +194,7 @@ export function createServer({
           memberNames: conversation.members.map(authorName),
         }),
         chat: { url: chatUrl, token: session.token },
+        uploads,
       }),
       cwd: agent.cwd,
       onEvent: (event) => onSessionEvent(session, event),
@@ -519,6 +528,20 @@ export function createServer({
       publishUnread(conversationId)
       response.writeHead(204).end()
       return
+    }
+
+    if ((params = route("PUT", "api/conversations/:id/uploads"))) {
+      if (!store.getConversation(params.id)) {
+        request.resume()
+        return send(response, 404, { error: "no such conversation" })
+      }
+      const answer = await saveUpload(
+        request,
+        uploadsOf(uploadsFolder, params.id),
+        url.searchParams.get("name") ?? "",
+        uploadLimit
+      )
+      return send(response, answer.status, answer.body)
     }
 
     if ((params = route("POST", "api/conversations/:id/messages"))) {

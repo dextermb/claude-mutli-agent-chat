@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { expect, vi } from "vitest"
 import { AgentSession } from "../session/session.ts"
 import {
@@ -25,7 +28,7 @@ export async function startServer(
   location = ":memory:",
   members?: Members,
   perAgent: (agentName: string) => FakeAgent = () => ({}),
-  options: { eventLogSize?: number } = {}
+  options: { eventLogSize?: number; uploadLimit?: number } = {}
 ) {
   const store = openStore(location)
   const started: string[][] = []
@@ -58,11 +61,18 @@ export async function startServer(
     session.start()
     return session
   }
-  const server = createServer({ store, startSession, ...options })
+  const uploadsFolder = mkdtempSync(join(tmpdir(), "uploads-test-"))
+  const server = createServer({
+    store,
+    startSession,
+    uploadsFolder,
+    ...options,
+  })
   const address = await server.listen(0)
   const stop = async () => {
     await server.close()
     store.close()
+    rmSync(uploadsFolder, { recursive: true, force: true })
   }
   cleanups.push(stop)
   const { agent, conversation } = members ?? directMessage(store)
@@ -79,6 +89,7 @@ export async function startServer(
     address,
     stop,
     server,
+    uploadsFolder,
   }
 }
 

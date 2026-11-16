@@ -24,6 +24,7 @@ export function CommandPreview({
       {
         pluginDir: "<chat plugin>",
         mcpConfig: "<chat server>",
+        addDir: "<uploads>",
         systemPrompt: agent.systemPrompt
           ? "<rule> + <system prompt>"
           : "<rule>",

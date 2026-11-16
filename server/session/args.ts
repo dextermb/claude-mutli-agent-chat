@@ -7,6 +7,7 @@ export type { AgentConfig, SessionRef } from "./claude-args.ts"
 export type SessionContext = {
   rule: string
   chat: { url: string; token: string }
+  uploads: string
 }
 
 const PLUGIN_FOLDER = fileURLToPath(new URL("../../agent", import.meta.url))
@@ -27,6 +28,7 @@ export function buildArgs(
         },
       },
     }),
+    addDir: context.uploads,
     systemPrompt: [context.rule, agent.systemPrompt]
       .filter(Boolean)
       .join("\n\n"),

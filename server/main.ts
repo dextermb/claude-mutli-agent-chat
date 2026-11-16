@@ -1,10 +1,13 @@
 import { mkdirSync } from "node:fs"
-import { dirname } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { createServer } from "./http/server.ts"
 import { AgentSession } from "./session/session.ts"
 import { openStore } from "./store/store.ts"
 
 const DATABASE = process.env.AGENTS_DATABASE ?? ".data/agents.db"
+const UPLOADS = resolve(
+  process.env.AGENTS_UPLOADS ?? join(dirname(DATABASE), "uploads")
+)
 const PORT = Number(process.env.PORT ?? 4100)
 
 mkdirSync(dirname(DATABASE), { recursive: true })
@@ -12,6 +15,7 @@ const store = openStore(DATABASE)
 
 const server = createServer({
   store,
+  uploadsFolder: UPLOADS,
   startSession: ({ args, cwd, onEvent }) => {
     const session = new AgentSession({
       command: "claude",
