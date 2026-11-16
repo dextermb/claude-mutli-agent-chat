@@ -28,6 +28,7 @@ import {
 } from "@/components/conversation/agent-look"
 import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
 import { DeleteDialog } from "@/components/dialogs/delete-dialog"
+import { GroupChatSettingsDialog } from "@/components/dialogs/group-chat-settings-dialog"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer/composer"
@@ -95,6 +96,14 @@ export default function ConversationPage() {
   const [adding, setAdding] = useState(false)
   const [configuring, setConfiguring] = useState(false)
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
+  function askToDelete() {
+    setConfiguring(false)
+    if (conversation.conversation) {
+      setDeleting(
+        conversationTarget(conversation.conversation, conversation.agents)
+      )
+    }
+  }
   const [showingSheet, setShowingSheet] = useState(false)
   const [showingMembers, setShowingMembers] = useState(false)
   const [showingFiles, setShowingFiles] = useState(false)
@@ -281,11 +290,15 @@ export default function ConversationPage() {
               {people + agentCount}
             </Button>
           )}
-          {conversation.conversation.kind === "channel" && (
+          {!isDirect && (
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Channel settings"
+              aria-label={
+                conversation.conversation.kind === "channel"
+                  ? "Channel settings"
+                  : "Group chat settings"
+              }
               onClick={() => setConfiguring(true)}
             >
               <EllipsisIcon />
@@ -499,17 +512,15 @@ export default function ConversationPage() {
           open={configuring}
           conversation={conversation.conversation}
           onOpenChange={setConfiguring}
-          onDelete={() => {
-            setConfiguring(false)
-            if (conversation.conversation) {
-              setDeleting(
-                conversationTarget(
-                  conversation.conversation,
-                  conversation.agents
-                )
-              )
-            }
-          }}
+          onDelete={askToDelete}
+        />
+      )}
+      {conversation.conversation.kind === "group" && (
+        <GroupChatSettingsDialog
+          open={configuring}
+          conversation={conversation.conversation}
+          onOpenChange={setConfiguring}
+          onDelete={askToDelete}
         />
       )}
       <DeleteDialog

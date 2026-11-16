@@ -3053,4 +3053,50 @@ describe("a deleted conversation", () => {
       body: undefined,
     })
   })
+
+  test("delete group chat in group chat settings asks first, then deletes the group chat and goes to the home page", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+    network.on("GET", "/api/conversations/g1", {
+      conversation: squadGroup,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    network.on("DELETE", "/api/conversations/g1", null, 204)
+    window.history.pushState({}, "", "/conversations/g1")
+    render(<App />)
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(
+      await header.findByRole("button", { name: "Group chat settings" })
+    )
+    const settings = await screen.findByRole("dialog", {
+      name: "Group chat settings",
+    })
+    await user.click(
+      within(settings).getByRole("button", { name: "Delete group chat" })
+    )
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Delete this group chat?",
+    })
+    expect(within(confirm).getAllByRole("listitem")[0]).toHaveTextContent(
+      "The messages and the shared files of reviewer-bot, test-runner are deleted."
+    )
+    await user.click(
+      within(confirm).getByRole("button", { name: "Delete group chat" })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+    expect(network.sent).toContainEqual({
+      method: "DELETE",
+      url: "/api/conversations/g1",
+      body: undefined,
+    })
+  })
 })
