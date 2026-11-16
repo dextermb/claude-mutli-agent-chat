@@ -2,7 +2,6 @@ import {
   EllipsisIcon,
   FolderIcon,
   HashIcon,
-  InfoIcon,
   LockIcon,
   MenuIcon,
   SettingsIcon,
@@ -418,13 +417,6 @@ export default function ConversationPage() {
             />
           </div>
           <div className="flex flex-col gap-1.5 px-5 pb-4">
-            {!isDirect && (
-              <p className="m-0 flex items-center gap-2 text-xs text-foreground-faint">
-                <InfoIcon aria-hidden="true" className="size-4 flex-none" />
-                Agents reply to each other in this thread when they @mention
-                each other. Stop all ends the chain.
-              </p>
-            )}
             {isDirect &&
               conversation.agents.map((member) => {
                 const line = statusLine(member, conversation.entries)

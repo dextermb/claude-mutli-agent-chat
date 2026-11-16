@@ -251,8 +251,7 @@ A group chat and a DM have no settings.
 
 Each agent that works has a working line at the end of the thread (see
 above). An idle or stopped member has no line: the members panel shows its
-state. Over the message box, a note says that agents reply to each other in this thread
-when they @mention each other, and that Stop all ends the chain.
+state.
 
 After `@`, the message box shows the agents of the conversation whose names
 start with the typed text, in a list named "Members". Each option shows the
