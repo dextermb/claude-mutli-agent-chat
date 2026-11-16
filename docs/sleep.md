@@ -56,12 +56,18 @@ When the context of the last turn (`context.used` of the turn item,
 `/compact` with the text of `agent/compact.md`. The app value is
 `AGENTS_COMPACT_ABOVE_TOKENS`, or 100,000. Under about 100k, a compaction
 saves little, because the base of each session is 45k to 55k tokens and a
-compaction cannot go below it (F48).
+compaction cannot go below it (F48). Claude Code compacts by itself only at
+the window minus 33,000 tokens, which is about 967,000 on a model with a
+window of 1M (F63). So for an agent, the compaction before the stop is the
+one that keeps the context small.
 
 The compaction comes back as a `compaction` item (F41, F42 in
 `docs/protocol.md`). The user's `PreCompact` and `SessionStart` hooks run (F57, F58), as
 for each compaction. Each agent process has `AGENT_CHAT=1` in its
-environment, so a hook script can test it and skip its work in an agent.
+environment, and a hook gets it (F61), so a hook script can test it and skip
+its work in an agent. A `PreCompact` hook that exits with code 2 blocks the
+compaction (F61). The agent then sleeps with its full context, and the
+compaction item ends as `failed` (F62).
 
 ## The wake
 
@@ -181,8 +187,3 @@ of `claudeSummarizer()` runs `server/test/fake-summarizer.ts` in place of
 
 - A wake after more than one hour. F47 gives the cache time, and the costs
   come from the measured prices, not from a probe that waited.
-- `--autocompact`. An automatic compaction is recorded (F59), but only with
-  `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, not at the real window.
-- A compaction that fails for a reason other than `too_few_groups` (F60).
-- A `PreCompact` hook that fails, and whether it stops the compaction.
-- That a hook gets `AGENT_CHAT` from the environment of the process.

@@ -139,7 +139,8 @@ event. The event comes on `close`, not on `exit`, so it holds the last bytes.
 `childEnvironment()` (`server/session/environment.ts`) removes the
 variables of a parent Claude Code session, and sets `AGENT_CHAT=1`. A hook
 script of the user can test `AGENT_CHAT` to tell an agent from a terminal
-session.
+session. A hook gets it from the environment of the process (F61 in
+`docs/protocol.md`).
 
 The server also stops an idle process after its sleep time. See
 `docs/sleep.md`.
