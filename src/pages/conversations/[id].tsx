@@ -43,6 +43,7 @@ import { SharedFilesContext } from "@/components/conversation/files/shared-files
 import { MembersPanel } from "@/components/conversation/session/members-panel"
 import { SessionPanel } from "@/components/conversation/session/session-panel"
 import { SessionSheet } from "@/components/conversation/session/session-sheet"
+import { JumpButton } from "@/components/conversation/timeline/jump-button"
 import { Timeline } from "@/components/conversation/timeline/timeline"
 import { entryAnchor } from "@/lib/timeline"
 import { WorkingLines } from "@/components/conversation/working-line"
@@ -51,6 +52,7 @@ import { useConversation } from "@/hooks/use-conversation"
 import { useMarkRead } from "@/hooks/use-mark-read"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useSessionCard } from "@/hooks/use-session-card"
+import { useStickToBottom } from "@/hooks/use-stick-to-bottom"
 import type {
   AgentWithState,
   Conversation,
@@ -104,6 +106,9 @@ export default function ConversationPage() {
   const [, navigate] = useLocation()
   const tab = new URLSearchParams(search).get("tab") ?? "messages"
   const focusEntry = useRef<string | null>(null)
+  const { scrollRef, contentRef, atBottom, jumpToBottom } = useStickToBottom(
+    params.id
+  )
   function showTab(value: string) {
     navigate(
       value === "messages"
@@ -367,49 +372,61 @@ export default function ConversationPage() {
           {...dropZone.handlers}
         >
           {dropZone.overlay}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {isDirect && agent && (
-              <div className="flex flex-col items-start gap-2 px-5 pt-4 pb-2">
-                <Avatar size="lg">
-                  <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-                    {initialsOf(agent.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <p className="m-0 max-w-[520px] leading-[22px] text-muted-foreground">
-                  This is your DM with{" "}
-                  <strong className="text-foreground-strong">
-                    {agent.name}
-                  </strong>
-                  . In a DM, the agent replies to every message. It runs Claude
-                  Code in{" "}
-                  <code className="font-mono text-[13px] text-agent-yellow">
-                    {agent.sessionCwd}
-                  </code>
-                  .
-                </p>
-              </div>
-            )}
-            <SharedFilesContext.Provider
-              value={{
-                files: conversation.files,
-                entries: conversation.entries,
-                agents: conversation.agents,
-              }}
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <section
+              ref={scrollRef}
+              aria-label="Messages"
+              className="min-h-0 flex-1 overflow-y-auto"
             >
-              <Timeline
-                entries={conversation.entries}
-                agents={conversation.agents}
-                onAnswer={async (requestId, answer) => {
-                  const refusal = await conversation.answer(requestId, answer)
-                  showRefusal(refusal)
-                  return refusal === null
-                }}
-              />
-            </SharedFilesContext.Provider>
-            <WorkingLines
-              agents={conversation.agents}
-              entries={conversation.entries}
-            />
+              <div ref={contentRef}>
+                {isDirect && agent && (
+                  <div className="flex flex-col items-start gap-2 px-5 pt-4 pb-2">
+                    <Avatar size="lg">
+                      <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
+                        {initialsOf(agent.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="m-0 max-w-[520px] leading-[22px] text-muted-foreground">
+                      This is your DM with{" "}
+                      <strong className="text-foreground-strong">
+                        {agent.name}
+                      </strong>
+                      . In a DM, the agent replies to every message. It runs
+                      Claude Code in{" "}
+                      <code className="font-mono text-[13px] text-agent-yellow">
+                        {agent.sessionCwd}
+                      </code>
+                      .
+                    </p>
+                  </div>
+                )}
+                <SharedFilesContext.Provider
+                  value={{
+                    files: conversation.files,
+                    entries: conversation.entries,
+                    agents: conversation.agents,
+                  }}
+                >
+                  <Timeline
+                    entries={conversation.entries}
+                    agents={conversation.agents}
+                    onAnswer={async (requestId, answer) => {
+                      const refusal = await conversation.answer(
+                        requestId,
+                        answer
+                      )
+                      showRefusal(refusal)
+                      return refusal === null
+                    }}
+                  />
+                </SharedFilesContext.Provider>
+                <WorkingLines
+                  agents={conversation.agents}
+                  entries={conversation.entries}
+                />
+              </div>
+            </section>
+            {!atBottom && <JumpButton onClick={jumpToBottom} />}
           </div>
           <div className="flex flex-col gap-1.5 px-5 pb-4">
             {isDirect &&
@@ -452,9 +469,10 @@ export default function ConversationPage() {
                   </>
                 )
               }
-              onSend={async (text, files) =>
+              onSend={async (text, files) => {
+                jumpToBottom()
                 showRefusal(await conversation.send(text, files))
-              }
+              }}
             />
           </div>
         </TabsContent>
