@@ -626,6 +626,7 @@ export default function AgentPage() {
                         placeholder="Block a tool, for example WebFetch"
                         rules={field.state.value ?? []}
                         blocked
+                        errors={shown(field.state.meta)}
                         onChange={(rules) => field.handleChange(rules)}
                       />
                     )}

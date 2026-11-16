@@ -498,6 +498,24 @@ describe("the agent configuration page", () => {
     expect(turns).toHaveAttribute("aria-invalid", "true")
   })
 
+  test("a blocked ToolSearch shows its message under the blocked tools, and the agent is not saved", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+    const add = await screen.findByLabelText("Add a blocked tool")
+
+    await user.type(add, "ToolSearch{Enter}")
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    expect(add).toHaveAccessibleDescription(
+      "Do not block ToolSearch. Without it, each request loads the schema of each MCP tool."
+    )
+    expect(add).toHaveAttribute("aria-invalid", "true")
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([])
+  })
+
   test("the sleep time goes to the server, and a time above 55 shows its message", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })

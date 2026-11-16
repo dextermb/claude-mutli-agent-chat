@@ -1,5 +1,6 @@
+import { existsSync } from "node:fs"
 import { describe, expect, test } from "vitest"
-import { sessionFacts } from "./environment-prompt.ts"
+import { ENVIRONMENT_RULE, sessionFacts } from "./environment-prompt.ts"
 
 describe("sessionFacts", () => {
   test("an agent in a DM learns its name, its conversation and that it gets each message", () => {
@@ -125,5 +126,23 @@ describe("sessionFacts", () => {
     expect(facts.at(-1)).toBe(
       "- You work in ~/.local/share/agent-chat/scratch/c-dm, a scratch folder of this conversation. It holds no project. Keep your notes there."
     )
+  })
+})
+
+describe("ENVIRONMENT_RULE", () => {
+  test("each chat skill that the rule names has its SKILL.md in the chat plugin", () => {
+    const named = [...ENVIRONMENT_RULE.matchAll(/`chat:([a-z-]+)`/g)].map(
+      (match) => match[1]
+    )
+
+    expect(named.length).toBeGreaterThan(0)
+    for (const name of new Set(named)) {
+      expect(
+        existsSync(
+          new URL(`../../agent/skills/${name}/SKILL.md`, import.meta.url)
+        ),
+        `chat:${name}`
+      ).toBe(true)
+    }
   })
 })

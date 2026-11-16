@@ -32,16 +32,17 @@ of the server in an alert.
 A rule that needs the database stays in the route. A channel name that is
 taken gives `409`, and the dialog shows it in its alert only.
 
-| Field                  | Rule                                 | Message                                                            |
-| ---------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| agent `name`           | not empty after a trim               | Give the agent a name.                                             |
-| agent `model`          | not empty                            | Pick a model.                                                      |
-| agent `permissionMode` | not empty                            | Pick a permission mode.                                            |
-| agent `maxTurns`       | a whole number, 1 or more, or `null` | Give a whole number of 1 or more, or leave it empty.               |
-| `sleepAfterMinutes`    | a whole number, 0 to 55, or empty    | Give a whole number from 0 to 55, or leave it empty.               |
-| channel `name`         | not empty after a trim               | Give the channel a name.                                           |
-| channel `name`         | `^[a-z0-9-]+$`                       | Use only lowercase letters, numbers and hyphens in a channel name. |
-| channel `replyMode`    | `mention` or `every`                 | Pick a reply mode.                                                 |
+| Field                   | Rule                                 | Message                                                                              |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| agent `name`            | not empty after a trim               | Give the agent a name.                                                               |
+| agent `model`           | not empty                            | Pick a model.                                                                        |
+| agent `permissionMode`  | not empty                            | Pick a permission mode.                                                              |
+| agent `maxTurns`        | a whole number, 1 or more, or `null` | Give a whole number of 1 or more, or leave it empty.                                 |
+| `sleepAfterMinutes`     | a whole number, 0 to 55, or empty    | Give a whole number from 0 to 55, or leave it empty.                                 |
+| agent `disallowedTools` | no entry `ToolSearch` (F56)          | Do not block ToolSearch. Without it, each request loads the schema of each MCP tool. |
+| channel `name`          | not empty after a trim               | Give the channel a name.                                                             |
+| channel `name`          | `^[a-z0-9-]+$`                       | Use only lowercase letters, numbers and hyphens in a channel name.                   |
+| channel `replyMode`     | `mention` or `every`                 | Pick a reply mode.                                                                   |
 
 The model and the permission mode are free strings, because new models come
 out. The schema gives a default to the fields that an older client can leave

@@ -8,8 +8,9 @@ not know these facts:
 - A mention starts a turn of another agent, and each turn costs money.
 - An approval card or a question card can wait for a long time.
 - A question in the correct shape lets the user answer with no mention. The
-  section "Questions to the user" gives the shape and how to ask well. The
-  rule that the server applies is in `docs/conversations.md`.
+  section "Questions to the user" gives the shape, and `chat:ask-the-user`
+  tells how to ask well. The rule that the server applies is in
+  `docs/conversations.md`.
 - Each conversation is a separate session with a separate memory.
 - Another agent can work in the same folder.
 
@@ -121,11 +122,27 @@ name of each agent.
 `chat:<name>`. The plugin does not hold the rule, because a plugin cannot
 give a `CLAUDE.md`, and a skill loads only on demand.
 
-| Skill               | When the agent uses it                                                                  |
-| ------------------- | --------------------------------------------------------------------------------------- |
-| `chat:ask-an-agent` | It needs work or an answer from another agent: where to ask, and where the answer comes |
-| `chat:hand-off`     | Another agent must continue a task: the shape of a complete brief                       |
-| `chat:catch-up`     | Its prompt does not tell it enough: read the earlier messages first                     |
+| Skill                 | When the agent uses it                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `chat:ask-the-user`   | It asks the user a question in a group chat or a channel: the shape, and how to ask well |
+| `chat:ask-an-agent`   | It needs work or an answer from another agent: where to ask, and where the answer comes  |
+| `chat:hand-off`       | Another agent must continue a task: the shape of a complete brief                        |
+| `chat:catch-up`       | Its prompt does not tell it enough: read the earlier messages first                      |
+| `chat:shared-files`   | Its prompt has a `[Shared file: …]` or `[Removed file: …]` line: copied or linked        |
+| `chat:sleep-and-wake` | A `[Chat app]` line about sleep, left-out messages, a summary or a new session           |
+
+## The rule is a map
+
+Each agent reads `agent/environment.md` in each request, so it holds only
+what applies to each message: the shape of a message, the prompt, mentions,
+what counts as a question to the user, permissions, and the chat tools. Each
+procedure is a skill, and the section "The skills" of the rule says when to
+use which one. Claude Code lists each skill with its name and description
+only, and loads its body when the agent uses it. So a new procedure is a new
+skill, and the rule grows by one line.
+
+A test (`server/session/environment-prompt.test.ts`) fails when the rule names
+a `chat:` skill with no `agent/skills/<name>/SKILL.md`.
 
 The skills use the tools of the `chat` MCP server (`docs/mcp.md`). The
 section "The chat tools" of `agent/environment.md` lists those tools, so the
