@@ -1,4 +1,4 @@
-# Sleep
+# Sleep and wake
 
 An agent can stay in a DM, a group chat or a channel for weeks. A process
 that waits costs memory: about 460 MB with the MCP servers of the user. So
@@ -62,6 +62,52 @@ The compaction comes back as a `compaction` item (F41, F42 in
 for each compaction. Each agent process has `AGENT_CHAT=1` in its
 environment, so a hook script can test it and skip its work in an agent.
 
+## The wake
+
+A message, a mention, a `send_message` or Restart starts a process with
+`--resume`. Its first prompt starts with a `[Chat app]` block, in this order:
+
+```
+[Chat app] You were asleep for 3 h 12 min.        after a sleep of 1 h or more
+[Chat app] This session:                          each new process (docs/agent-environment.md)
+- …
+[Chat app] 212 messages came since your last turn. Here are the last 30. Use read_messages for the older ones.
+```
+
+- The gap comes from `ended_at` of the session row that ended with `sleep`.
+  A shorter sleep gives no line, because the prompt cache still holds the
+  context.
+- In a group chat or a channel, each prompt holds at most the last 30
+  messages since the last turn of the agent (`AGENTS_WAKE_MESSAGES`,
+  `docs/conversations.md`). This limit is for each prompt, not only after a
+  sleep.
+
+## A transcript that is gone
+
+Claude Code deletes a transcript 30 days after its last turn (F43, F44 in
+`docs/protocol.md`). The user sets this period with `cleanupPeriodDays` in
+the user settings. The app does not set it, because the sweep is shared: the
+value of one process decides for each transcript of the user on that day
+(F45).
+
+A `--resume` of a deleted transcript fails: stderr "No conversation found
+with session ID", exit code 1, and no answer to `initialize` (F30). The server
+then does not show a failure. It starts again:
+
+```
+state failed + that stderr + the row resumed an ID (not claude_session_new)
+  → new session row, a new Claude session ID, --session-id
+  → a session_start item: the divider "New session"
+  → the prompt that waited, with this note first:
+[Chat app] Claude Code deleted the transcript of your earlier session, so this is a new session. Use read_messages for the earlier messages of this conversation.
+[Chat app] The summary that you kept in your earlier session:
+<the summary of the last compaction of the earlier Claude session>
+```
+
+The summary comes from our database (`lastCompaction()`, `docs/store.md`),
+so the sweep cannot delete it. An agent with no compaction gets only the
+first line. Its memory is then the prompt and `read_messages`.
+
 ## What the user sees
 
 - The process exits, and the agent shows as stopped.
@@ -71,10 +117,14 @@ environment, so a hook script can test it and skip its work in an agent.
   (`docs/server.md`).
 - A compaction shows as a divider in the thread
   (`docs/web-app/conversation.md`).
+- A new session after a lost transcript shows as the divider "New session".
 
 ## Tests
 
 `createServer()` takes `minuteMs` (60,000 by default). A test gives 20, so one
 minute of sleep time lasts 20 ms, with real timers, real HTTP and the fake
 `claude`. The fake mode `hold-after-result` stops the output after the first
-`result` line, so a background job stays `running`.
+`result` line, so a background job stays `running`. The fake mode
+`no-transcript` fails as in F30 when it starts with `--resume`, and plays the
+fixture when it starts with `--session-id`. `wakeMessages` sets the limit of
+messages for a test.

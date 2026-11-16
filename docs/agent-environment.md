@@ -92,6 +92,9 @@ before the next prompt:
   folder until it stops, so this line changes only in a new process.
 - The server keeps the facts that it sent in memory, for each process. A new
   process, also one that resumes a Claude session, gets the full block again.
+- The same block can also hold the length of a sleep, the number of messages
+  that the prompt leaves out, and the note of a new session after a lost
+  transcript (`docs/sleep.md`).
 
 ## The data flow
 

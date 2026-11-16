@@ -123,6 +123,10 @@ the last prompt of that agent, one line for each, with its author:
   starts at its new join.
 - New session moves that place to its divider, because the agent forgot the
   conversation (`docs/server.md`).
+- The prompt holds at most the last 30 of these messages
+  (`AGENTS_WAKE_MESSAGES`). When more came, the `[Chat app]` block ends with
+  "[Chat app] 212 messages came since your last turn. Here are the last 30.
+  Use read_messages for the older ones." (`docs/sleep.md`).
 
 ## The state of an agent
 
