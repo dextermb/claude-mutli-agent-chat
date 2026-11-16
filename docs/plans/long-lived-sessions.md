@@ -1,11 +1,9 @@
 # Long-lived agents: sleep, wake and memory
 
-**Status:** awaiting go-ahead. The measurements are done (2026-11-16, Claude
-Code 2.1.311, Haiku 5.5, about 0.55 USD, of which one probe took 0.28 USD: F50). Decided: compaction and resume,
-the idle time on the agent and on the channel, the last 30 messages and a
-conversation summary, no lean profile. Still open: the user's hooks at
-compaction (question 1), plugins for each agent (question 2), and old
-transcripts (question 3).
+**Status:** awaiting go-ahead to build. The measurements are done
+(2026-11-16, Claude Code 2.1.311, Haiku 5.5, about 0.57 USD, of which one
+probe took 0.28 USD: F50). All the questions are decided (decisions 1–8).
+Nothing is open.
 
 An agent can stay in a DM, a group chat or a channel for weeks. Today, its
 `claude` process never stops on its own, and its Claude session grows until
@@ -60,6 +58,22 @@ message ──▶ liveSessionFor() ──▶ live process? ──yes──▶ qu
    disclosure").
 5. **Facts go in the prompt, not in the system prompt.** This fixes F38. The
    system prompt holds only what never changes.
+6. **The user's hooks run at compaction, and each agent process gets
+   `AGENT_CHAT=1`.** Options A and C of "The user's hooks at compaction". A
+   hook script of the user can test the variable and skip its work in an
+   agent. Rejected: `disableAllHooks`, because it also stops the safety
+   hooks.
+7. **No plugins for each agent now.** Each agent gets the plugins of the
+   user. `--settings enabledPlugins` stays a later option (F49).
+8. **Claude Code deletes an agent transcript 30 days after its last turn,
+   and the app accepts this.** A wake after a longer sleep takes the
+   fallback: a new Claude session, with the last compaction summary and the
+   wake prompt. Both live in our database, so the sweep cannot delete them
+   (F53–F55). Rejected: `--settings '{"cleanupPeriodDays": …}'` for agent
+   processes. The sweep is shared, so the value of one agent process decides
+   the retention of each transcript of the user on that day. Also rejected:
+   a touch of each transcript to keep it young. `docs/agents.md` tells the
+   user that `cleanupPeriodDays` in the user settings sets this limit.
 
 ## Measurements
 
@@ -85,6 +99,9 @@ findings move into `docs/protocol.md`.
 | F50 | **A tool list with no `ToolSearch` loads each MCP schema.** `--tools Read` gave a first request of 280k tokens and cost 0.28 USD for "OK". Deferred tools keep about 240k tokens of the user's MCP schemas out of each agent.                                                                                                                                                                                                                                                                                                                                                                   |
 | F51 | **The `SessionStart` hooks run again after each compaction.** Five hooks ran as `SessionStart:compact`. Two wrote output (8.4 KB and 0.4 KB), and that output goes back into the context: `post_tokens` was 17.7k with hooks and 12.1k with `disableAllHooks`.                                                                                                                                                                                                                                                                                                                                  |
 | F52 | **A `PreCompact` hook sends no hook line, and `--settings` cannot remove it.** Only the replayed line `<local-command-stdout>Compacted PreCompact [bd prime] completed successfully</local-command-stdout>` names it. With `--settings '{"hooks":{"PreCompact":[]}}'`, `bd prime` still ran: the hooks of `--settings` add to the user's hooks. Only `disableAllHooks: true` stops them, and it stops each hook of each event.                                                                                                                                                                  |
+| F53 | **A daily sweep deletes each transcript that is older than `cleanupPeriodDays`.** The default is 30 days, and the user does not set it. The sweep looks at the file time, and each turn writes to the file, so the days count from the last turn. It runs at most once in 24 hours for each config folder (the file `.last-cleanup`), in any process, also in `-p`, about 5 s after the start. In an empty `CLAUDE_CONFIG_DIR`, it deleted copies of 40 and 31 days and kept a copy of 29 days.                                                                                                 |
+| F54 | **Only the transcripts of the desktop app are exempt.** In `~/.claude/projects`, each transcript older than 30 days has `entrypoint: "claude-desktop"` (331 files). No `cli` or `sdk-cli` transcript older than 30 days is left. An agent process writes `entrypoint: "sdk-cli"`, so its transcript is not exempt. One turn wrote a transcript of 385 KB (the skill list, the rules and the prompt snapshots).                                                                                                                                                                                  |
+| F55 | **`--settings` changes the period for the sweep of that process only.** With `{"cleanupPeriodDays": 3650}`, the sweep kept a copy of 40 days. But the first process of each 24 hours, from the terminal, the desktop app or an agent, does the sweep with its own value. A `--resume` of a deleted transcript fails as in F30: stderr "No conversation found with session ID", no answer to `initialize`.                                                                                                                                                                                       |
 
 ### What a wake costs
 
@@ -168,7 +185,8 @@ liveSessionFor(agent, conversation)
   ├─ live process? → use it (no change)
   └─ no live process
        ├─ latest row has a Claude session ID → start with --resume <id>
-       │     └─ the process fails with "No conversation found" (F30 shape)?
+       │     └─ the process fails with "No conversation found" (F30, F55)?
+       │        always after 30 days with no turn (F53)
        │           → fallback: new row, --session-id <new uuid>,
        │             brief = last compaction summary + the wake prompt
        └─ no ID → --session-id <new uuid> (no change)
@@ -319,7 +337,7 @@ The options:
 | C. A mark in the environment    | The server sets `AGENT_CHAT=1` for each agent process. A hook script of the user can test it and skip its work. The user decides for each hook. That a hook gets this variable is not measured |
 | D. No compaction at sleep       | No hook runs at sleep, but each cold wake costs `20·C` (see the chart)                                                                                                                         |
 
-The plan recommends A and C together.
+Decided: A and C together (decision 6).
 
 ## Configuration
 
@@ -466,7 +484,10 @@ In slices, test-first with the `tdd` skill. Each slice ships alone.
    `end_reason = "sleep"`. A test drives the clock with fake timers.
 4. **The wake prompt.** The gap line, the facts block, the limit of 30
    messages and the pointer to `read_messages`. The fallback to a new Claude
-   session when the resume fails.
+   session when the resume fails. After 30 days with no turn, this is the
+   normal path (decision 8), so a test drives it with a session that exits
+   as in F30: code 1, the stderr line, and no answer to `initialize`. Add
+   `cleanupPeriodDays` to `docs/agents.md`.
 5. **The conversation summary.** `conversation_summaries`, the summarizer
    process with its own fixture, and the summary in the wake prompt.
 6. **The rule as a map.** The guard for `ToolSearch` in the agent schema.
@@ -480,17 +501,7 @@ the stopped process, and the answer that uses the summary.
 
 ## Open questions
 
-1. **The user's hooks at compaction.** The plan recommends option A with
-   option C (see "The user's hooks at compaction"). Is that correct for
-   `bd prime`, and for each other hook of the user?
-2. **Plugins for each agent?** `--settings enabledPlugins` can turn off a
-   plugin for one agent (−3.9k for both user plugins, F49). The agent still
-   sees each other skill and tool. This is scope, not a lean profile. Add a
-   field to the agent form, or not now?
-3. **Old transcripts.** Claude Code can delete old transcripts after a
-   number of days. This is not measured. If it happens, the resume fails, and
-   slice 4 starts a new session with the stored summary. Measure the period
-   before the build.
+None.
 
 ## Resolved
 
@@ -499,6 +510,10 @@ the stopped process, and the answer that uses the summary.
   (decision 2).
 - Option C or option D for missed messages: both (decision 3).
 - A lean profile: no (decision 4).
+- The user's hooks at compaction: options A and C (decision 6).
+- Plugins for each agent: not now (decision 7).
+- Old transcripts: measured, 30 days after the last turn, and the app takes
+  the fallback (decision 8).
 
 ## Not measured
 
@@ -506,7 +521,6 @@ the stopped process, and the answer that uses the summary.
   come from the measured prices, not from a probe that waited.
 - An automatic compaction at the window, and `--autocompact`.
 - `--system-prompt-snapshot off` over many requests.
-- The deletion of old transcripts by Claude Code.
 - The summarizer with `--tools ""`, and its cost.
 - A `PreCompact` hook that fails, and whether it stops the compaction.
 - That a hook gets `AGENT_CHAT` from the environment of the process.
