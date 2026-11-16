@@ -24,7 +24,7 @@ gives the parts of the app, the main decisions, and the risks.
 
 | Page                       | Open it for                                                                  |
 | -------------------------- | ---------------------------------------------------------------------------- |
-| `web-app.md`               | The pages, how to run the app, and the shared types                          |
+| `web-app.md`               | The pages, how to run the app, the shared types, and the design boards       |
 | `web-app/conversation.md`  | `useConversation()`, the parts of the timeline, and the `@` list             |
 | `web-app/session-panel.md` | The session panel, the members of a channel, and the DM tabs                 |
 | `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar                |
