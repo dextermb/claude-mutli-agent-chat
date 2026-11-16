@@ -126,14 +126,15 @@ export function openStore(location: string) {
     const created: Conversation = {
       ...conversation,
       cwd: conversation.cwd ?? null,
+      sleepAfterMinutes: conversation.sleepAfterMinutes ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
     }
     db.prepare(
       `INSERT INTO conversations (id, kind, name, topic, private, reply_mode,
-         cwd, created_at)
+         cwd, sleep_after_minutes, created_at)
        VALUES (:id, :kind, :name, :topic, :private, :replyMode, :cwd,
-         :createdAt)`
+         :sleepAfterMinutes, :createdAt)`
     ).run({
       id: created.id,
       kind: created.kind,
@@ -142,6 +143,7 @@ export function openStore(location: string) {
       private: created.private ? 1 : 0,
       replyMode: created.replyMode,
       cwd: created.cwd,
+      sleepAfterMinutes: created.sleepAfterMinutes,
       createdAt: created.createdAt,
     })
     const addMember = db.prepare(
@@ -178,7 +180,10 @@ export function openStore(location: string) {
   function updateConversation(
     id: string,
     change: Partial<
-      Pick<Conversation, "name" | "topic" | "private" | "replyMode" | "cwd">
+      Pick<
+        Conversation,
+        "name" | "topic" | "private" | "replyMode" | "cwd" | "sleepAfterMinutes"
+      >
     >
   ): Conversation | undefined {
     const current = getConversation(id)
@@ -186,7 +191,8 @@ export function openStore(location: string) {
     const next = { ...current, ...change }
     db.prepare(
       `UPDATE conversations SET name = :name, topic = :topic, private = :private,
-         reply_mode = :replyMode, cwd = :cwd
+         reply_mode = :replyMode, cwd = :cwd,
+         sleep_after_minutes = :sleepAfterMinutes
        WHERE id = :id`
     ).run({
       id,
@@ -195,6 +201,7 @@ export function openStore(location: string) {
       private: next.private ? 1 : 0,
       replyMode: next.replyMode,
       cwd: next.cwd,
+      sleepAfterMinutes: next.sleepAfterMinutes ?? null,
     })
     return getConversation(id)
   }
@@ -774,6 +781,8 @@ function toConversation(row: Row, members: string[]): Conversation {
     private: row.private === 1,
     replyMode: String(row.reply_mode) as Conversation["replyMode"],
     cwd: row.cwd === null ? null : String(row.cwd),
+    sleepAfterMinutes:
+      row.sleep_after_minutes === null ? null : Number(row.sleep_after_minutes),
     members,
     createdAt: String(row.created_at),
   }

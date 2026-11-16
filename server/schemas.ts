@@ -65,6 +65,7 @@ export const channelSchema = z.object({
     .enum(["mention", "every"], { error: "Pick a reply mode." })
     .default("mention"),
   cwd: optionalFolder(),
+  sleepAfterMinutes: sleepTime(),
   agentIds: z.array(z.string()).default([]),
 })
 
@@ -73,6 +74,7 @@ export const channelSettingsSchema = channelSchema.pick({
   private: true,
   replyMode: true,
   cwd: true,
+  sleepAfterMinutes: true,
 })
 
 export type AgentDraft = z.input<typeof agentSchema>

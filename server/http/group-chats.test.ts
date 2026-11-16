@@ -820,6 +820,30 @@ describe("group chats and channels", () => {
     })
   })
 
+  test("a channel keeps its own sleep time, and a time above 55 minutes is refused", async () => {
+    const { base } = await startServer()
+    const runner = await createAgent(base, "test-runner")
+    const created = await channel(base, { agentIds: [runner.id] })
+
+    const kept = await changeSettings(base, created.id, {
+      sleepAfterMinutes: 5,
+    })
+    const tooLong = await changeSettings(base, created.id, {
+      sleepAfterMinutes: 56,
+    })
+
+    expect(await kept.json()).toMatchObject({
+      conversation: { sleepAfterMinutes: 5 },
+    })
+    expect(tooLong.status).toBe(400)
+    expect(await tooLong.json()).toMatchObject({
+      fields: {
+        sleepAfterMinutes:
+          "Give a whole number from 0 to 55, or leave it empty.",
+      },
+    })
+  })
+
   test("a DM and a group chat refuse a change to the settings", async () => {
     const { base } = await startServer()
     const runner = await createAgent(base, "test-runner")

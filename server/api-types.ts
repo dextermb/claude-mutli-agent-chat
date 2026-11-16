@@ -69,12 +69,17 @@ export type Conversation = {
   private: boolean
   replyMode: "mention" | "every"
   cwd: string | null
+  sleepAfterMinutes: number | null
   members: string[]
   createdAt: string
 }
 
-export type NewConversation = Omit<Conversation, "id" | "createdAt" | "cwd"> & {
+export type NewConversation = Omit<
+  Conversation,
+  "id" | "createdAt" | "cwd" | "sleepAfterMinutes"
+> & {
   cwd?: string | null
+  sleepAfterMinutes?: number | null
 }
 
 export type TimelineEntry = {
