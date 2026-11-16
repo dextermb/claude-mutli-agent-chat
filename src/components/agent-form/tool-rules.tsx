@@ -2,7 +2,7 @@ import { XIcon } from "lucide-react"
 import { useState, type KeyboardEvent } from "react"
 
 import { Badge } from "@/components/ui/badge"
-import { Field, FieldLabel } from "@/components/ui/field"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import {
   InputGroup,
   InputGroupAddon,
@@ -18,6 +18,7 @@ export function ToolRules({
   rules,
   empty,
   blocked = false,
+  errors = [],
   onChange,
 }: {
   id: string
@@ -27,8 +28,10 @@ export function ToolRules({
   rules: string[]
   empty?: string
   blocked?: boolean
+  errors?: { message?: string }[]
   onChange: (rules: string[]) => void
 }) {
+  const invalid = errors.length > 0
   const [draft, setDraft] = useState("")
 
   function add() {
@@ -44,7 +47,7 @@ export function ToolRules({
   }
 
   return (
-    <Field aria-labelledby={`${id}-label`}>
+    <Field aria-labelledby={`${id}-label`} data-invalid={invalid}>
       <FieldLabel id={`${id}-label`} htmlFor={id}>
         {label}
       </FieldLabel>
@@ -78,6 +81,8 @@ export function ToolRules({
         <InputGroupInput
           id={id}
           aria-label={inputLabel}
+          aria-invalid={invalid}
+          aria-describedby={invalid ? `${id}-error` : undefined}
           className="font-mono"
           placeholder={placeholder}
           value={draft}
@@ -90,6 +95,7 @@ export function ToolRules({
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
+      <FieldError id={`${id}-error`} errors={errors} />
     </Field>
   )
 }

@@ -29,7 +29,13 @@ export const agentSchema = z.object({
   cwd: optionalFolder(),
   autostart: z.boolean().default(false),
   allowedTools: z.array(z.string()).default([]),
-  disallowedTools: z.array(z.string()).default([]),
+  disallowedTools: z
+    .array(z.string())
+    .default([])
+    .refine(
+      (tools) => !tools.some((tool) => /^ToolSearch(\(|$)/.test(tool.trim())),
+      "Do not block ToolSearch. Without it, each request loads the schema of each MCP tool."
+    ),
   systemPrompt: emptyAsNull(),
   description: emptyAsNull(),
   maxTurns: z

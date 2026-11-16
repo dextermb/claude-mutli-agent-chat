@@ -914,6 +914,23 @@ describe("createServer", () => {
     })
   })
 
+  test("an agent that blocks ToolSearch is refused, because each request would then load each MCP schema", async () => {
+    const { base } = await startServer()
+
+    const response = await postJson(base, "/api/agents", {
+      ...testRunner,
+      disallowedTools: ["WebFetch", "ToolSearch"],
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({
+      fields: {
+        disallowedTools:
+          "Do not block ToolSearch. Without it, each request loads the schema of each MCP tool.",
+      },
+    })
+  })
+
   test("a generic agent with no folder can be created", async () => {
     const { base } = await startServer()
 
