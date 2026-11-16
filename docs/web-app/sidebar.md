@@ -5,7 +5,7 @@ start a conversation or add its members.
 
 ## The sidebar
 
-`src/components/app-sidebar.tsx` shows on the home page, the agent page and
+`src/components/sidebar/app-sidebar.tsx` shows on the home page, the agent page and
 the conversation page. It has two columns:
 
 - **The workspace rail** (64 px, `rail` ground, `nav` "Workspace"). It holds
@@ -59,12 +59,12 @@ needs approval". With no such agent, the footer is not there.
 
 Two dialogs that the sidebar opens:
 
-- **Start a chat** (`src/components/start-chat-dialog.tsx`), from the pen
+- **Start a chat** (`src/components/dialogs/start-chat-dialog.tsx`), from the pen
   button. The search filters the agents by name. Each picked agent shows in
   "To:". One agent opens its DM, and two or more agents start a group chat.
   The footer says which one. If the server refuses the chat, the dialog
   shows the reason and stays open.
-- **Create a channel** (`src/components/create-channel-dialog.tsx`), from the
+- **Create a channel** (`src/components/dialogs/create-channel-dialog.tsx`), from the
   `+` of Channels. It sends the name, the topic, Private, the invited agents
   and the reply mode. It checks the name before it sends (`docs/forms.md`).
   If the server refuses the channel, the dialog shows the reason and stays
@@ -77,7 +77,7 @@ comes, each dialog says "The server did not answer." and stays open.
 
 The members panel of a group chat has "Add people or agents", and the members
 panel of a channel has "Invite agents" (`docs/web-app/session-panel.md`).
-Each opens `src/components/add-members-dialog.tsx`. Its description depends on
+Each opens `src/components/dialogs/add-members-dialog.tsx`. Its description depends on
 the reply mode: "A new member sees only the messages after it joins. It
 replies when someone @mentions it." Under the heading "Agents that are not
 members", each agent shows its model and its mode, and a checkbox named

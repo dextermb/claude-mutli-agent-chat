@@ -1,6 +1,3 @@
-import { useEffect, useState } from "react"
-
-import { mainInput } from "@/components/conversation/tool-call-line"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Trace,
@@ -9,7 +6,10 @@ import {
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace"
+import { useNow } from "@/hooks/use-now"
 import type { ConversationAgent, TimelineEntry } from "@/lib/agent-api"
+import { elapsed } from "@/lib/time"
+import { activityOf, turnStartOf } from "@/lib/working"
 
 export function WorkingLines({
   agents,
@@ -44,54 +44,4 @@ export function WorkingLines({
       })}
     </Trace>
   )
-}
-
-function useNow(ticking: boolean): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (!ticking) return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [ticking])
-  return now
-}
-
-function elapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds} s`
-  return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
-}
-
-function activityOf(
-  agent: ConversationAgent,
-  entries: TimelineEntry[]
-): string {
-  const last = entries.findLast(
-    ({ authorKey, item }) =>
-      authorKey === `agent:${agent.id}` &&
-      !(item.kind === "tool_call" && item.parentToolUseId)
-  )?.item
-  if (last?.kind === "tool_call" && last.status === "running") {
-    return `is running ${last.name} ${mainInput(last.name, last.input, agent.sessionCwd)}`
-  }
-  if (last?.kind === "message" && last.status === "streaming") {
-    return "is writing"
-  }
-  return "is working"
-}
-
-function turnStartOf(
-  agent: ConversationAgent,
-  entries: TimelineEntry[]
-): string | undefined {
-  const key = `agent:${agent.id}`
-  const lastTurn = entries.findLastIndex(
-    (entry) => entry.authorKey === key && entry.item.kind === "turn"
-  )
-  const turn = entries.slice(lastTurn + 1)
-  const firstOwn = turn.findIndex((entry) => entry.authorKey === key)
-  return turn
-    .slice(0, firstOwn === -1 ? undefined : firstOwn)
-    .findLast(
-      (entry) => entry.authorKey !== key && entry.item.kind === "message"
-    )?.createdAt
 }

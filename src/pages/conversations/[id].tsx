@@ -26,30 +26,25 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { AddMembersDialog } from "@/components/add-members-dialog"
-import { AppSidebar } from "@/components/app-sidebar"
-import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
-import { Composer } from "@/components/conversation/composer"
-import {
-  ContextFigure,
-  ModelLink,
-} from "@/components/conversation/composer-tools"
-import {
-  FilesPanel,
-  SharedFilesList,
-} from "@/components/conversation/files-panel"
+import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
+import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings/channel-settings-dialog"
+import { Composer } from "@/components/conversation/composer/composer"
+import { ContextFigure } from "@/components/conversation/composer/context-figure"
+import { ModelLink } from "@/components/conversation/composer/model-link"
+import { FilesPanel } from "@/components/conversation/files/files-panel"
+import { SharedFilesList } from "@/components/conversation/files/shared-files-list"
 import { Separator } from "@/components/ui/separator"
 import { useDropZone } from "@/components/conversation/drop-zone"
-import { FilesTab } from "@/components/conversation/files-tab"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
-import { SessionLogTab } from "@/components/conversation/session-log-tab"
-import { SharedFilesContext } from "@/components/conversation/shared-files"
-import {
-  MembersPanel,
-  SessionPanel,
-  SessionSheet,
-} from "@/components/conversation/session-panel"
-import { entryAnchor, Timeline } from "@/components/conversation/timeline"
+import { FilesTab } from "@/components/conversation/files/files-tab"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
+import { SessionLogTab } from "@/components/conversation/session/session-log-tab"
+import { SharedFilesContext } from "@/components/conversation/files/shared-files-context"
+import { MembersPanel } from "@/components/conversation/session/members-panel"
+import { SessionPanel } from "@/components/conversation/session/session-panel"
+import { SessionSheet } from "@/components/conversation/session/session-sheet"
+import { Timeline } from "@/components/conversation/timeline/timeline"
+import { entryAnchor } from "@/lib/timeline"
 import { WorkingLines } from "@/components/conversation/working-line"
 import { useAttachments } from "@/hooks/use-attachments"
 import { useConversation } from "@/hooks/use-conversation"

@@ -17,7 +17,7 @@ The header:
   `exited`), and Save agent. The status and the counts come from `useWorkspace()`, so they follow
   the app stream.
 
-`src/components/agent-form/agent-actions.tsx` holds both actions. Each one
+`src/components/agent-actions/agent-actions.tsx` holds both actions. Each one
 asks first in an `AlertDialog`, then sends its route (`docs/server.md`):
 
 - **Stop agent:** "Stop test-runner?", "The next message to test-runner
@@ -49,7 +49,7 @@ description is for the people who read the page. It does not go into a
 prompt, and a change to it does not mark a running session as changed.
 
 The Working directory input has Browse at its end. It opens
-`src/components/agent-form/folder-dialog.tsx`, "Pick a folder", at the folder
+`src/components/dialogs/folder/folder-dialog.tsx`, "Pick a folder", at the folder
 in the field when that is an absolute path that exists, else at the home
 folder (`GET /api/folders`, `docs/server/files.md`). The dialog shows the path in
 mono, Up (disabled at `/`), one button for each subfolder, or "No folders in
@@ -58,7 +58,7 @@ absolute path in the field, because the server does not expand `~` in the
 working directory. The field can stay empty. Its description says "Empty: the
 agent works in the folder of each channel, or in a scratch folder."
 (`docs/agents.md`). Create a channel and Channel settings use the same field
-and dialog, in `FolderField` of `src/components/channel-fields.tsx`.
+and dialog, in `FolderField` of `src/components/fields/channel/`.
 
 The model and the permission mode use the Base UI `Select`, with a mono
 trigger, as the design shows. The description under the permission mode
