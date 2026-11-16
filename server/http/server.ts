@@ -20,6 +20,7 @@ import { buildArgs } from "../session/args.ts"
 import { environmentPrompt } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
+import { findFile } from "./find-file.ts"
 import { listFolders } from "./folders.ts"
 import { checkFiles, isFile, sharedFileLines } from "./shared-files.ts"
 import { saveUpload, UPLOAD_LIMIT, uploadsOf } from "./uploads.ts"
@@ -346,6 +347,12 @@ export function createServer({
     return running.map((session) => session.conversationId)
   }
 
+  function agentFoldersOf(conversationId: string): string[] {
+    return agentIdsOf(conversationId).flatMap(
+      (agentId) => store.getAgent(agentId)?.cwd ?? []
+    )
+  }
+
   function sharedFilesOf(conversationId: string): SharedFileView[] {
     return store.listSharedFiles(conversationId).map((file) => ({
       id: file.id,
@@ -577,6 +584,26 @@ export function createServer({
       return send(response, answer.status, answer.body)
     }
 
+    if ((params = route("POST", "api/conversations/:id/files/find"))) {
+      if (!store.getConversation(params.id)) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      const body = await readJson(request)
+      if (
+        typeof body.name !== "string" ||
+        typeof body.size !== "number" ||
+        typeof body.sha256 !== "string"
+      ) {
+        return send(response, 400, { error: "Give the name, size and sha256." })
+      }
+      const path = await findFile(agentFoldersOf(params.id), {
+        name: body.name,
+        size: body.size,
+        sha256: body.sha256,
+      })
+      return send(response, 200, { match: path ? { path } : null })
+    }
+
     if ((params = route("GET", "api/conversations/:id/files"))) {
       if (!store.getConversation(params.id)) {
         return send(response, 404, { error: "no such conversation" })
@@ -612,9 +639,7 @@ export function createServer({
       const body = await readJson(request)
       const text = typeof body.text === "string" ? body.text : ""
       const checked = await checkFiles(body.files, {
-        agentFolders: agentIdsOf(conversationId).flatMap(
-          (agentId) => store.getAgent(agentId)?.cwd ?? []
-        ),
+        agentFolders: agentFoldersOf(conversationId),
         uploads: uploadsOf(uploadsFolder, conversationId),
       })
       if (!checked.ok) return send(response, 400, { error: checked.error })

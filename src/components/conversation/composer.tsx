@@ -283,6 +283,7 @@ const BADGES: Record<
   Attachment["status"],
   { text: string; className: string }
 > = {
+  finding: { text: "Finding", className: "text-muted-foreground" },
   linked: { text: "Linked", className: "text-status-online" },
   copied: { text: "Copied", className: "text-muted-foreground" },
   copying: { text: "Copy", className: "text-status-working" },
@@ -361,8 +362,9 @@ function AttachmentChip({
 }
 
 function blockingHint(item: Attachment): string {
-  if (item.status === "copying")
-    return `Send waits until ${item.name} is copied.`
+  if (item.status === "finding" || item.status === "copying") {
+    return `Send waits until ${item.name} is shared.`
+  }
   if (item.status === "refused") return "Remove the folder to send."
   return `Retry or remove ${item.name} to send.`
 }

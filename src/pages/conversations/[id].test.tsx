@@ -1,4 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
@@ -1008,6 +1015,126 @@ describe("the DM page", () => {
     expect(
       screen.queryByRole("list", { name: "Files for this message" })
     ).not.toBeInTheDocument()
+  })
+
+  test("a file that is in the folder of the agent is linked, not copied", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage])
+    network.on("POST", "/api/conversations/c1/files/find", {
+      match: { path: "/home/user/code/web-app/src/auth.test.ts" },
+    })
+    await screen.findByRole("heading", { name: "test-runner" })
+
+    await user.upload(
+      screen.getByLabelText("Files to attach"),
+      new File(["the test\n"], "auth.test.ts")
+    )
+
+    const chips = within(
+      await screen.findByRole("list", { name: "Files for this message" })
+    )
+    expect(await chips.findByText("Linked")).toBeInTheDocument()
+    expect(
+      chips.getByText("/home/user/code/web-app/src/auth.test.ts")
+    ).toBeInTheDocument()
+    expect(
+      network.sent.find(
+        (request) => request.url === "/api/conversations/c1/files/find"
+      )
+    ).toEqual({
+      method: "POST",
+      url: "/api/conversations/c1/files/find",
+      body: {
+        name: "auth.test.ts",
+        size: 9,
+        sha256:
+          "f14ec1a0a51e135e49169f2c7b9eed9d8cc8e47b01ee1cefee3a494bb6973a66",
+      },
+    })
+    expect(network.sent.some((request) => request.method === "PUT")).toBe(false)
+  })
+
+  test("a drag of files shows the drop zone, and a drop adds a file and refuses a folder", async () => {
+    openConversation([userMessage])
+    network.on(
+      "PUT",
+      "/api/conversations/c1/uploads?name=ci-log.txt",
+      { name: "ci-log.txt", path: "/data/uploads/c1/ci-log.txt", size: 7 },
+      201
+    )
+    const thread = await screen.findByRole("tabpanel")
+    const file = new File(["line 1\n"], "ci-log.txt")
+    const dataTransfer = {
+      types: ["Files"],
+      files: [file],
+      items: [
+        {
+          kind: "file",
+          getAsFile: () => file,
+          webkitGetAsEntry: () => ({ isDirectory: false }),
+        },
+        {
+          kind: "file",
+          getAsFile: () => new File([""], "screenshots"),
+          webkitGetAsEntry: () => ({ isDirectory: true }),
+        },
+      ],
+      getData: () => "",
+    }
+
+    fireEvent.dragEnter(thread, { dataTransfer })
+    const zone = await screen.findByRole("region", { name: "Drop zone" })
+    expect(zone).toHaveTextContent("Drop to share with test-runner")
+    expect(zone).toHaveTextContent("Press Esc to cancel.")
+    fireEvent.drop(thread, { dataTransfer })
+
+    expect(
+      screen.queryByRole("region", { name: "Drop zone" })
+    ).not.toBeInTheDocument()
+    const chips = within(
+      await screen.findByRole("list", { name: "Files for this message" })
+    )
+    expect(await chips.findByText("Copied")).toBeInTheDocument()
+    expect(chips.getByText("Refused")).toBeInTheDocument()
+    expect(
+      chips.getByText("A folder cannot be shared. Drop the files in it.")
+    ).toBeInTheDocument()
+  })
+
+  test("a path dragged from a tool call card is added as a linked file, and Esc hides the drop zone", async () => {
+    const user = userEvent.setup()
+    openConversation([userMessage, readCall])
+    const thread = await screen.findByRole("tabpanel")
+    const card = await screen.findByText("src/notes.txt")
+    const data = new Map<string, string>()
+    const dataTransfer = {
+      types: ["application/x-agent-path"],
+      setData: (type: string, value: string) => data.set(type, value),
+      getData: (type: string) => data.get(type) ?? "",
+      items: [],
+      files: [],
+    }
+
+    fireEvent.dragStart(card, { dataTransfer })
+    fireEvent.dragEnter(thread, { dataTransfer })
+    expect(
+      await screen.findByRole("region", { name: "Drop zone" })
+    ).toHaveTextContent("Drop to add /home/user/code/web-app/src/notes.txt")
+    await user.keyboard("{Escape}")
+    expect(
+      screen.queryByRole("region", { name: "Drop zone" })
+    ).not.toBeInTheDocument()
+
+    fireEvent.dragEnter(thread, { dataTransfer })
+    fireEvent.drop(thread, { dataTransfer })
+
+    const chips = within(
+      await screen.findByRole("list", { name: "Files for this message" })
+    )
+    expect(chips.getByText("Linked")).toBeInTheDocument()
+    expect(
+      chips.getByText("/home/user/code/web-app/src/notes.txt")
+    ).toBeInTheDocument()
   })
 
   test("a copy that fails blocks Send until the user removes the file", async () => {

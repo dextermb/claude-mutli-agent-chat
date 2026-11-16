@@ -7,7 +7,7 @@ export type Attachment = {
   key: string
   name: string
   size: number
-  status: "copying" | "copied" | "linked" | "refused" | "failed"
+  status: "finding" | "copying" | "copied" | "linked" | "refused" | "failed"
   progress: number
   path: string | null
   problem: string | null
@@ -23,6 +23,16 @@ export function useAttachments(conversationId: string) {
     setAttachments((items) =>
       items.map((item) => (item.key === key ? { ...item, ...update } : item))
     )
+  }
+
+  async function share(key: string, file: File) {
+    change(key, { status: "finding", problem: null })
+    const match = await findMatch(conversationId, file)
+    if (match) {
+      change(key, { status: "linked", path: match })
+      return
+    }
+    await copy(key, file)
   }
 
   async function copy(key: string, file: File) {
@@ -50,7 +60,7 @@ export function useAttachments(conversationId: string) {
       key: `attachment-${(nextKey += 1)}`,
       name: file.name,
       size: file.size,
-      status: isFolder ? ("refused" as const) : ("copying" as const),
+      status: isFolder ? ("refused" as const) : ("finding" as const),
       progress: 0,
       path: null,
       problem: isFolder
@@ -60,8 +70,25 @@ export function useAttachments(conversationId: string) {
     }))
     setAttachments((items) => [...items, ...added])
     for (const item of added) {
-      if (item.file) void copy(item.key, item.file)
+      if (item.file) void share(item.key, item.file)
     }
+  }
+
+  function addPath(path: string) {
+    if (attachments.some((item) => item.path === path)) return
+    setAttachments((items) => [
+      ...items,
+      {
+        key: `attachment-${(nextKey += 1)}`,
+        name: path.split("/").at(-1) ?? path,
+        size: 0,
+        status: "linked",
+        progress: 1,
+        path,
+        problem: null,
+        file: null,
+      },
+    ])
   }
 
   function remove(key: string) {
@@ -87,6 +114,7 @@ export function useAttachments(conversationId: string) {
   )
   const blocking = attachments.find(
     (item) =>
+      item.status === "finding" ||
       item.status === "copying" ||
       item.status === "refused" ||
       item.status === "failed"
@@ -97,8 +125,37 @@ export function useAttachments(conversationId: string) {
     shared,
     blocking,
     addFiles,
+    addPath,
     remove,
     retry,
     clear: () => setAttachments([]),
+  }
+}
+
+async function findMatch(
+  conversationId: string,
+  file: File
+): Promise<string | null> {
+  try {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      await file.arrayBuffer()
+    )
+    const sha256 = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("")
+    const response = await fetch(
+      `/api/conversations/${conversationId}/files/find`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, sha256 }),
+      }
+    )
+    if (!response.ok) return null
+    const body = (await response.json()) as { match: { path: string } | null }
+    return body.match?.path ?? null
+  } catch {
+    return null
   }
 }

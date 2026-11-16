@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type { Json, PermissionItem, ToolCallItem } from "@/lib/agent-api"
+import { endPathDrag, startPathDrag } from "@/lib/drag-path"
 import { cn } from "@/lib/utils"
 
 const DOT: Record<ToolCallItem["status"], string> = {
@@ -43,6 +44,8 @@ export function ToolCallCard({
   const open = opened || childWaits
   const waits = request?.status === "pending" || childWaits
   const target = mainInput(call.name, call.input, cwd)
+  const filePath =
+    typeof call.input.file_path === "string" ? call.input.file_path : null
   const { result } = call
   const detail =
     result?.kind === "output"
@@ -84,8 +87,12 @@ export function ToolCallCard({
         )}
         <span className="text-foreground-strong">{call.name}</span>
         <span
+          draggable={filePath !== null}
+          onDragStart={(event) => filePath && startPathDrag(event, filePath)}
+          onDragEnd={endPathDrag}
           className={cn(
             "min-w-0 flex-1 truncate",
+            filePath && "cursor-grab",
             call.name === "Agent" ? "font-sans text-foreground" : "text-link",
             call.name === "Agent" &&
               call.status === "running" &&

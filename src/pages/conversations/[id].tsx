@@ -36,6 +36,7 @@ import {
   SharedFilesList,
 } from "@/components/conversation/files-panel"
 import { Separator } from "@/components/ui/separator"
+import { useDropZone } from "@/components/conversation/drop-zone"
 import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
@@ -62,6 +63,12 @@ export default function ConversationPage() {
   const params = useParams<{ id: string }>()
   const conversation = useConversation(params.id)
   const attachments = useAttachments(params.id)
+  const dropZone = useDropZone(
+    attachments,
+    conversation.conversation?.kind === "channel"
+      ? `#${conversation.conversation.name}`
+      : (conversation.conversation?.name ?? "")
+  )
   const agent = conversation.agents[0]
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -337,7 +344,12 @@ export default function ConversationPage() {
             <SessionLogTab conversationId={params.id} agentId={agent.id} />
           </TabsContent>
         )}
-        <TabsContent value="messages" className="flex min-h-0 flex-1 flex-col">
+        <TabsContent
+          value="messages"
+          className="relative flex min-h-0 flex-1 flex-col"
+          {...dropZone.handlers}
+        >
+          {dropZone.overlay}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {isDirect && agent && (
               <div className="flex flex-col items-start gap-2 px-5 pt-4 pb-2">

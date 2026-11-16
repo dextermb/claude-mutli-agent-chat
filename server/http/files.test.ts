@@ -1,4 +1,13 @@
-import { existsSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
@@ -7,6 +16,7 @@ import {
   runCleanups,
   sendMessage,
   startServer,
+  testRunner,
 } from "../test/http.ts"
 
 afterEach(runCleanups)
@@ -218,5 +228,39 @@ describe("uploads", () => {
       )
     )
     expect(existsSync(linkedPath)).toBe(true)
+  })
+
+  test("find links a dropped file to the file with the same name, size and content in the folder of an agent", async () => {
+    const { base } = await startServer()
+    const folder = mkdtempSync(join(tmpdir(), "find-test-"))
+    mkdirSync(join(folder, "src"))
+    mkdirSync(join(folder, "node_modules"))
+    writeFileSync(join(folder, "src", "auth.test.ts"), "the real test\n")
+    writeFileSync(join(folder, "auth.test.ts"), "another text!\n")
+    writeFileSync(join(folder, "node_modules", "auth.test.ts"), "the real test\n")
+    const agent = (await (
+      await postJson(base, "/api/agents", { ...testRunner, cwd: folder })
+    ).json()) as { agent: { id: string } }
+    const dm = (await (
+      await postJson(base, "/api/conversations", {
+        kind: "dm",
+        agentId: agent.agent.id,
+      })
+    ).json()) as { conversation: { id: string } }
+    const find = (content: string) =>
+      postJson(base, `/api/conversations/${dm.conversation.id}/files/find`, {
+        name: "auth.test.ts",
+        size: Buffer.byteLength(content),
+        sha256: createHash("sha256").update(content).digest("hex"),
+      })
+
+    const found = await find("the real test\n")
+    const none = await find("not on the disk\n")
+
+    expect(await found.json()).toEqual({
+      match: { path: join(folder, "src", "auth.test.ts") },
+    })
+    expect(await none.json()).toEqual({ match: null })
+    rmSync(folder, { recursive: true, force: true })
   })
 })
