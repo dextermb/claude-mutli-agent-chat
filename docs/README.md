@@ -5,20 +5,21 @@ gives the parts of the app, the main decisions, and the risks.
 
 ## The agent server
 
-| Page                   | Open it for                                                                  |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `architecture.md`      | The parts of the app, the decisions with their reasons, and the risks        |
-| `protocol.md`          | The Claude Code stream that the server reads, and how to record its fixtures |
-| `timeline.md`          | How the server turns the stream into timeline items                          |
-| `agents.md`            | The `claude` process of each agent session, and its command line             |
-| `agent-environment.md` | The rule that tells each agent about the chat app, and the `chat` plugin     |
-| `mcp.md`               | The `chat` MCP server that each agent gets, and its tools                    |
-| `store.md`             | The SQLite tables and the queries                                            |
-| `server.md`            | The routes and the event stream                                              |
-| `server/routes.md`     | Each route, its body and its result                                          |
-| `server/files.md`      | Uploads, shared files, the `@` search of paths, and Browse folders           |
-| `conversations.md`     | Who gets a turn, mentions, and the shape of a prompt                         |
-| `sleep.md`             | Sleep and wake: the timer, the compaction, the wake prompt, the summary      |
+| Page                   | Open it for                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `architecture.md`      | The parts of the app, the decisions with their reasons, and the risks         |
+| `protocol.md`          | The Claude Code stream that the server reads, and how to record its fixtures  |
+| `timeline.md`          | How the server turns the stream into timeline items                           |
+| `agents.md`            | The `claude` process of each agent session, and its command line              |
+| `agent-environment.md` | The rule that tells each agent about the chat app, and the `chat` plugin      |
+| `mcp.md`               | The `chat` MCP server that each agent gets, and its tools                     |
+| `store.md`             | The SQLite tables and the queries                                             |
+| `server.md`            | The routes and the event stream                                               |
+| `server/routes.md`     | Each route, its body and its result                                           |
+| `server/files.md`      | Uploads, shared files, the `@` search of paths, and Browse folders            |
+| `conversations.md`     | Who gets a turn, mentions, and the shape of a prompt                          |
+| `sleep.md`             | Sleep and wake: the timer, the compaction, the wake prompt, the summary       |
+| `delete.md`            | Delete a channel, a group chat or an agent: the routes, the dialog, the label |
 
 ## The web app
 

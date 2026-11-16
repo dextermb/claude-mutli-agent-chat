@@ -250,6 +250,16 @@ fields that changed to `PATCH /api/conversations/:id`, and closes the dialog.
 With no change, Save closes it with no request. The header, the icon and the
 sidebar follow the `conversation` event of the stream. A refusal shows "The
 server did not save the settings." and the reason, and the dialog stays open.
+At the end of the form, a bordered section "Delete channel" closes the dialog
+and opens the confirm dialog of `docs/delete.md`.
+
+The header of a group chat has the same ⋯ button, "Group chat settings". It
+opens `src/components/dialogs/group-chat-settings-dialog.tsx`, which holds
+only the section "Delete group chat" and Close.
+
+When the stream sends `conversation_deleted`, the page goes to `/`. A message
+of an agent that is no longer a member keeps its name, from `authors`
+(`docs/delete.md`). A deleted agent shows the Badge "Deleted agent".
 A group chat and a DM have no settings.
 
 Each agent that works has a working line at the end of the thread (see
