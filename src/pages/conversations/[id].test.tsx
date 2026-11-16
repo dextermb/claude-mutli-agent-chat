@@ -402,6 +402,39 @@ describe("the DM page", () => {
     expect(window.location.search).toBe("?tab=files")
   })
 
+  test("the files tab of a DM starts with the shared files, and can remove one", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations/c1/files", {
+      files: [
+        {
+          id: "f2",
+          name: "notes.txt",
+          path: "/home/user/code/web-app/src/notes.txt",
+          kind: "linked",
+          size: 12,
+          sharedBy: "User",
+          sharedAt: localTime(15, 14, 3),
+          removedAt: null,
+          exists: true,
+        },
+      ],
+    })
+    network.on("DELETE", "/api/conversations/c1/files/f2", { file: {} })
+    openConversation([userMessage])
+
+    await user.click(await screen.findByRole("tab", { name: "Files" }))
+    const shared = within(
+      await screen.findByRole("region", { name: "Shared files" })
+    )
+    expect(shared.getByText("notes.txt")).toBeInTheDocument()
+    await user.click(shared.getByRole("button", { name: "Remove notes.txt" }))
+
+    expect(network.sent.at(-1)).toMatchObject({
+      method: "DELETE",
+      url: "/api/conversations/c1/files/f2",
+    })
+  })
+
   test("a file that the agent only read has no line changes", async () => {
     const user = userEvent.setup()
     openConversation([userMessage, readCall])
@@ -1379,6 +1412,61 @@ describe("the DM page", () => {
     ).not.toBeInTheDocument()
   })
 
+  test("in a channel, the files button opens the shared files, and Remove asks first only for a copy", async () => {
+    const user = userEvent.setup()
+    const file = (id: string, name: string, kind: string) => ({
+      id,
+      name,
+      path: `/data/${name}`,
+      kind,
+      size: 7,
+      sharedBy: "User",
+      sharedAt: localTime(15, 14, 3),
+      removedAt: null,
+      exists: true,
+    })
+    network.on("GET", "/api/conversations/ch1/files", {
+      files: [
+        file("f1", "ci-log.txt", "copied"),
+        file("f2", "notes.txt", "linked"),
+      ],
+    })
+    network.on("DELETE", "/api/conversations/ch1/files/f1", { file: {} })
+    network.on("DELETE", "/api/conversations/ch1/files/f2", { file: {} })
+    openChannel([userMessage])
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(
+      await header.findByRole("button", { name: "Shared files: 2" })
+    )
+    const panel = within(
+      await screen.findByRole("complementary", { name: "Shared files" })
+    )
+    expect(
+      panel.getAllByText("Shared by User at 14:03", { exact: false })
+    ).toHaveLength(2)
+    await user.click(panel.getByRole("button", { name: "Remove notes.txt" }))
+    expect(network.sent.at(-1)).toEqual({
+      method: "DELETE",
+      url: "/api/conversations/ch1/files/f2",
+      body: undefined,
+    })
+
+    await user.click(panel.getByRole("button", { name: "Remove ci-log.txt" }))
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Remove ci-log.txt?",
+    })
+    expect(dialog).toHaveTextContent(
+      "The copy in the uploads is deleted. The message keeps its name."
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Remove" }))
+    expect(network.sent.at(-1)).toEqual({
+      method: "DELETE",
+      url: "/api/conversations/ch1/files/f1",
+      body: undefined,
+    })
+  })
+
   test("in a channel, the divider of a new session names the agent", async () => {
     openChannel([
       userMessage,
@@ -1845,7 +1933,7 @@ describe("a narrow screen", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     )
     expect(
-      await screen.findByRole("heading", { name: /file/i })
+      await screen.findByRole("heading", { name: "1 file" })
     ).toBeInTheDocument()
 
     await user.click(header.getByRole("button", { name: "Session" }))

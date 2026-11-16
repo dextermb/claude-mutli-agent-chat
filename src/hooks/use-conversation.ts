@@ -132,8 +132,19 @@ export function useConversation(conversationId: string) {
     [conversationId]
   )
 
+  const removeFile = useCallback(
+    (fileId: string) =>
+      refusalOf(
+        fetch(`/api/conversations/${conversationId}/files/${fileId}`, {
+          method: "DELETE",
+        })
+      ),
+    [conversationId]
+  )
+
   return {
     ...view,
+    removeFile,
     send,
     answer,
     stop,

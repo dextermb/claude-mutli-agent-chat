@@ -1,5 +1,6 @@
 import {
   EllipsisIcon,
+  FolderIcon,
   HashIcon,
   InfoIcon,
   LockIcon,
@@ -30,6 +31,11 @@ import { AddMembersDialog } from "@/components/add-members-dialog"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer"
+import {
+  FilesPanel,
+  SharedFilesList,
+} from "@/components/conversation/files-panel"
+import { Separator } from "@/components/ui/separator"
 import { FilesTab } from "@/components/conversation/files-tab"
 import { RefusalAlert } from "@/components/conversation/refusal-alert"
 import { SessionLogTab } from "@/components/conversation/session-log-tab"
@@ -62,6 +68,7 @@ export default function ConversationPage() {
   const [configuring, setConfiguring] = useState(false)
   const [showingSheet, setShowingSheet] = useState(false)
   const [showingMembers, setShowingMembers] = useState(false)
+  const [showingFiles, setShowingFiles] = useState(false)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const isMobile = useIsMobile()
   useMarkRead(params.id, conversation.entries.at(-1)?.seq)
@@ -145,6 +152,9 @@ export default function ConversationPage() {
     member.startsWith("user:")
   ).length
   const agentCount = conversation.agents.length
+  const sharedCount = conversation.files.filter(
+    (file) => file.removedAt === null
+  ).length
   return (
     <div className="flex h-svh bg-background text-sm text-foreground">
       <AppSidebar
@@ -219,7 +229,10 @@ export default function ConversationPage() {
               aria-label={`Members: ${people} ${
                 people === 1 ? "person" : "people"
               }, ${agentCount} ${agentCount === 1 ? "agent" : "agents"}`}
-              onClick={() => setShowingMembers(!showingMembers)}
+              onClick={() => {
+                setShowingFiles(false)
+                setShowingMembers(!showingMembers)
+              }}
             >
               <AvatarGroup>
                 {conversation.agents.slice(0, 3).map((member) => (
@@ -241,6 +254,21 @@ export default function ConversationPage() {
               onClick={() => setConfiguring(true)}
             >
               <EllipsisIcon />
+            </Button>
+          )}
+          {!isDirect && (
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-expanded={showingFiles}
+              aria-label={`Shared files: ${sharedCount}`}
+              onClick={() => {
+                setShowingMembers(false)
+                setShowingFiles(!showingFiles)
+              }}
+            >
+              <FolderIcon />
+              {sharedCount}
             </Button>
           )}
           {isDirect && !isMobile && (
@@ -273,6 +301,26 @@ export default function ConversationPage() {
         </header>
         {isDirect && agent && (
           <TabsContent value="files" className="min-h-0 flex-1 overflow-y-auto">
+            <section
+              aria-labelledby="shared-files-heading"
+              className="flex flex-col gap-3 px-5 pt-5"
+            >
+              <h2
+                id="shared-files-heading"
+                className="m-0 text-sm font-semibold text-foreground-strong"
+              >
+                Shared files
+              </h2>
+              <SharedFilesList
+                files={conversation.files}
+                entries={conversation.entries}
+                agents={conversation.agents}
+                onRemove={async (file) =>
+                  showRefusal(await conversation.removeFile(file.id))
+                }
+              />
+            </section>
+            <Separator className="mx-5 mt-5 w-auto" />
             <FilesTab
               entries={conversation.entries}
               cwd={agent.cwd}
@@ -413,6 +461,19 @@ export default function ConversationPage() {
       )}
       {isDirect && panel && !isMobile && (
         <SessionPanel key={panel.agentId} {...panel} />
+      )}
+      {!isDirect && (
+        <FilesPanel
+          asSheet={isMobile}
+          open={showingFiles}
+          onClose={() => setShowingFiles(false)}
+          files={conversation.files}
+          entries={conversation.entries}
+          agents={conversation.agents}
+          onRemove={async (file) =>
+            showRefusal(await conversation.removeFile(file.id))
+          }
+        />
       )}
       {!isDirect && (
         <MembersPanel
