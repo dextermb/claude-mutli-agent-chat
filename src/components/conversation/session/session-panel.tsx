@@ -21,8 +21,8 @@ import {
 import {
   contextPercent,
   contextTokens,
-} from "@/components/conversation/composer-tools"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+} from "@/components/conversation/composer/composer-tools"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import {
   AlertDialog,
   AlertDialogAction,

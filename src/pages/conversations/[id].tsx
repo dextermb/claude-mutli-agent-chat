@@ -27,30 +27,30 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { AddMembersDialog } from "@/components/add-members-dialog"
-import { AppSidebar } from "@/components/app-sidebar"
-import { ChannelSettingsDialog } from "@/components/channel-settings-dialog"
-import { Composer } from "@/components/conversation/composer"
+import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
+import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings-dialog"
+import { Composer } from "@/components/conversation/composer/composer"
 import {
   ContextFigure,
   ModelLink,
-} from "@/components/conversation/composer-tools"
+} from "@/components/conversation/composer/composer-tools"
 import {
   FilesPanel,
   SharedFilesList,
-} from "@/components/conversation/files-panel"
+} from "@/components/conversation/files/files-panel"
 import { Separator } from "@/components/ui/separator"
 import { useDropZone } from "@/components/conversation/drop-zone"
-import { FilesTab } from "@/components/conversation/files-tab"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
-import { SessionLogTab } from "@/components/conversation/session-log-tab"
-import { SharedFilesContext } from "@/components/conversation/shared-files"
+import { FilesTab } from "@/components/conversation/files/files-tab"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
+import { SessionLogTab } from "@/components/conversation/session/session-log-tab"
+import { SharedFilesContext } from "@/components/conversation/files/shared-files"
 import {
   MembersPanel,
   SessionPanel,
   SessionSheet,
-} from "@/components/conversation/session-panel"
-import { entryAnchor, Timeline } from "@/components/conversation/timeline"
+} from "@/components/conversation/session/session-panel"
+import { entryAnchor, Timeline } from "@/components/conversation/timeline/timeline"
 import { WorkingLines } from "@/components/conversation/working-line"
 import { useAttachments } from "@/hooks/use-attachments"
 import { useConversation } from "@/hooks/use-conversation"

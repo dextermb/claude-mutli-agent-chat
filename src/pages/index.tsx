@@ -9,7 +9,7 @@ import {
 import { useState } from "react"
 import { Link, useLocation } from "wouter"
 
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import {
   AVATAR_COLOURS,
   initialsOf,

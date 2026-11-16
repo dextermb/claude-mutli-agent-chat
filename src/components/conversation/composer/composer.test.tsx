@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, test } from "vitest"
 
-import { Composer } from "@/components/conversation/composer"
+import { Composer } from "@/components/conversation/composer/composer"
 import { reviewerBot, testRunner } from "@/test/conversation-data"
 
 const releaseBot = {

@@ -4,7 +4,7 @@ import {
   AVATAR_COLOURS,
   initialsOf,
 } from "@/components/conversation/agent-look"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"

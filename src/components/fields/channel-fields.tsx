@@ -1,7 +1,7 @@
 import { FolderIcon } from "lucide-react"
 import { useState } from "react"
 
-import { FolderDialog } from "@/components/agent-form/folder-dialog"
+import { FolderDialog } from "@/components/dialogs/folder-dialog"
 import {
   Field,
   FieldContent,

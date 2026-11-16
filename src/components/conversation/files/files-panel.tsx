@@ -1,7 +1,7 @@
 import { FileIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useState } from "react"
 
-import { SharedFileRow } from "@/components/conversation/shared-files"
+import { SharedFileRow } from "@/components/conversation/files/shared-files"
 import {
   AlertDialog,
   AlertDialogAction,

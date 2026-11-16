@@ -6,7 +6,7 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

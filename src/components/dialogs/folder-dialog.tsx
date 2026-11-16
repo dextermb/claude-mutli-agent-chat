@@ -1,7 +1,7 @@
 import { ArrowUpIcon, FolderIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

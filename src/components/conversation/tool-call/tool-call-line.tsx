@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 
-import { Approval } from "@/components/conversation/approval"
+import { Approval } from "@/components/conversation/cards/approval"
 import {
   CodeBlock,
   CodeBlockContent,

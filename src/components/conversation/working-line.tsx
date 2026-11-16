@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { mainInput } from "@/components/conversation/tool-call-line"
+import { mainInput } from "@/components/conversation/tool-call/tool-call-line"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Trace,

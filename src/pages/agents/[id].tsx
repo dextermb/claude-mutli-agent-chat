@@ -4,19 +4,19 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
-import { FolderDialog } from "@/components/agent-form/folder-dialog"
+import { FolderDialog } from "@/components/dialogs/folder-dialog"
 import {
   AgentActions,
   type ActionRefusal,
-} from "@/components/agent-form/agent-actions"
+} from "@/components/agent-actions/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import {
   AVATAR_COLOURS,
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"

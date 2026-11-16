@@ -11,8 +11,8 @@ import {
   PrivateField,
   ReplyModeField,
   TopicField,
-} from "@/components/channel-fields"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+} from "@/components/fields/channel-fields"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -51,7 +51,7 @@ import {
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
 import { invalid, shown } from "@/lib/form-errors"
-import { channelSchema, type ChannelDraft } from "../../server/schemas.ts"
+import { channelSchema, type ChannelDraft } from "../../../server/schemas.ts"
 
 const EMPTY: ChannelDraft = {
   name: "",

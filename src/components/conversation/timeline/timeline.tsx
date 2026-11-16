@@ -16,12 +16,12 @@ import {
   initialsOf,
   MENTION_COLOURS,
 } from "@/components/conversation/agent-look"
-import { QuestionCard } from "@/components/conversation/question-card"
-import { MessageFiles } from "@/components/conversation/shared-files"
+import { QuestionCard } from "@/components/conversation/cards/question-card"
+import { MessageFiles } from "@/components/conversation/files/shared-files"
 import {
   OutputBlock,
   ToolCallLine,
-} from "@/components/conversation/tool-call-line"
+} from "@/components/conversation/tool-call/tool-call-line"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type {
   CompactionItem,
@@ -34,7 +34,7 @@ import { Separator } from "@/components/ui/separator"
 import { Trace } from "@/components/ui/trace"
 import { clockTime, dayKey, dayName, longDay } from "@/lib/time"
 import { cn } from "@/lib/utils"
-import { mentionPattern } from "../../../server/conversation/mentions.ts"
+import { mentionPattern } from "../../../../server/conversation/mentions.ts"
 
 type Answer = (requestId: string, answer: RequestAnswer) => Promise<boolean>
 

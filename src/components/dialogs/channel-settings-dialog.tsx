@@ -6,8 +6,8 @@ import {
   ReplyModeField,
   SleepField,
   TopicField,
-} from "@/components/channel-fields"
-import { RefusalAlert } from "@/components/conversation/refusal-alert"
+} from "@/components/fields/channel-fields"
+import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,7 +21,7 @@ import {
 import { FieldGroup } from "@/components/ui/field"
 import type { Conversation } from "@/lib/agent-api"
 import { refusalOf } from "@/lib/refusal"
-import type { ChannelSettingsDraft } from "../../server/schemas.ts"
+import type { ChannelSettingsDraft } from "../../../server/schemas.ts"
 
 export function ChannelSettingsDialog({
   open,
