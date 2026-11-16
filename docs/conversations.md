@@ -98,6 +98,10 @@ message adds a line `[Shared file: <path>]` after the text, and the prompt
 after a removal starts with `[Removed file: <path>]`
 (`docs/server/files.md`).
 
+Before the text, the first prompt of each process holds the facts of the
+session, and a later prompt holds the facts that changed. They are a separate
+text block that starts with `[Chat app]` (`docs/agent-environment.md`).
+
 In a group chat or a channel, the prompt holds each complete message since
 the last prompt of that agent, one line for each, with its author:
 

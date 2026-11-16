@@ -18,7 +18,11 @@ import {
 } from "../schemas.ts"
 import { defaultScratchRoot, homeShort } from "../paths.ts"
 import { buildArgs } from "../session/args.ts"
-import { environmentPrompt } from "../session/environment-prompt.ts"
+import {
+  ENVIRONMENT_RULE,
+  factsNote,
+  sessionFacts,
+} from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import { findFile } from "./find-file.ts"
@@ -37,7 +41,7 @@ import type {
 } from "../api-types.ts"
 
 export type SessionHandle = {
-  prompt(text: string): void
+  prompt(text: string, note?: string): void
   answer(requestId: string, answer: PermissionAnswer): void
   interrupt(): void
   stop(): Promise<void>
@@ -67,6 +71,8 @@ type LiveSession = {
   token: string
   state: SessionState
   queue: string[]
+  cwd: string
+  facts: string[] | null
   lastOutSeq: number
   exit: { code: number | null; stderr: string } | null
 }
@@ -208,6 +214,7 @@ export function createServer({
     const agent = store.getAgent(row.agentId)
     const conversation = store.getConversation(row.conversationId)
     if (!agent || !conversation) return undefined
+    const cwd = row.config?.cwd ?? folderFor(agent, conversation)
     const session: LiveSession = {
       id: row.id,
       agentId: row.agentId,
@@ -216,12 +223,13 @@ export function createServer({
       token: randomUUID(),
       state: "starting",
       queue: [],
+      cwd,
+      facts: null,
       lastOutSeq: 0,
       exit: null,
     }
     live.set(session.id, session)
     tokens.set(session.token, session)
-    const cwd = row.config?.cwd ?? folderFor(agent, conversation)
     if (cwd === scratchFolder(conversation.id)) {
       mkdirSync(cwd, { recursive: true })
     }
@@ -230,15 +238,7 @@ export function createServer({
     session.handle = startSession({
       agent,
       args: buildArgs(agent, row, {
-        rule: environmentPrompt({
-          agentName: agent.name,
-          conversation,
-          memberNames: conversation.members.map(authorName),
-          folder: {
-            path: homeShort(cwd),
-            from: folderSource(cwd, conversation),
-          },
-        }),
+        rule: ENVIRONMENT_RULE,
         chat: { url: chatUrl, token: session.token },
         uploads,
       }),
@@ -456,7 +456,26 @@ export function createServer({
   function deliverNext(session: LiveSession) {
     if (session.state !== "idle") return
     const text = session.queue.shift()
-    if (text !== undefined) session.handle?.prompt(text)
+    if (text === undefined) return
+    const facts = factsOf(session)
+    const note = facts ? factsNote(session.facts, facts) : undefined
+    if (facts) session.facts = facts
+    session.handle?.prompt(text, note)
+  }
+
+  function factsOf(session: LiveSession): string[] | undefined {
+    const agent = store.getAgent(session.agentId)
+    const conversation = store.getConversation(session.conversationId)
+    if (!agent || !conversation) return undefined
+    return sessionFacts({
+      agentName: agent.name,
+      conversation,
+      memberNames: conversation.members.map(authorName),
+      folder: {
+        path: homeShort(session.cwd),
+        from: folderSource(session.cwd, conversation),
+      },
+    })
   }
 
   function promptFor(

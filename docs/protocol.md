@@ -59,7 +59,7 @@ purpose, for example to select a provider. `childEnvironment()` in
 
 | Line | Use |
 |---|---|
-| `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"…"}]},"parent_tool_use_id":null}` | A prompt |
+| `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"…"}]},"parent_tool_use_id":null}` | A prompt. A first text block can hold the facts of the session (`docs/agent-environment.md`) |
 | `{"type":"control_request","request_id":"…","request":{"subtype":"initialize"}}` | The first line. The answer lists the commands and the account |
 | `{"type":"control_response","response":{"subtype":"success","request_id":"<id of the request>","response":{…}}}` | The answer to `can_use_tool` |
 | `{"type":"control_request","request_id":"…","request":{"subtype":"interrupt"}}` | Stops the turn |
@@ -122,6 +122,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F37 | **`--resume <id>` works in a folder that is not the folder of the first turn.** The process finds the transcript under the folder of the first turn, and the new turn has the memory of the old turns. The new lines go into the same transcript file, and each new line has the new `cwd`. Claude Code also makes an empty project folder (with only `memory/`) for the new folder. | Probe |
 | F38 | **`--add-dir <folder>` lets the tools read in that folder with no permission request.** In `default` mode, a `Read` of a file in the added folder runs at once, with no `can_use_tool`. | `add-dir` |
 | F39 | **`-p` with `stream-json` input expands an `@path` of the prompt.** The prompt "What is the first line of @notes.txt? … Do not use any tools." got the right line with no tool call, and the agent said that the content came with the message. The replayed `user` line shows only the text. | `add-dir` |
+| F40 | **A resume keeps the system prompt of the first request.** `--system-prompt-snapshot` is `on` by default. A first process had `--append-system-prompt "The codeword is ALPHA."`. A `--resume` with "BETA" answered `ALPHA`. With `--system-prompt-snapshot off` on both processes, it answered `BETA`. The help says that the snapshot stays "until the conversation is compacted". So the facts that change go in the prompt, not in the system prompt. A prompt with the facts as a first text block still expands an `@path` of the second block (F39). | Probe |
 
 ## The decoder and the encoders
 

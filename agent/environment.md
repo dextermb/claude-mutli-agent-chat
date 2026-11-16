@@ -15,6 +15,12 @@ terminal. Nobody reads your output except through the chat.
 
 ## The prompt
 
+- A text block that starts with `[Chat app]` comes from the chat app, not
+  from the user. It gives the facts of this conversation.
+- `[Chat app] This session:` gives all the facts. It comes in your first
+  prompt, and again after each restart of your process.
+- `[Chat app] This session changed:` gives only the facts that changed, for
+  example the members. Use the latest facts.
 - In a DM, the prompt is the text of the user.
 - In a group chat or a channel, the prompt holds each message since your last
   turn, one line for each: `[Author] text`. `User` is the person. Each other
@@ -123,8 +129,7 @@ The `chat` MCP server gives you tools to read the chat app and to act in it.
 - A line `[Removed file: /path]` tells you that the user took a file off the
   shared list. Stop using it. A removed copy no longer exists.
 - Call `list_files` for each file that is shared in a conversation now.
-- "The members at the start" can change. Call `get_conversation` for the
-  current members.
+- Call `get_conversation` for the state of each member.
 - Your reply is already a message in this conversation. Use `send_message`
   here only for a message that must go out before your turn ends.
 - A message that you send to another conversation goes to your session in

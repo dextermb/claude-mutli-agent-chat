@@ -11,30 +11,37 @@ export type EnvironmentContext = {
   folder: { path: string; from: "channel" | "agent" | "scratch" }
 }
 
-const GUIDE = readFileSync(
+export const ENVIRONMENT_RULE = readFileSync(
   new URL("../../agent/environment.md", import.meta.url),
   "utf8"
 ).trim()
 
-export function environmentPrompt({
+export function sessionFacts({
   agentName,
   conversation,
   memberNames,
   folder,
-}: EnvironmentContext): string {
+}: EnvironmentContext): string[] {
   const members = memberNames.map((name) =>
     name === agentName ? `${name} (you)` : name
   )
-  const facts = [
-    "# This session",
-    "",
+  return [
     `- You are the agent "${agentName}".`,
     `- This conversation is ${place(conversation)} (ID "${conversation.id}").${topic(conversation)}`,
     turns(conversation),
-    `- The members at the start: ${members.join(", ")}.`,
+    `- The members: ${members.join(", ")}.`,
     workFolder(folder),
   ]
-  return `${facts.join("\n")}\n\n${GUIDE}`
+}
+
+export function factsNote(
+  sent: string[] | null,
+  now: string[]
+): string | undefined {
+  if (!sent) return ["[Chat app] This session:", ...now].join("\n")
+  const changed = now.filter((line, index) => line !== sent[index])
+  if (changed.length === 0) return undefined
+  return ["[Chat app] This session changed:", ...changed].join("\n")
 }
 
 function workFolder({ path, from }: EnvironmentContext["folder"]): string {

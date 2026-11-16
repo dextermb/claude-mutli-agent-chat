@@ -183,7 +183,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     }
   }, 240_000)
 
-  test("an agent in a channel knows the name of the channel from the rule of its environment", async () => {
+  test("an agent in a channel knows the name of the channel from the facts in its prompt", async () => {
     const folder = mkdtempSync(join(tmpdir(), "live-check-"))
     const store = openStore(":memory:")
     const server = createServer({

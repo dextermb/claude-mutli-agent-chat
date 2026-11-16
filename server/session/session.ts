@@ -88,8 +88,8 @@ export class AgentSession {
     this.write(encodeInitialize(INITIALIZE_REQUEST))
   }
 
-  prompt(text: string) {
-    if (this.write(encodePrompt(text))) this.setState("busy")
+  prompt(text: string, note?: string) {
+    if (this.write(encodePrompt(text, note))) this.setState("busy")
   }
 
   answer(requestId: string, answer: PermissionAnswer) {

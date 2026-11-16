@@ -37,7 +37,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `encode…()`, a stdin line         | `server/protocol/encode.test.ts`                |
 | `reduceTimeline()`, a fixture     | `server/timeline/reduce.test.ts`                |
 | `buildArgs()`, the command line   | `server/session/args.test.ts`                   |
-| `environmentPrompt()`, the rule   | `server/session/environment-prompt.test.ts`     |
+| `sessionFacts()`, the facts       | `server/session/environment-prompt.test.ts`     |
 | `AgentSession`, a fake `claude`   | `server/session/session.test.ts`                |
 | `Store`, an in-memory database    | `server/store/store.test.ts`                    |
 | `createServer()`, HTTP and SSE    | `server/http/server.test.ts`                    |
