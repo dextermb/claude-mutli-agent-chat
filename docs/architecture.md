@@ -81,8 +81,32 @@ another library touches one module. Rejected: `better-sqlite3`, a native
 package to build.
 
 **An agent loads the user and project settings.** So an agent gets the
-user's MCP servers, rules, memory files and hooks, the same as a terminal
-session (F23).
+user's MCP servers, rules, memory files, hooks and plugins, the same as a
+terminal session (F23). Rejected: a lean profile for agents. The flags that
+cut the base also take away the environment of the user (F50), and on a warm
+cache the base costs a tenth of its size (F47). Not yet: plugins for each
+agent.
+
+**An agent cannot block `ToolSearch`.** With no `ToolSearch`, Claude Code
+loads the schema of each MCP tool in each request: 280k tokens with the MCP
+servers of the user (F56). The agent schema refuses it.
+
+**An idle agent sleeps, and the next message resumes it.** An idle process
+holds about 460 MB (F53). After a compaction, a resume costs the same as a
+new session, and it keeps the Claude session, its totals and the memory of
+the agent (`docs/sleep.md`). Rejected: a new Claude session after a long
+gap, because the agent then forgets the conversation.
+
+**The user's hooks run at a compaction.** The app cannot remove one hook
+event (F58), and `disableAllHooks` would also stop the safety hooks of the
+user. So each agent process gets `AGENT_CHAT=1`, and a hook script of the
+user can skip its work in an agent.
+
+**The app accepts the transcript sweep of Claude Code.** A transcript goes
+30 days after its last turn (F43, F44), and the next wake starts a new
+session with the stored summary (`docs/sleep.md`). Rejected:
+`cleanupPeriodDays` from the app, because the sweep is shared and the value
+of one agent process would decide for each transcript of the user (F45).
 
 **A rule tells each agent about the chat app.** Without it, an agent does
 not know that its text is a chat message, that a mention starts a turn that
@@ -94,7 +118,7 @@ because the folder belongs to the user (`docs/agent-environment.md`).
 **A lean Haiku process writes the summary of a conversation.** It is the
 only `claude` process with no settings of the user, no tools and its own
 system prompt, because it reads only the text of the messages. So its base is
-about 1k tokens, not 45k (F58, `docs/sleep.md`). An agent always keeps the
+about 1k tokens, not 45k (F46, `docs/sleep.md`). An agent always keeps the
 environment of the user.
 
 **The facts of the session go in the prompt, not in the system prompt.** A

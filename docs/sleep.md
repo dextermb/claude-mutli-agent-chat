@@ -1,7 +1,8 @@
 # Sleep and wake
 
 An agent can stay in a DM, a group chat or a channel for weeks. A process
-that waits costs memory: about 460 MB with the MCP servers of the user. So
+that waits costs memory: about 460 MB with the MCP servers of the user
+(F53 in `docs/protocol.md`). So
 after an idle time, the server stops the process of an agent session. This
 is sleep.
 
@@ -20,7 +21,7 @@ The server takes the first value that is set:
 A DM and a group chat have no settings, so there the agent decides. 0 means
 never. Both forms take a whole number from 0 to 55, or empty
 (`server/schemas.ts`, `docs/forms.md`). The limit is under 60, because the
-prompt cache of Claude Code lives one hour. A compaction within the hour
+prompt cache of Claude Code lives one hour (F47). A compaction within the hour
 reads the context from the cache.
 
 ## The timer
@@ -55,10 +56,10 @@ When the context of the last turn (`context.used` of the turn item,
 `/compact` with the text of `agent/compact.md`. The app value is
 `AGENTS_COMPACT_ABOVE_TOKENS`, or 100,000. Under about 100k, a compaction
 saves little, because the base of each session is 45k to 55k tokens and a
-compaction cannot go below it.
+compaction cannot go below it (F48).
 
 The compaction comes back as a `compaction` item (F41, F42 in
-`docs/protocol.md`). The user's `PreCompact` and `SessionStart` hooks run, as
+`docs/protocol.md`). The user's `PreCompact` and `SessionStart` hooks run (F57, F58), as
 for each compaction. Each agent process has `AGENT_CHAT=1` in its
 environment, so a hook script can test it and skip its work in an agent.
 
@@ -122,7 +123,7 @@ text and has no tools. It runs `claude -p --output-format json` with
 project settings only, and `--no-session-persistence`, in the folder
 `summarizer` under the scratch folder. Its base is about 1k tokens, so one
 run costs about 0.0003 USD for a few messages and about 0.003 USD for 200
-(F58 in `docs/protocol.md`). In a live check, it took 2.8 s.
+(F46 in `docs/protocol.md`). In a live check, it took 2.8 s.
 
 ## A transcript that is gone
 
@@ -175,3 +176,14 @@ A server test gives `createServer()` its own `summarize` function. The test
 of `claudeSummarizer()` runs `server/test/fake-summarizer.ts` in place of
 `claude`. The fake writes its arguments and its input to a log, then prints
 `summarize.json`, or fails, or hangs (`FAKE_SUMMARIZER_MODE`).
+
+## Not measured yet
+
+- A wake after more than one hour. F47 gives the cache time, and the costs
+  come from the measured prices, not from a probe that waited.
+- An automatic compaction at the window (`trigger: "auto"`), and
+  `--autocompact`.
+- A compaction that fails: its `compact_result`, and whether a summary line
+  comes. The reducer keeps such a compaction `running`.
+- A `PreCompact` hook that fails, and whether it stops the compaction.
+- That a hook gets `AGENT_CHAT` from the environment of the process.

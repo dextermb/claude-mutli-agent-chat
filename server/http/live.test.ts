@@ -343,6 +343,9 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
       expect(JSON.stringify(init?.skills)).toContain("chat:ask-an-agent")
       expect(JSON.stringify(init?.skills)).toContain("chat:hand-off")
       expect(JSON.stringify(init?.skills)).toContain("chat:catch-up")
+      expect(JSON.stringify(init?.skills)).toContain("chat:ask-the-user")
+      expect(JSON.stringify(init?.skills)).toContain("chat:shared-files")
+      expect(JSON.stringify(init?.skills)).toContain("chat:sleep-and-wake")
     } finally {
       await server.close()
       store.close()

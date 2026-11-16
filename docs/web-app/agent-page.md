@@ -63,7 +63,9 @@ and dialog, in `FolderField` of `src/components/channel-fields.tsx`.
 The model and the permission mode use the Base UI `Select`, with a mono
 trigger, as the design shows. The description under the permission mode
 changes with the mode. The working directory has a folder icon. A tool goes
-into the allowed or the blocked list with Enter or with Add.
+into the allowed or the blocked list with Enter or with Add. A blocked
+`ToolSearch` shows its message under Blocked tools at Save, and the agent is
+not saved (`docs/forms.md`).
 
 Under the cards, the Command section shows the `claude` command of the agent,
 with one flag on each line and shell quoting. It follows the form before
