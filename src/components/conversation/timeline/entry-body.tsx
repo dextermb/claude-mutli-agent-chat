@@ -96,16 +96,20 @@ export function EntryBody({
   }
   if (item.kind === "message") {
     const text = item.text && (
-      <p
+      <div
         aria-busy={item.status === "streaming"}
         className={cn(
-          "m-0 leading-[22px] whitespace-pre-wrap",
+          "flex min-w-0 flex-col gap-2 leading-[22px] wrap-break-word",
           item.status === "streaming" &&
-            "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+            "[&>*:last-child]:after:ml-0.5 [&>*:last-child]:after:animate-pulse [&>*:last-child]:after:text-muted-foreground [&>*:last-child]:after:content-['▍'] motion-reduce:[&>*:last-child]:after:animate-none"
         )}
       >
-        <MessageText text={item.text} agents={agents} />
-      </p>
+        <MessageText
+          text={item.text}
+          agents={agents}
+          done={item.status !== "streaming"}
+        />
+      </div>
     )
     return (
       <>
