@@ -1,7 +1,13 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterEach, describe, expect, test, vi } from "vitest"
-import { runCleanups, sendMessage, startServer } from "../test/http.ts"
+import {
+  postJson,
+  promptsTo,
+  runCleanups,
+  sendMessage,
+  startServer,
+} from "../test/http.ts"
 
 afterEach(runCleanups)
 
@@ -80,5 +86,66 @@ describe("uploads", () => {
     const folder = join(uploadsFolder, conversation.id)
     expect(args[args.indexOf("--add-dir") + 1]).toBe(folder)
     expect(existsSync(folder)).toBe(true)
+  })
+
+  test("a message shares a copied file: the message keeps it, and the prompt of the agent names its path", async () => {
+    const { base, conversation, sentTo } = await startServer()
+    const copied = (await (
+      await upload(base, conversation.id, "ci-log.txt", "line 1\n")
+    ).json()) as { name: string; path: string; size: number }
+
+    const response = await postJson(
+      base,
+      `/api/conversations/${conversation.id}/messages`,
+      {
+        text: "Here is the CI log.",
+        files: [{ ...copied, kind: "copied" }],
+      }
+    )
+
+    expect(response.status).toBe(202)
+    expect(await response.json()).toMatchObject({
+      entry: {
+        item: {
+          kind: "message",
+          text: "Here is the CI log.",
+          files: [{ ...copied, kind: "copied" }],
+        },
+      },
+    })
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
+        `Here is the CI log.\n[Shared file: ${copied.path}]`,
+      ])
+    )
+  })
+
+  test("a linked file must be in the folder of an agent member, and a copied file in the uploads", async () => {
+    const { base, conversation } = await startServer()
+    const share = (files: unknown[]) =>
+      postJson(base, `/api/conversations/${conversation.id}/messages`, {
+        text: "",
+        files,
+      })
+    const linkedPath = join(process.cwd(), "package.json")
+
+    const linked = await share([{ path: linkedPath, kind: "linked" }])
+    const outside = await share([{ path: "/etc/hosts", kind: "linked" }])
+    const fakeCopy = await share([{ path: linkedPath, kind: "copied" }])
+
+    expect(linked.status).toBe(202)
+    expect(await linked.json()).toMatchObject({
+      entry: {
+        item: {
+          text: "",
+          files: [{ name: "package.json", path: linkedPath, kind: "linked" }],
+        },
+      },
+    })
+    expect(outside.status).toBe(400)
+    expect(await outside.json()).toEqual({
+      error: "hosts is not a file that this conversation can share.",
+    })
+    expect(fakeCopy.status).toBe(400)
   })
 })

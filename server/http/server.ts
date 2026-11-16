@@ -20,6 +20,7 @@ import { environmentPrompt } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import { listFolders } from "./folders.ts"
+import { checkFiles, sharedFileLines } from "./shared-files.ts"
 import { saveUpload, UPLOAD_LIMIT, uploadsOf } from "./uploads.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
@@ -416,7 +417,10 @@ export function createServer({
           entry.item.status === "done"
       )
       .map((entry) => {
-        const text = entry.item.kind === "message" ? entry.item.text : ""
+        const text =
+          entry.item.kind === "message"
+            ? entry.item.text + sharedFileLines(entry.item.files)
+            : ""
         return `[${authorName(entry.authorKey)}] ${text}`
       })
       .join("\n")
@@ -551,13 +555,20 @@ export function createServer({
       }
       const body = await readJson(request)
       const text = typeof body.text === "string" ? body.text : ""
-      if (text.trim() === "") {
+      const checked = await checkFiles(body.files, {
+        agentFolders: agentIdsOf(conversationId).flatMap(
+          (agentId) => store.getAgent(agentId)?.cwd ?? []
+        ),
+        uploads: uploadsOf(uploadsFolder, conversationId),
+      })
+      if (!checked.ok) return send(response, 400, { error: checked.error })
+      if (text.trim() === "" && checked.files.length === 0) {
         return send(response, 400, { error: "Write a message." })
       }
-      const entry = store.addUserMessage(conversationId, text)
+      const entry = store.addUserMessage(conversationId, text, checked.files)
       publish(conversationId, { type: "item", entry })
       for (const agentId of addressedAgents(conversationId, entry)) {
-        prompt(agentId, conversationId, text)
+        prompt(agentId, conversationId, text + sharedFileLines(checked.files))
       }
       return send(response, 202, { entry })
     }

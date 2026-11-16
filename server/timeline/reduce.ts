@@ -32,11 +32,19 @@ export type ToolCallItem = {
   parentToolUseId: string | null
 }
 
+export type SharedFile = {
+  name: string
+  path: string
+  kind: "linked" | "copied"
+  size: number
+}
+
 export type MessageItem = {
   kind: "message"
   id: string
   text: string
   status: "streaming" | "done"
+  files?: SharedFile[]
 }
 
 export type PermissionItem = {

@@ -223,6 +223,34 @@ describe("the chat MCP server", () => {
     ])
   })
 
+  test("read_messages gives the shared files of a message", async () => {
+    const { args, store, conversation } = await startedAgent()
+    const file = {
+      name: "ci-log.txt",
+      path: "/data/uploads/c1/ci-log.txt",
+      kind: "copied" as const,
+      size: 7,
+    }
+    const shared = store.addUserMessage(conversation.id, "The log.", [file])
+
+    const read = await callChat(args, "tools/call", {
+      name: "read_messages",
+      arguments: { limit: 1 },
+    })
+
+    expect(toolValue(read.body)).toMatchObject({
+      messages: [
+        {
+          seq: shared.seq,
+          author: "User",
+          at: shared.createdAt,
+          text: "The log.",
+          files: [file],
+        },
+      ],
+    })
+  })
+
   test("an agent reads the messages of a conversation a page at a time, oldest first", async () => {
     const { args, store, conversation } = await startedAgent()
     const first = store.addUserMessage(conversation.id, "First note.")

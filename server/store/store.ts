@@ -4,6 +4,7 @@ import { decodeLine } from "../protocol/decode.ts"
 import {
   emptyTimeline,
   reduceTimeline,
+  type SharedFile,
   type TimelineItem,
   type TurnItem,
 } from "../timeline/reduce.ts"
@@ -463,14 +464,19 @@ export function openStore(location: string) {
     })
   }
 
-  function addUserMessage(conversationId: string, text: string): TimelineEntry {
-    return addMessage(conversationId, "user:me", text)
+  function addUserMessage(
+    conversationId: string,
+    text: string,
+    files: SharedFile[] = []
+  ): TimelineEntry {
+    return addMessage(conversationId, "user:me", text, files)
   }
 
   function addMessage(
     conversationId: string,
     authorKey: string,
-    text: string
+    text: string,
+    files: SharedFile[] = []
   ): TimelineEntry {
     const id = randomUUID()
     const entry: TimelineEntry = {
@@ -478,7 +484,13 @@ export function openStore(location: string) {
       seq: nextSeq(),
       authorKey,
       createdAt: new Date().toISOString(),
-      item: { kind: "message", id, text, status: "done" },
+      item: {
+        kind: "message",
+        id,
+        text,
+        status: "done",
+        ...(files.length > 0 ? { files } : {}),
+      },
     }
     db.prepare(
       `INSERT INTO timeline_items (id, conversation_id, seq, session_id,

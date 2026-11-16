@@ -148,6 +148,7 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
                   author: chat.authorName(entry.authorKey),
                   at: entry.createdAt,
                   text: entry.item.text,
+                  ...(entry.item.files ? { files: entry.item.files } : {}),
                 },
               ]
             : []
