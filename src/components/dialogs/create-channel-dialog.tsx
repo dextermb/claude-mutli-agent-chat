@@ -6,12 +6,10 @@ import {
   AVATAR_COLOURS,
   initialsOf,
 } from "@/components/conversation/agent-look"
-import {
-  FolderField,
-  PrivateField,
-  ReplyModeField,
-  TopicField,
-} from "@/components/fields/channel-fields"
+import { FolderField } from "@/components/fields/channel/folder-field"
+import { PrivateField } from "@/components/fields/channel/private-field"
+import { ReplyModeField } from "@/components/fields/channel/reply-mode-field"
+import { TopicField } from "@/components/fields/channel/topic-field"
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"

@@ -4,11 +4,9 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
-import { FolderDialog } from "@/components/dialogs/folder-dialog"
-import {
-  AgentActions,
-  type ActionRefusal,
-} from "@/components/agent-actions/agent-actions"
+import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
+import type { ActionRefusal } from "@/components/agent-actions/actions"
+import { AgentActions } from "@/components/agent-actions/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import {

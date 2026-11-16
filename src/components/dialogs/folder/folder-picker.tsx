@@ -4,43 +4,16 @@ import { useEffect, useState } from "react"
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { FolderList } from "@/lib/folder-list"
 import { replyOf, NO_ANSWER } from "@/lib/refusal"
 
-type FolderList = {
-  path: string
-  parent: string | null
-  folders: { name: string; path: string }[]
-}
-
-export function FolderDialog({
-  open,
-  start,
-  onOpenChange,
-  onPick,
-}: {
-  open: boolean
-  start: string
-  onOpenChange: (open: boolean) => void
-  onPick: (path: string) => void
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
-        {open && <FolderPicker start={start} onPick={onPick} />}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function FolderPicker({
+export function FolderPicker({
   start,
   onPick,
 }: {

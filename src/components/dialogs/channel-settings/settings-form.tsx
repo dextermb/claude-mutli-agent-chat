@@ -1,18 +1,14 @@
 import { useState } from "react"
 
-import {
-  FolderField,
-  PrivateField,
-  ReplyModeField,
-  SleepField,
-  TopicField,
-} from "@/components/fields/channel-fields"
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
+import { FolderField } from "@/components/fields/channel/folder-field"
+import { PrivateField } from "@/components/fields/channel/private-field"
+import { ReplyModeField } from "@/components/fields/channel/reply-mode-field"
+import { SleepField } from "@/components/fields/channel/sleep-field"
+import { TopicField } from "@/components/fields/channel/topic-field"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -21,32 +17,9 @@ import {
 import { FieldGroup } from "@/components/ui/field"
 import type { Conversation } from "@/lib/agent-api"
 import { refusalOf } from "@/lib/refusal"
-import type { ChannelSettingsDraft } from "../../../server/schemas.ts"
+import type { ChannelSettingsDraft } from "../../../../server/schemas.ts"
 
-export function ChannelSettingsDialog({
-  open,
-  conversation,
-  onOpenChange,
-}: {
-  open: boolean
-  conversation: Conversation
-  onOpenChange: (open: boolean) => void
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
-        {open && (
-          <SettingsForm
-            conversation={conversation}
-            onSaved={() => onOpenChange(false)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function SettingsForm({
+export function SettingsForm({
   conversation,
   onSaved,
 }: {
