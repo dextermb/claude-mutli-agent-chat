@@ -75,7 +75,9 @@ export function AppSidebar({
       unread: unread[conversation.id] ?? 0,
       onNavigate: () => onOpenChange(false),
       deletion: {
-        label: `Delete ${channel ? "#" : ""}${conversation.name}`,
+        label: channel
+          ? `Delete channel #${conversation.name}`
+          : `Delete group chat ${conversation.name}`,
         hint: channel ? "Delete channel" : "Delete group chat",
         onClick: () => setDeleting(conversationTarget(conversation, agents)),
       },
@@ -171,7 +173,7 @@ export function AppSidebar({
                       onNavigate={() => onOpenChange(false)}
                       onOpenDirectMessage={() => void openDirectMessage(agent)}
                       deletion={{
-                        label: `Delete ${agent.name}`,
+                        label: `Delete agent ${agent.name}`,
                         hint: "Delete agent",
                         onClick: () =>
                           setDeleting(agentTarget(agent, conversations)),

@@ -31,7 +31,9 @@ describe("delete from the sidebar", () => {
     render(<App />)
 
     await user.click(
-      await screen.findByRole("button", { name: "Delete #release-train" })
+      await screen.findByRole("button", {
+        name: "Delete channel #release-train",
+      })
     )
     const dialog = screen.getByRole("alertdialog", {
       name: "Delete #release-train?",
@@ -66,7 +68,7 @@ describe("delete from the sidebar", () => {
     render(<App />)
 
     await user.click(
-      await screen.findByRole("button", { name: "Delete test-runner" })
+      await screen.findByRole("button", { name: "Delete agent test-runner" })
     )
     const dialog = screen.getByRole("alertdialog", {
       name: "Delete test-runner?",
@@ -103,7 +105,9 @@ describe("delete from the sidebar", () => {
     render(<App />)
 
     await user.click(
-      await screen.findByRole("button", { name: "Delete #release-train" })
+      await screen.findByRole("button", {
+        name: "Delete channel #release-train",
+      })
     )
     const dialog = screen.getByRole("alertdialog", {
       name: "Delete #release-train?",
@@ -118,5 +122,38 @@ describe("delete from the sidebar", () => {
     expect(
       within(dialog).getByRole("button", { name: "Delete channel" })
     ).toBeEnabled()
+  })
+
+  test("each × names the kind and the name of its row, so a group chat and an agent with one name differ", async () => {
+    network.on("GET", "/api/conversations", {
+      conversations: [
+        releaseChannel,
+        {
+          ...squadGroup,
+          name: "test-runner",
+          members: ["user:me", "agent:a1"],
+        },
+        directMessage,
+      ],
+      unread: {},
+    })
+    render(<App />)
+    const sidebar = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+    await within(sidebar).findByRole("button", {
+      name: "Delete channel #release-train",
+    })
+
+    expect(
+      within(sidebar)
+        .getAllByRole("button", { name: /^Delete / })
+        .map((button) => button.getAttribute("aria-label"))
+    ).toEqual([
+      "Delete channel #release-train",
+      "Delete group chat test-runner",
+      "Delete agent reviewer-bot",
+      "Delete agent test-runner",
+    ])
   })
 })

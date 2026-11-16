@@ -29,9 +29,10 @@ chat), and New agent.
 Each row also has an × (`src/components/sidebar/delete-action.tsx`), a
 `SidebarMenuAction` with `showOnHover`. It shows when the pointer is on the
 row or the row has keyboard focus. Then it takes the place of the unread
-count. Its name is "Delete #release-train", "Delete <group chat>" or
-"Delete <agent>", and its tooltip is "Delete channel", "Delete group chat" or
-"Delete agent". It opens the confirm dialog of `docs/delete.md`. After a
+count. Its name is "Delete channel #release-train", "Delete group chat
+<name>" or "Delete agent <name>". The kind is in the name, because a group
+chat with one agent can have the name of that agent. Its tooltip is "Delete
+channel", "Delete group chat" or "Delete agent". It opens the confirm dialog of `docs/delete.md`. After a
 delete that removes the open conversation, the page goes to `/`.
 
 The current conversation has `aria-current="page"` and the `sidebar-primary`
