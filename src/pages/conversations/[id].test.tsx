@@ -131,11 +131,13 @@ describe("the DM page", () => {
       within(screen.getByRole("banner")).getByText("Idle")
     ).toBeInTheDocument()
     const messages = screen.getAllByRole("article")
-    expect(within(messages[0]).getByText("You")).toBeInTheDocument()
+    expect(messages[0]).toHaveAccessibleName("You, 14:03")
     expect(
       within(messages[0]).getByText("Fix the flaky auth test.")
     ).toBeInTheDocument()
+    expect(within(messages[0]).queryByText("Y")).not.toBeInTheDocument()
     expect(within(messages[1]).getByText("test-runner")).toBeInTheDocument()
+    expect(within(messages[1]).getByText("TR")).toBeInTheDocument()
     expect(
       within(messages[1]).getByText("I will use a fixed clock.")
     ).toBeInTheDocument()

@@ -3,9 +3,9 @@ import { Fragment, useState, type ReactNode } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import {
   AVATAR_COLOURS,
-  HUMAN_AVATAR,
   initialsOf,
   MENTION_COLOURS,
 } from "@/components/conversation/agent-look"
@@ -129,44 +129,51 @@ function AuthorGroup({
   subagentCalls: Map<string, ToolCallItem[]>
   onAnswer: Answer
 }) {
-  const name = agent ? agent.name : "You"
+  const createdAt = group.entries[0].createdAt
+  const entries = group.entries.map((entry) => (
+    <EntryBody
+      key={entry.id}
+      entry={entry}
+      agent={agent}
+      agents={agents}
+      requests={requests}
+      subagentCalls={subagentCalls}
+      onAnswer={onAnswer}
+    />
+  ))
+  if (!agent) {
+    return (
+      <article
+        aria-label={`You, ${clockTime(createdAt)}`}
+        className="flex flex-col items-end gap-1 px-5 py-2"
+      >
+        {entries}
+        <time dateTime={createdAt} className="text-xs text-foreground-faint">
+          {clockTime(createdAt)}
+        </time>
+      </article>
+    )
+  }
   return (
-    <article className="flex gap-3 px-5 py-2">
-      <Avatar className="flex-none">
-        <AvatarFallback
-          className={agent ? AVATAR_COLOURS[agent.colour] : HUMAN_AVATAR}
-        >
-          {initialsOf(name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div
-          className={cn(
-            "flex gap-2",
-            agent ? "items-center" : "items-baseline"
-          )}
-        >
-          <span className="font-semibold text-foreground-strong">{name}</span>
-          {agent && <Badge>Agent</Badge>}
-          <time
-            dateTime={group.entries[0].createdAt}
-            className="text-xs text-foreground-faint"
-          >
-            {clockTime(group.entries[0].createdAt)}
-          </time>
-        </div>
-        {group.entries.map((entry) => (
-          <EntryBody
-            key={entry.id}
-            entry={entry}
-            agent={agent}
-            agents={agents}
-            requests={requests}
-            subagentCalls={subagentCalls}
-            onAnswer={onAnswer}
-          />
-        ))}
+    <article
+      aria-label={`${agent.name}, ${clockTime(createdAt)}`}
+      className="flex flex-col gap-2 px-5 py-2"
+    >
+      <div className="flex items-center gap-2">
+        <Avatar size="sm" className="flex-none">
+          <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
+            {initialsOf(agent.name)}
+          </AvatarFallback>
+        </Avatar>
+        <span className="font-semibold text-foreground-strong">
+          {agent.name}
+        </span>
+        <Badge>Agent</Badge>
+        <time dateTime={createdAt} className="text-xs text-foreground-faint">
+          {clockTime(createdAt)}
+        </time>
       </div>
+      <div className="flex min-w-0 flex-col gap-2">{entries}</div>
     </article>
   )
 }
@@ -249,20 +256,28 @@ function EntryBody({
     )
   }
   if (item.kind === "message") {
+    const text = item.text && (
+      <p
+        aria-busy={item.status === "streaming"}
+        className={cn(
+          "m-0 leading-[22px] whitespace-pre-wrap",
+          item.status === "streaming" &&
+            "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
+        )}
+      >
+        {withInlineCode(item.text, agents)}
+      </p>
+    )
     return (
       <>
-        {item.text && (
-          <p
-            aria-busy={item.status === "streaming"}
-            className={cn(
-              "m-0 leading-[22px] whitespace-pre-wrap",
-              item.status === "streaming" &&
-                "after:ml-0.5 after:animate-pulse after:text-muted-foreground after:content-['▍'] motion-reduce:after:animate-none"
-            )}
-          >
-            {withInlineCode(item.text, agents)}
-          </p>
-        )}
+        {text &&
+          (agent ? (
+            text
+          ) : (
+            <Bubble variant="muted" align="end">
+              <BubbleContent>{text}</BubbleContent>
+            </Bubble>
+          ))}
         {item.files && item.files.length > 0 && (
           <MessageFiles files={item.files} afterSeq={entry.seq} />
         )}
