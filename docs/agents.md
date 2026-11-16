@@ -136,6 +136,14 @@ The session reads stderr all the time, so a process that writes much to
 stderr cannot block on a full pipe. It keeps the last 4 KB for the `exit`
 event. The event comes on `close`, not on `exit`, so it holds the last bytes.
 
+`childEnvironment()` (`server/session/environment.ts`) removes the
+variables of a parent Claude Code session, and sets `AGENT_CHAT=1`. A hook
+script of the user can test `AGENT_CHAT` to tell an agent from a terminal
+session.
+
+The server also stops an idle process after its sleep time. See
+`docs/sleep.md`.
+
 `system/init` comes only after the first prompt, and again at the start of
 each turn (F15). Store the Claude session ID from the first one, so that the
 next process can `--resume` it.
@@ -152,13 +160,14 @@ The tests start it in place of `claude`:
 
 `FAKE_CLAUDE_FIXTURE` names the fixture. `FAKE_CLAUDE_MODE` selects a mode:
 
-| Mode       | At the first prompt, the fake …                                                           |
-| ---------- | ----------------------------------------------------------------------------------------- |
-| `play`     | plays the fixture                                                                         |
-| `crash`    | writes `fake claude (crash): crash on the first prompt` to stderr, then exits with code 1 |
-| `not-json` | writes a line that is not JSON, then plays the fixture                                    |
-| `env`      | writes the names of its `CLAUDE*` variables, then plays the fixture                       |
-| `hang`     | plays the fixture, but ignores the end of stdin and `SIGTERM`                             |
+| Mode                | At the first prompt, the fake …                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `play`              | plays the fixture                                                                                 |
+| `crash`             | writes `fake claude (crash): crash on the first prompt` to stderr, then exits with code 1         |
+| `not-json`          | writes a line that is not JSON, then plays the fixture                                            |
+| `env`               | writes the names of its `CLAUDE*` variables and the value of `AGENT_CHAT`, then plays the fixture |
+| `hold-after-result` | plays the fixture until the first `result` line, then writes nothing more                         |
+| `hang`              | plays the fixture, but ignores the end of stdin and `SIGTERM`                                     |
 
 With `FAKE_CLAUDE_REPLY`, the fake replaces the text of each reply with that
 text, and leaves out the text pieces.

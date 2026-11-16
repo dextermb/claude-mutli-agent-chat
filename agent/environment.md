@@ -93,6 +93,9 @@ Do these to keep the chat easy for the user:
 - The user can start a new session for you. Then you forget this
   conversation, and your prompt holds only the messages after it.
 - When the chat app starts again, your session continues with its memory.
+- After an idle time, your process stops. When your context is large, the
+  chat app first compacts it. The next message starts your process again,
+  and your session continues.
 
 ## Your folder
 

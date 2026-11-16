@@ -32,16 +32,17 @@ before the migrations has version 0, and its tables are version 1.
 runs in one transaction with its SQL, its rebuild and the new
 `user_version`. So a failure leaves the file at the version before it.
 
-| Version | Change                                                                                   |
-| ------- | ---------------------------------------------------------------------------------------- |
-| 2       | `agent_sessions` gets `ended_at`, `exit_code` and `stderr`. Each timeline is built again |
-| 3       | `agent_sessions` gets `config` (JSON, null for older rows) and `claude_session_new`      |
-| 4       | `conversation_members` gets `joined_seq`, 0 for older rows                               |
-| 5       | New table `conversation_reads`                                                           |
-| 6       | `agents` gets `description`, null for older rows                                         |
-| 7       | `agents` gets `max_turns`, null (no limit) for older rows                                |
-| 8       | `agents` is built again with a nullable `cwd`. `conversations` gets `cwd`, null          |
-| 9       | New table `shared_files`                                                                 |
+| Version | Change                                                                                    |
+| ------- | ----------------------------------------------------------------------------------------- |
+| 2       | `agent_sessions` gets `ended_at`, `exit_code` and `stderr`. Each timeline is built again  |
+| 3       | `agent_sessions` gets `config` (JSON, null for older rows) and `claude_session_new`       |
+| 4       | `conversation_members` gets `joined_seq`, 0 for older rows                                |
+| 5       | New table `conversation_reads`                                                            |
+| 6       | `agents` gets `description`, null for older rows                                          |
+| 7       | `agents` gets `max_turns`, null (no limit) for older rows                                 |
+| 8       | `agents` is built again with a nullable `cwd`. `conversations` gets `cwd`, null           |
+| 9       | New table `shared_files`                                                                  |
+| 10      | `agents` and `conversations` get `sleep_after_minutes`, and `agent_sessions` `end_reason` |
 
 A migration with `foreignKeysOff: true` runs with the foreign keys off, and
 checks them with `PRAGMA foreign_key_check` before it commits. SQLite cannot
@@ -74,7 +75,7 @@ conversations ──1:N── conversation_members
 | `agents`               | The configuration (`cwd` is null for a generic agent), the description and the turn limit (`max_turns`, null for none) of each agent. The tool lists are JSON arrays. The `config` of a session row from before version 7 reads with `maxTurns: null`, so the session card does not say that it changed                          |
 | `conversations`        | Each channel, group chat and DM, with the folder (`cwd`) of a channel, or null                                                                                                                                                                                                                                                   |
 | `conversation_members` | `user:me` or `agent:<id>`, with a `position` that keeps the order, and the `joined_seq` when the member joined                                                                                                                                                                                                                   |
-| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`)                                                                      |
+| `agent_sessions`       | One `claude` process for one agent in one conversation: its Claude session ID and whether that ID is new (`claude_session_new`), the configuration it started with (`config`), its state, and its exit (`ended_at`, `exit_code`, the last 4 KB of `stderr`, and `end_reason`: `sleep`, or null, see `docs/sleep.md`)             |
 | `session_events`       | Each line that the session wrote (`in`) or read (`out`), without a change                                                                                                                                                                                                                                                        |
 | `timeline_items`       | Each timeline item, with its full value as JSON in `payload`                                                                                                                                                                                                                                                                     |
 | `conversation_reads`   | For each conversation, the `last_read_seq` that the user saw and the time (`read_at`). No row: the user saw nothing                                                                                                                                                                                                              |

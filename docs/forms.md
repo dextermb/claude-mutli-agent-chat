@@ -16,18 +16,18 @@ schema").
   `POST /api/agents`, `PATCH /api/agents/:id` (on the stored agent with the
   body merged in), `POST /api/conversations` for a channel, and
   `PATCH /api/conversations/:id` with `channelSettingsSchema`, the topic,
-  `private` and `replyMode` of `channelSchema` (on the stored channel with
-  the body merged in).
+  `private`, `replyMode`, `cwd` and `sleepAfterMinutes` of `channelSchema`
+  (on the stored channel with the body merged in).
 - The browser gives the same schema to `useForm()` as its `onBlur` and
   `onSubmit` validator.
 - `NewAgent` in `server/api-types.ts` is the output type of `agentSchema`.
 
 The Channel settings dialog
 (`src/components/channel-settings-dialog.tsx`) is not a TanStack Form. Its
-fields are a text, a folder, a switch and a radio, so no value that the user
-can give fails the schema. A folder that does not exist gets `400` from the
-route. It keeps its values in state, and shows a refusal of the
-server in an alert.
+fields are a text, a folder, a switch, a radio and a number. Only a sleep
+time out of range fails the schema. That, and a folder that does not exist,
+get `400` from the route. It keeps its values in state, and shows a refusal
+of the server in an alert.
 
 A rule that needs the database stays in the route. A channel name that is
 taken gives `409`, and the dialog shows it in its alert only.
@@ -38,6 +38,7 @@ taken gives `409`, and the dialog shows it in its alert only.
 | agent `model`          | not empty                            | Pick a model.                                                      |
 | agent `permissionMode` | not empty                            | Pick a permission mode.                                            |
 | agent `maxTurns`       | a whole number, 1 or more, or `null` | Give a whole number of 1 or more, or leave it empty.               |
+| `sleepAfterMinutes`    | a whole number, 0 to 55, or empty    | Give a whole number from 0 to 55, or leave it empty.               |
 | channel `name`         | not empty after a trim               | Give the channel a name.                                           |
 | channel `name`         | `^[a-z0-9-]+$`                       | Use only lowercase letters, numbers and hyphens in a channel name. |
 | channel `replyMode`    | `mention` or `every`                 | Pick a reply mode.                                                 |

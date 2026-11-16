@@ -194,8 +194,11 @@ function reduceCompactionStatus(
   state: TimelineState,
   line: CompactionStatusLine
 ): TimelineStep {
-  const step: TimelineStep = { state, changes: [] }
-  if (line.status !== "compacting") return step
+  if (line.status !== "compacting") return { state, changes: [] }
+  const step: TimelineStep = {
+    state: { ...state, lastRequest: undefined },
+    changes: [],
+  }
   return add(step, (id) => ({
     kind: "compaction",
     id,
