@@ -1,13 +1,14 @@
 # Long-lived agents: sleep, wake and memory
 
-**Status:** in progress. Slices 1–4 are built: the facts in the prompt
+**Status:** in progress. Slices 1–5 are built: the facts in the prompt
 (F40), the compaction lines with the divider and the last summary on the
-session card, the sleep timer, and the wake prompt with the fallback for a
-lost transcript. Their lasting parts are in `docs/agent-environment.md`,
-`docs/protocol.md`, `docs/timeline.md`, `docs/server.md`, `docs/sleep.md` and
-`docs/web-app/`. Slices 5–6 are ahead. The measurements are done
-(2026-11-16, Claude Code 2.1.311, Haiku 5.5, about 0.57 USD, of which one
-probe took 0.28 USD: F52). All the questions are decided (decisions 1–8).
+session card, the sleep timer, the wake prompt with the fallback for a lost
+transcript, and the conversation summary. Their lasting parts are in
+`docs/agent-environment.md`, `docs/protocol.md`, `docs/timeline.md`,
+`docs/server.md`, `docs/store.md`, `docs/sleep.md` and `docs/web-app/`. Slice
+6 is ahead. The measurements are done (2026-11-16, Claude Code 2.1.311, Haiku
+5.5, about 0.58 USD, of which one probe took 0.28 USD: F52). All the
+questions are decided (decisions 1–8).
 
 An agent can stay in a DM, a group chat or a channel for weeks. Today, its
 `claude` process never stops on its own, and its Claude session grows until
@@ -497,8 +498,13 @@ In slices, test-first with the `tdd` skill. Each slice ships alone.
      turn", not "while you were asleep".
    - A lost transcript also adds the divider "New session", so the user sees
      that the agent starts again.
-5. **The conversation summary.** `conversation_summaries`, the summarizer
-   process with its own fixture, and the summary in the wake prompt.
+5. **The conversation summary.** Built (`docs/sleep.md`). The measured base
+   of the summarizer is about 1k tokens, not 17k: `--system-prompt` replaces
+   the whole prompt of Claude Code, and `--tools ""` with no MCP server
+   leaves no tool schema (F58 in `docs/protocol.md`). One run cost 0.0003
+   USD and took 2.8 s. `--tools ""` cannot hit F52, because no MCP server
+   runs. The summary is in the `[Chat app]` block, after the count of the
+   messages that the prompt leaves out.
 6. **The rule as a map.** The guard for `ToolSearch` in the agent schema.
    Move each procedure of `agent/environment.md` into a `chat:` skill, and add
    `chat:sleep-and-wake`.

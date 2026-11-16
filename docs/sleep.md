@@ -72,6 +72,8 @@ A message, a mention, a `send_message` or Restart starts a process with
 [Chat app] This session:                          each new process (docs/agent-environment.md)
 - …
 [Chat app] 212 messages came since your last turn. Here are the last 30. Use read_messages for the older ones.
+[Chat app] The summary of the conversation before these messages:
+- …
 ```
 
 - The gap comes from `ended_at` of the session row that ended with `sleep`.
@@ -81,6 +83,46 @@ A message, a mention, a `send_message` or Restart starts a process with
   messages since the last turn of the agent (`AGENTS_WAKE_MESSAGES`,
   `docs/conversations.md`). This limit is for each prompt, not only after a
   sleep.
+
+## The conversation summary
+
+When a prompt leaves messages out, the server adds a summary of the
+conversation up to the last message that it leaves out (`through_seq`):
+
+```
+prompt() → promptFor(): omittedThrough = seq of the last message left out
+  → the prompt goes into the queue, not ready
+  → summaryThrough(conversation, omittedThrough)
+       a run for this conversation goes on? wait for it
+       latest summary covers omittedThrough? use it
+       else runSummary(): summarize({ earlier, lines })
+            earlier: the latest summary, or null
+            lines:   each message after its through_seq, up to omittedThrough,
+                     of each author, at most the last 400
+            save it in conversation_summaries
+  → the note gets the summary, the prompt is ready → deliverNext()
+```
+
+- Haiku runs only when a prompt leaves messages out and the stored summary
+  does not reach far enough. So a DM never needs it, and a quiet group chat
+  seldom does.
+- Each run is an update: the earlier summary and the new messages only.
+- One summary serves each agent of the conversation, and one run at a time
+  goes on for each conversation. A second agent with the same cut waits for
+  that run and uses its result.
+- A prompt that waits for its summary keeps its place in the queue, so the
+  prompts keep their order.
+- If the run fails, or takes more than 30 s, the prompt goes out with the
+  pointer to `read_messages` only.
+
+`claudeSummarizer()` (`server/summary/summarizer.ts`) is the only process
+that does not get the environment of an agent. It is not an agent: it reads
+text and has no tools. It runs `claude -p --output-format json` with
+`--system-prompt` (`agent/summarize.md`), `--tools ""`, no MCP server, the
+project settings only, and `--no-session-persistence`, in the folder
+`summarizer` under the scratch folder. Its base is about 1k tokens, so one
+run costs about 0.0003 USD for a few messages and about 0.003 USD for 200
+(F58 in `docs/protocol.md`). In a live check, it took 2.8 s.
 
 ## A transcript that is gone
 
@@ -128,3 +170,8 @@ minute of sleep time lasts 20 ms, with real timers, real HTTP and the fake
 `no-transcript` fails as in F30 when it starts with `--resume`, and plays the
 fixture when it starts with `--session-id`. `wakeMessages` sets the limit of
 messages for a test.
+
+A server test gives `createServer()` its own `summarize` function. The test
+of `claudeSummarizer()` runs `server/test/fake-summarizer.ts` in place of
+`claude`. The fake writes its arguments and its input to a log, then prints
+`summarize.json`, or fails, or hangs (`FAKE_SUMMARIZER_MODE`).

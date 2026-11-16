@@ -256,6 +256,142 @@ describe("group chats and channels", () => {
     )
   })
 
+  test("a prompt that leaves messages out holds the summary of the conversation before them", async () => {
+    const calls: { earlier: string | null; lines: string[] }[] = []
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      {
+        wakeMessages: 3,
+        summarize: async (input) => {
+          calls.push(input)
+          return { text: "- The release branch is release/2.4.", costUsd: 0.0003 }
+        },
+      }
+    )
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, { agentIds: [runner.id] })
+    for (const text of ["One.", "Two.", "Three.", "Four."]) {
+      await sendMessage(base, id, text)
+    }
+
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    expect(calls).toEqual([
+      { earlier: null, lines: ["[User] One.", "[User] Two."] },
+    ])
+    expect(factsTo(sentTo, "test-runner")[0].split("\n").slice(-3)).toEqual([
+      "[Chat app] 5 messages came since your last turn. Here are the last 3. Use read_messages for the older ones.",
+      "[Chat app] The summary of the conversation before these messages:",
+      "- The release branch is release/2.4.",
+    ])
+  })
+
+  test("two agents that need the same summary share one run of the summarizer", async () => {
+    let runs = 0
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      {
+        wakeMessages: 3,
+        summarize: async () => {
+          runs += 1
+          await new Promise((resolve) => setTimeout(resolve, 50))
+          return { text: "- The release branch is release/2.4.", costUsd: 0.0003 }
+        },
+      }
+    )
+    const reviewer = await createAgent(base, "reviewer-bot")
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, {
+      agentIds: [reviewer.id, runner.id],
+    })
+    for (const text of ["One.", "Two.", "Three.", "Four."]) {
+      await sendMessage(base, id, text)
+    }
+
+    await sendMessage(base, id, "@reviewer-bot @test-runner what is open?")
+    await untilTurns(base, id, 2)
+
+    expect(runs).toBe(1)
+    for (const name of ["reviewer-bot", "test-runner"]) {
+      expect(factsTo(sentTo, name)[0]).toContain(
+        "- The release branch is release/2.4."
+      )
+    }
+  })
+
+  test("the next summary updates the stored one, and reads only the messages after it", async () => {
+    const calls: { earlier: string | null; lines: string[] }[] = []
+    const { base } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      () => ({ fixture: "max-turns", reply: "Done." }),
+      {
+        wakeMessages: 3,
+        summarize: async (input) => {
+          calls.push(input)
+          return { text: `Summary ${calls.length}.`, costUsd: 0.0003 }
+        },
+      }
+    )
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, { agentIds: [runner.id] })
+    for (const text of ["One.", "Two.", "Three.", "Four."]) {
+      await sendMessage(base, id, text)
+    }
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    for (const text of ["Five.", "Six.", "Seven.", "Eight."]) {
+      await sendMessage(base, id, text)
+    }
+    await sendMessage(base, id, "@test-runner run them again.")
+    await untilTurns(base, id, 2)
+
+    expect(calls[1]).toEqual({
+      earlier: "Summary 1.",
+      lines: [
+        "[User] Three.",
+        "[User] Four.",
+        "[User] @test-runner run the tests.",
+        "[User] Five.",
+        "[User] Six.",
+      ],
+    })
+  })
+
+  test("when the summarizer fails, the prompt goes out with the pointer to read_messages only", async () => {
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      {
+        wakeMessages: 3,
+        summarize: () => Promise.reject(new Error("claude exited with code 1")),
+      }
+    )
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, { agentIds: [runner.id] })
+    for (const text of ["One.", "Two.", "Three.", "Four."]) {
+      await sendMessage(base, id, text)
+    }
+
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    expect(factsTo(sentTo, "test-runner")[0].split("\n").at(-1)).toBe(
+      "[Chat app] 5 messages came since your last turn. Here are the last 3. Use read_messages for the older ones."
+    )
+  })
+
   test("an agent that runs learns in its next prompt only the facts that changed", async () => {
     const { base, sentTo } = await startServer(
       "resume-1",

@@ -1,8 +1,10 @@
 import { mkdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { createServer } from "./http/server.ts"
+import { defaultScratchRoot } from "./paths.ts"
 import { AgentSession } from "./session/session.ts"
 import { openStore } from "./store/store.ts"
+import { claudeSummarizer } from "./summary/summarizer.ts"
 
 const DATABASE = process.env.AGENTS_DATABASE ?? ".data/agents.db"
 const UPLOADS = resolve(
@@ -17,7 +19,10 @@ const COMPACT_ABOVE_TOKENS = numberOrUndefined(
 )
 const WAKE_MESSAGES = numberOrUndefined(process.env.AGENTS_WAKE_MESSAGES)
 
+const SUMMARIZER_FOLDER = join(defaultScratchRoot(), "summarizer")
+
 mkdirSync(dirname(DATABASE), { recursive: true })
+mkdirSync(SUMMARIZER_FOLDER, { recursive: true })
 const store = openStore(DATABASE)
 
 const server = createServer({
@@ -26,6 +31,7 @@ const server = createServer({
   sleepAfterMinutes: SLEEP_AFTER_MINUTES,
   compactAboveTokens: COMPACT_ABOVE_TOKENS,
   wakeMessages: WAKE_MESSAGES,
+  summarize: claudeSummarizer({ cwd: SUMMARIZER_FOLDER }),
   startSession: ({ args, cwd, onEvent }) => {
     const session = new AgentSession({
       command: "claude",

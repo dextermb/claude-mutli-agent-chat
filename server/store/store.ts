@@ -707,6 +707,33 @@ export function openStore(location: string) {
       .at(-1)
   }
 
+  function latestSummary(
+    conversationId: string
+  ): { throughSeq: number; text: string } | undefined {
+    const row = db
+      .prepare(
+        `SELECT through_seq, text FROM conversation_summaries
+         WHERE conversation_id = ? ORDER BY through_seq DESC LIMIT 1`
+      )
+      .get(conversationId)
+    return row
+      ? { throughSeq: Number(row.through_seq), text: String(row.text) }
+      : undefined
+  }
+
+  function saveSummary(summary: {
+    conversationId: string
+    throughSeq: number
+    text: string
+    costUsd: number
+  }) {
+    db.prepare(
+      `INSERT OR REPLACE INTO conversation_summaries
+         (conversation_id, through_seq, text, cost_usd, created_at)
+       VALUES (:conversationId, :throughSeq, :text, :costUsd, :createdAt)`
+    ).run({ ...summary, createdAt: new Date().toISOString() })
+  }
+
   function listTimeline(conversationId: string): TimelineEntry[] {
     return db
       .prepare(
@@ -755,6 +782,8 @@ export function openStore(location: string) {
     listTimeline,
     listSessionTurns,
     lastCompaction,
+    latestSummary,
+    saveSummary,
     listAgentLines,
     close: () => db.close(),
   }
