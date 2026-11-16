@@ -726,6 +726,40 @@ describe("the DM page", () => {
     ).toBeInTheDocument()
   })
 
+  test("the diff of an edit opens from its line, and says how many lines it does not show", async () => {
+    const user = userEvent.setup()
+    openConversation([
+      userMessage,
+      {
+        ...editCall,
+        item: {
+          ...editCall.item,
+          result: {
+            kind: "diff",
+            added: 1,
+            removed: 1,
+            lines: [
+              { kind: "remove", text: "beta" },
+              { kind: "add", text: "BETA" },
+            ],
+            more: 12,
+          },
+        },
+      } as TimelineEntry,
+    ])
+    const edit = await screen.findByRole("region", {
+      name: "Edit src/notes.txt",
+    })
+
+    await user.click(
+      within(edit).getByRole("button", { name: /^Edited src\/notes\.txt/ })
+    )
+
+    expect(within(edit).getByText("beta")).toBeInTheDocument()
+    expect(within(edit).getByText("BETA")).toBeInTheDocument()
+    expect(within(edit).getByText("12 more lines")).toBeInTheDocument()
+  })
+
   test("the output of a command opens from its line", async () => {
     const user = userEvent.setup()
     openConversation([userMessage, bashCall])

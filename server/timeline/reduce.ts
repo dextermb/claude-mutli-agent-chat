@@ -15,9 +15,19 @@ import type {
 
 export type ToolCallResult =
   | { kind: "lines"; count: number }
-  | { kind: "diff"; added: number; removed: number }
+  | {
+      kind: "diff"
+      added: number
+      removed: number
+      lines?: DiffLine[]
+      more?: number
+    }
   | { kind: "output"; stdout: string; stderr: string }
   | { kind: "error"; message: string }
+
+export type DiffLine = { kind: "add" | "remove" | "same"; text: string }
+
+const DIFF_LINE_CAP = 200
 
 export type ToolCallItem = {
   kind: "tool_call"
@@ -374,7 +384,12 @@ function toolCallResult(result: ToolResult): ToolCallResult | null {
     return { kind: "lines", count: file.numLines }
   }
   if (structured.type === "create" && typeof structured.content === "string") {
-    return { kind: "diff", added: lineCount(structured.content), removed: 0 }
+    return diffOf(
+      structured.content
+        .split("\n")
+        .slice(0, lineCount(structured.content))
+        .map((text) => ({ kind: "add", text }))
+    )
   }
   if (Array.isArray(structured.structuredPatch)) {
     return diff(structured.structuredPatch)
@@ -390,14 +405,30 @@ function toolCallResult(result: ToolResult): ToolCallResult | null {
 }
 
 function diff(hunks: unknown[]): ToolCallResult {
-  const lines = hunks.flatMap((hunk) => {
-    const hunkLines = asObject(hunk).lines
-    return Array.isArray(hunkLines) ? hunkLines : []
-  })
+  return diffOf(
+    hunks.flatMap((hunk) => {
+      const hunkLines = asObject(hunk).lines
+      return Array.isArray(hunkLines) ? hunkLines.map(String).map(diffLine) : []
+    })
+  )
+}
+
+function diffLine(line: string): DiffLine {
+  const kind = line.startsWith("+")
+    ? "add"
+    : line.startsWith("-")
+      ? "remove"
+      : "same"
+  return { kind, text: line.slice(1) }
+}
+
+function diffOf(lines: DiffLine[]): ToolCallResult {
   return {
     kind: "diff",
-    added: lines.filter((line) => String(line).startsWith("+")).length,
-    removed: lines.filter((line) => String(line).startsWith("-")).length,
+    added: lines.filter((line) => line.kind === "add").length,
+    removed: lines.filter((line) => line.kind === "remove").length,
+    lines: lines.slice(0, DIFF_LINE_CAP),
+    more: Math.max(0, lines.length - DIFF_LINE_CAP),
   }
 }
 

@@ -11,7 +11,12 @@ import {
 import { useState } from "react"
 
 import { Approval } from "@/components/conversation/approval"
-import { CodeBlock, CodeBlockContent } from "@/components/ui/code-block"
+import {
+  CodeBlock,
+  CodeBlockContent,
+  CodeBlockFooter,
+  CodeBlockLine,
+} from "@/components/ui/code-block"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Trace,
@@ -24,7 +29,12 @@ import {
   TraceTitle,
 } from "@/components/ui/trace"
 import type { RequestAnswer } from "@/hooks/use-conversation"
-import type { Json, PermissionItem, ToolCallItem } from "@/lib/agent-api"
+import type {
+  DiffLine,
+  Json,
+  PermissionItem,
+  ToolCallItem,
+} from "@/lib/agent-api"
 import { endPathDrag, startPathDrag } from "@/lib/drag-path"
 import { cn } from "@/lib/utils"
 
@@ -92,6 +102,7 @@ export function ToolCallLine({
       : result?.kind === "error"
         ? result.message
         : ""
+  const diffLines = result?.kind === "diff" ? (result.lines ?? []) : []
   const Icon = failed ? CircleAlertIcon : (ICONS[call.name] ?? WrenchIcon)
   const verbs = VERBS[call.name]
   const verb = verbs
@@ -143,7 +154,7 @@ export function ToolCallLine({
       aria-label={`${call.name} ${target}`}
       className="flex min-w-0 flex-col gap-2"
     >
-      {detail || subagentCalls.length > 0 ? (
+      {detail || diffLines.length > 0 || subagentCalls.length > 0 ? (
         <TraceCollapsible open={open} onOpenChange={setOpened}>
           <TraceCollapsibleTrigger>{line}</TraceCollapsibleTrigger>
           <TraceCollapsibleContent className="flex flex-col gap-2">
@@ -160,6 +171,9 @@ export function ToolCallLine({
                   />
                 ))}
               </Trace>
+            )}
+            {diffLines.length > 0 && result?.kind === "diff" && (
+              <DiffBlock lines={diffLines} more={result.more ?? 0} />
             )}
             {detail && <OutputBlock text={detail} failed={failed} />}
           </TraceCollapsibleContent>
@@ -210,6 +224,31 @@ function Description({
     >
       {parts.join(" · ")}
     </TraceDescription>
+  )
+}
+
+const LINE_VARIANT = {
+  add: "added",
+  remove: "removed",
+  same: "default",
+} as const
+
+function DiffBlock({ lines, more }: { lines: DiffLine[]; more: number }) {
+  return (
+    <CodeBlock size="sm">
+      <CodeBlockContent className="max-h-64">
+        {lines.map((line, index) => (
+          <CodeBlockLine key={index} variant={LINE_VARIANT[line.kind]}>
+            {line.text}
+          </CodeBlockLine>
+        ))}
+      </CodeBlockContent>
+      {more > 0 && (
+        <CodeBlockFooter className="text-xs text-foreground-faint">
+          {more} more lines
+        </CodeBlockFooter>
+      )}
+    </CodeBlock>
   )
 }
 
