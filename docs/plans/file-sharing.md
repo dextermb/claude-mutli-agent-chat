@@ -1,8 +1,10 @@
 # File sharing
 
 **Status:** awaiting go-ahead. Nothing is built. The decisions below are
-proposals. Seven questions are open. On 2026-11-16 the user chose `@` as the
-trigger of file completion (decisions 15 to 19).
+proposals. Nine questions are open. On 2026-11-16 the user chose `@` as the
+trigger of file completion (decisions 15 to 19), and asked for a list of the
+shared files that agents can read with a tool and the user can change
+(decisions 20 to 27). Decision 28 makes the use of shadcn/ui explicit.
 
 This is the Tier 3 item "File sharing" of `docs/plans/design-boards.md`. It
 also builds the Attach a file button of the item "The composer buttons".
@@ -161,6 +163,86 @@ Boards: FileDrop, FileChips and FileInThread in the "Agent Chat" canvas.
     file at the top of a folder whose path is the name of a member is
     inserted as `@./<name>`.
 
+### The shared files list
+
+20. **Each conversation has one list of shared files.** A file joins the
+    list when a message shares it, in a DM, a group chat or a channel. The
+    list is a set of paths: a second message with the same path does not add
+    a second row. It updates `shared_at` and `shared_by`, and it puts back a
+    removed file.
+21. **A table holds the list, not the message JSON**, because the list
+    changes after the message: the user can remove a file. The new table
+    `shared_files` is in the ERD below (migration 8). The message keeps its
+    own `files`, so the thread still shows what the message shared.
+22. **The chat MCP server gets `list_files`.** Input: `conversationId?`
+    (this conversation when it is left out, as the other tools). Output:
+    `files`, each with `id`, `name`, `path` (absolute), `kind`, `size`,
+    `sharedBy` (a name), `sharedAt`, and `exists` (the path is on the disk
+    now). A removed file is not in the output. The tool only reads, so it
+    goes into `READ_TOOLS` and needs no permission card. An agent that is not
+    a member gets the same refusal as `read_messages`. The rule in
+    `agent/environment.md` and the chat skill name the tool.
+23. **The user removes a file from the list**, with
+    `DELETE /api/conversations/:id/files/:fileId`. The row gets `removed_at`
+    and `removed_by`. It is not deleted, so the thread can say what happened.
+    A removed file can be shared again with a new message.
+24. **What Remove does to the file on the disk.** A `linked` file is never
+    touched: it is the real file of a project. A `copied` file is deleted
+    from the uploads, because the user removes a file that should not be
+    there. See question 8.
+25. **The agents learn of a removal from the tool only.** No prompt goes to
+    an agent, so a removal does not start a turn and costs nothing. An
+    agent that calls `list_files` sees the list of now. See question 9.
+26. **Where the user sees the list.**
+    - **A group chat or a channel:** a "Files" button in the header, next
+      to the members button, with the count. It opens the panel "Shared
+      files" (an `aside` of 360 px, or a `Sheet` below 768 px), in the same
+      way as the members panel. Only one of the two panels is open at a
+      time.
+    - **A DM:** the Files tab gets a section "Shared files" over the files
+      that the agent read or changed. On a phone, the Files view of the
+      Session sheet leads there.
+    - **Each row:** the name, the badge (`Linked` or `Copied`), the path,
+      "Shared by <name> at 14:04", the note of decision 11, "Copy the path
+      of <name>", and "Remove <name>". Remove of a `copied` file asks first:
+      "Remove ci-log.txt? The copy in the uploads is deleted. The message
+      keeps its name." Remove of a `linked` file needs no question, because
+      nothing is lost.
+27. **The thread after a removal.** The row of the file under the message
+    keeps the name and the path, with the badge `Removed` and the note
+    "Removed from the shared files at 14:20.". A `copied` file then has no
+    Copy the path button, because the path is gone. A new event,
+    `{ type: "files", files }` on the stream of the conversation, carries
+    the list after each change, so the panel, the counts and the thread
+    follow.
+
+### The UI components
+
+28. **Build each part of the UI with the shadcn/ui components of the
+    project.** The user asked for this explicitly on 2026-11-16.
+    - Use the components in `src/components/ui`. Do not write a new UI
+      primitive by hand, and do not copy the markup of a component.
+    - A component that the project does not have yet comes from the CLI,
+      `pnpm dlx shadcn@latest add <name>` (the rule in `CLAUDE.md`). This
+      plan needs two: `progress` (the copy bar of a chip) and `empty` (an
+      empty list of shared files).
+    - The components run on Base UI, so a trigger or a link that looks like
+      a button uses the `render` prop, not `asChild`.
+    - The style comes from the tokens of the design system, as the rest of
+      the app. A class adds layout only, not new colours.
+
+    | Part                       | Components                                                                                                                   |
+    | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+    | Drop zone                  | `Empty` (icon, title, description) inside the dashed overlay, `Item` for the two notes, `Kbd` for Esc                        |
+    | Chips in the composer      | `InputGroup` with `InputGroupAddon align="block-start"`, `Item` for each chip, `Badge`, `Progress`, `Button` (Remove, Retry) |
+    | Attach a file              | `InputGroupButton` with a hidden file `input`                                                                                |
+    | Send hint, refused chip    | `Badge variant="destructive"`, the text of `InputGroupAddon`                                                                 |
+    | `@` list, Files group      | The `listbox` of the composer as it is today, with a group label and `Item` rows                                             |
+    | Shared files in the thread | `ItemGroup` and `Item`, `Badge`, `Button` with `Tooltip` for Copy the path                                                   |
+    | Files button and panel     | `Button` with a `Badge` with the count, `Sheet` below 768 px, `ScrollArea`, `ItemGroup`, `Item`, `Empty`                     |
+    | Remove of a copy           | `AlertDialog`, as Stop agent and New session                                                                                 |
+    | DM Files tab section       | `Item`, `Badge`, `Separator` between the two sections                                                                        |
+
 ## Open questions
 
 1. **The size limit of one upload.** My recommendation: 25 MB. A larger
@@ -188,7 +270,17 @@ Boards: FileDrop, FileChips and FileInThread in the "Agent Chat" canvas.
    answers it. The design does not depend on the answer.
 7. **Old uploads.** Nothing deletes them. My recommendation: leave them.
    They are small, and an agent may still need one. A later change can add a
-   clean-up.
+   clean-up. Decision 24 deletes a copy only when the user removes it.
+8. **Remove deletes a copy.** Decision 24 deletes a `copied` file from the
+   uploads. The other choice: keep it on the disk, and only take it off the
+   list. That lets the user undo, but an agent can still read a file that
+   the user wanted gone. My recommendation: delete it, and ask first.
+9. **Tell the agents of a removal?** Decision 25 sends no prompt. The other
+   choice: a line in the next prompt of each agent, "[Removed file:
+   /abs/path]". That costs nothing extra, because it waits for the next
+   message, and it tells an agent to stop using the file. My
+   recommendation: add that line. It is small, and it stops an agent from
+   working on a file that the user removed.
 
 ## Data flow
 
@@ -223,8 +315,51 @@ Process start
   └─ claudeArgs(..., { addDir }) ─▶ --add-dir <uploads>/<conversation id>
 ```
 
-No table changes. The JSON in `timeline_items.payload` of a user message
-gains `files: [{ name, path, kind, size }]`.
+The JSON in `timeline_items.payload` of a user message gains
+`files: [{ name, path, kind, size }]`. The list of decision 20 is a new
+table.
+
+```
+conversations                         timeline_items
+  id  PK  ───────────────┐              id  PK
+  …                      │1             …
+                         │              ▲
+                         │N             │1  (the message that shared it last)
+                   shared_files  (new, migration 8)
+                     id               PK  TEXT, UUID
+                     conversation_id  FK  → conversations.id  ON DELETE CASCADE
+                     item_id          FK  → timeline_items.id ON DELETE SET NULL
+                     name                 TEXT
+                     path                 TEXT, absolute
+                     kind                 TEXT  'linked' | 'copied'
+                     size                 INTEGER
+                     shared_by            TEXT  member key, 'user:me' today
+                     shared_at            TEXT
+                     removed_at           TEXT  NULL while on the list
+                     removed_by           TEXT  NULL while on the list
+                     UNIQUE (conversation_id, path)
+```
+
+- One conversation has many shared files (1:N). Each row names the last
+  message that shared it (N:1). A conversation that is deleted takes its
+  rows with it.
+- New queries in `server/store/store.ts`: `shareFiles(conversationId,
+itemId, files, sharedBy)`, `listSharedFiles(conversationId)` (the rows
+  with no `removed_at`), `getSharedFile(id)`, and
+  `removeSharedFile(id, removedBy)`.
+
+```
+list_files (agent, MCP)
+  └─ member check ─▶ listSharedFiles(conversationId) + stat of each path
+  ◀─ { files: [{ id, name, path, kind, size, sharedBy, sharedAt, exists }] }
+
+Remove (user)
+  └─ DELETE /api/conversations/:id/files/:fileId
+       ├─ removeSharedFile(id, "user:me")
+       ├─ copied: delete the file from the uploads
+       ├─ stream: { type: "files", files }
+       └─ the next prompt of each agent: "[Removed file: <path>]"  (question 9)
+```
 
 ## Workflow
 
@@ -244,6 +379,16 @@ chips: Refused | Linked | Copy: n% ─▶ Copied | Upload failed (Retry, Remove)
 - Remove on a copied chip removes it from the message only. The file stays in
   the uploads.
 
+```
+Files button (group chat, channel) or Files tab (DM)
+  └─ Shared files: one row for each file on the list, newest first
+       ├─ Copy the path
+       └─ Remove
+            ├─ linked ─▶ off the list at once
+            └─ copied ─▶ "Remove ci-log.txt?" ─ Cancel / Remove ─▶ off the list, copy deleted
+  An empty list: "No files are shared here yet. Drop a file on the conversation to share it."
+```
+
 ## The build
 
 Test-first, one slice at a time. The seams: `createServer()` for the routes,
@@ -262,10 +407,15 @@ thread, and `filesOf()` for the notes.
 | 7. Thread              | "Shared files", the badges, the notes, Copy the path.                                                                                                                                                     |
 | 7b. `@` files          | The mention parser rule, the paths route and its cache, the Files group of the `@` list, the linked path on Send.                                                                                         |
 | 8. Missing             | After question 4.                                                                                                                                                                                         |
+| 9. Shared list         | Migration 8, the queries, `shareFiles()` on each message with files, the `files` event, `DELETE …/files/:fileId`, and the delete of a copy.                                                               |
+| 10. `list_files`       | The MCP tool, `READ_TOOLS`, the member check, `exists`, the rule and the skill.                                                                                                                           |
+| 11. Files panel        | The Files button and panel in a group chat and a channel, the section in the DM Files tab, Remove and its question, `Removed` in the thread.                                                              |
 
 Docs in the same change: `docs/server.md` is at 249 lines, so the new routes
 go into a split: `docs/server.md` stays as the index, with
 `docs/server/routes.md` and `docs/server/files.md`. Also
 `docs/conversations.md` (the prompt lines and the mention rule), `docs/agents.md` (`--add-dir`),
-`docs/mcp.md`, `docs/web-app/conversation.md`, `docs/README.md`, and
+`docs/mcp.md` (the eighth tool), `docs/store.md` (migration 8 and the queries),
+`docs/agent-environment.md`, `docs/web-app/conversation.md`,
+`docs/web-app/session-panel.md`, `docs/README.md`, and
 `docs/plans/design-boards.md`.
