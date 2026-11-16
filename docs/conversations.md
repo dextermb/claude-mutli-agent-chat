@@ -126,7 +126,8 @@ the last prompt of that agent, one line for each, with its author:
 - The prompt holds at most the last 30 of these messages
   (`AGENTS_WAKE_MESSAGES`). When more came, the `[Chat app]` block ends with
   "[Chat app] 212 messages came since your last turn. Here are the last 30.
-  Use read_messages for the older ones." (`docs/sleep.md`).
+  Use read_messages for the older ones.", then the summary of the
+  conversation before those 30 (`docs/sleep.md`).
 
 ## The state of an agent
 

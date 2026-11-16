@@ -91,6 +91,12 @@ into `--append-system-prompt`, because it must be in each turn, and a skill
 loads only on demand. Rejected: a `CLAUDE.md` in the folder of the agent,
 because the folder belongs to the user (`docs/agent-environment.md`).
 
+**A lean Haiku process writes the summary of a conversation.** It is the
+only `claude` process with no settings of the user, no tools and its own
+system prompt, because it reads only the text of the messages. So its base is
+about 1k tokens, not 45k (F58, `docs/sleep.md`). An agent always keeps the
+environment of the user.
+
 **The facts of the session go in the prompt, not in the system prompt.** A
 resume keeps the system prompt of the first process (F40), so a fact in the
 system prompt stays old. So the first prompt of each process holds the

@@ -128,6 +128,7 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F43 | **A daily sweep deletes each transcript that is older than `cleanupPeriodDays`.** The default is 30 days, and the user does not set it. The sweep looks at the file time, and each turn writes to the file, so the days count from the last turn. It runs at most once in 24 hours for each config folder (the file `.last-cleanup`), in any process, also in `-p`, about 5 s after the start. In an empty `CLAUDE_CONFIG_DIR`, it deleted copies of 40 and 31 days and kept a copy of 29 days. | Probe |
 | F44 | **Only the transcripts of the desktop app are exempt.** In `~/.claude/projects`, each transcript older than 30 days has `entrypoint: "claude-desktop"` (331 files). No `cli` or `sdk-cli` transcript older than 30 days is left. An agent process writes `entrypoint: "sdk-cli"`, so its transcript is not exempt. One turn wrote a transcript of 385 KB (the skill list, the rules and the prompt snapshots). | Probe |
 | F45 | **`--settings` changes the period for the sweep of that process only.** With `{"cleanupPeriodDays": 3650}`, the sweep kept a copy of 40 days. But the first process of each 24 hours, from the terminal, the desktop app or an agent, does the sweep with its own value. A `--resume` of a deleted transcript fails as in F30: stderr "No conversation found with session ID", no answer to `initialize`. | Probe |
+| F58 | **A one-shot `-p` with `--system-prompt`, `--tools ""` and no MCP server has a base of about 1k tokens.** The command: `claude -p --output-format json --setting-sources project --strict-mcp-config --tools "" --disable-slash-commands --model haiku --no-session-persistence --system-prompt <agent/summarize.md>`, with the input on stdin, in an empty folder. Six chat lines gave `cache_creation_input_tokens: 1006`, 175 output tokens, 0.0003 USD and 2.8 s, with no stderr and no hook. `--system-prompt` replaces the prompt of Claude Code, so no tool schema, skill list or rule is in the context. The answer is one JSON object with `result`, `is_error` and `total_cost_usd`. No transcript stays. | Probe |
 
 ## The decoder and the encoders
 
@@ -180,6 +181,7 @@ to stdout.
 | `add-dir.jsonl` | `--add-dir`: a `Read` in the added folder (F38), then a prompt with `@notes.txt` (F39) |
 | `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
 | `compact.jsonl` | A prompt, then `/compact` with instructions, then a prompt that needs the memory (F41, F42) |
+| `summarize.json` | The JSON answer of one summarizer run with `--output-format json`, not a stream (F58). The recorder does not make it: run the command of F58 again |
 
 To record them again:
 
