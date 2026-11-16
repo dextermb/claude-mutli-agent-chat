@@ -1,10 +1,10 @@
 # File sharing
 
-**Status:** awaiting go-ahead. Nothing is built. The decisions below are
-proposals. Nine questions are open. On 2026-11-16 the user chose `@` as the
-trigger of file completion (decisions 15 to 19), and asked for a list of the
-shared files that agents can read with a tool and the user can change
-(decisions 20 to 27). Decision 28 makes the use of shadcn/ui explicit.
+**Status:** in progress. On 2026-11-16 the user agreed to the plan and to
+each recommendation of the open questions (see "Resolved"). The user chose
+`@` as the trigger of file completion (decisions 15 to 19), asked for a list
+of the shared files with an MCP tool (decisions 20 to 27), and asked for
+shadcn/ui components (decision 28).
 
 This is the Tier 3 item "File sharing" of `docs/plans/design-boards.md`. It
 also builds the Attach a file button of the item "The composer buttons".
@@ -243,7 +243,9 @@ Boards: FileDrop, FileChips and FileInThread in the "Agent Chat" canvas.
     | Remove of a copy           | `AlertDialog`, as Stop agent and New session                                                                                 |
     | DM Files tab section       | `Item`, `Badge`, `Separator` between the two sections                                                                        |
 
-## Open questions
+## Resolved
+
+Each answer is the recommendation that follows the question.
 
 1. **The size limit of one upload.** My recommendation: 25 MB. A larger
    file gets a `Refused` chip: "The limit is 25 MB.".
@@ -267,7 +269,9 @@ Boards: FileDrop, FileChips and FileInThread in the "Agent Chat" canvas.
    attaches the file of an `@path`. If `-p` with `stream-json` input does
    the same, the agent gets the content at once. If it does not, the
    `[Shared file: …]` line still gives the path. The live check of slice 0
-   answers it. The design does not depend on the answer.
+   answers it. The design does not depend on the answer. **Answer
+   (2026-11-16, F38 in `docs/protocol.md`): yes.** The agent gets the
+   content of a picked `@path` with the message.
 7. **Old uploads.** Nothing deletes them. My recommendation: leave them.
    They are small, and an agent may still need one. A later change can add a
    clean-up. Decision 24 deletes a copy only when the user removes it.

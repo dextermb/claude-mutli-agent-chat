@@ -119,6 +119,8 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F34 | **An `http` MCP server in `--mcp-config` that does not answer does not stop the process.** The process answers `initialize` as before. | Probe |
 | F35 | **Claude Code connects to an `http` MCP server when the process starts, before the first prompt.** It sends `server/discover` with `MCP-Protocol-Version: 2026-07-28`. After the error `-32601` (or an empty result), it sends `initialize` with `2025-11-25`, then `notifications/initialized`, a `GET` for an event stream, and `tools/list`. Each request carries the headers of `--mcp-config`. | Probe |
 | F36 | **`--max-turns <n>` works with `stream-json` input, for each prompt.** The help of 2.1.311 does not list it, but the parser accepts it. A prompt that needs more turns ends with a `result` of `subtype: "error_max_turns"`, `is_error: true`, `terminal_reason: "max_turns"`, `errors: ["Reached maximum number of turns (1)"]` and no `result` text. The process stays alive, and the next prompt gets its own limit. | `max-turns` |
+| F37 | **`--add-dir <folder>` lets the tools read in that folder with no permission request.** In `default` mode, a `Read` of a file in the added folder runs at once, with no `can_use_tool`. | `add-dir` |
+| F38 | **`-p` with `stream-json` input expands an `@path` of the prompt.** The prompt "What is the first line of @notes.txt? … Do not use any tools." got the right line with no tool call, and the agent said that the content came with the message. The replayed `user` line shows only the text. | `add-dir` |
 
 ## The decoder and the encoders
 
@@ -165,6 +167,7 @@ to stdout.
 | `subagent-text.jsonl` | An `Agent` call whose subagent writes text before its `Read` call (F32) |
 | `interrupt-tool.jsonl` | A `Bash` call of `ping -c 30 127.0.0.1`, interrupted 3 s after the `tool_use` line |
 | `two-requests.jsonl` | Two `Write` calls in one message, each allowed once |
+| `add-dir.jsonl` | `--add-dir`: a `Read` in the added folder (F37), then a prompt with `@notes.txt` (F38) |
 | `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
 
 To record them again:
