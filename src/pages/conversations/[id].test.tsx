@@ -3022,4 +3022,35 @@ describe("a deleted conversation", () => {
 
     await waitFor(() => expect(window.location.pathname).toBe("/"))
   })
+
+  test("delete channel in channel settings asks first, then deletes the channel and goes to the home page", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("DELETE", "/api/conversations/ch1", null, 204)
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const settings = await screen.findByRole("dialog", {
+      name: "Channel settings",
+    })
+    await user.click(
+      within(settings).getByRole("button", { name: "Delete channel" })
+    )
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Delete #release-train?",
+    })
+    expect(
+      screen.queryByRole("dialog", { name: "Channel settings" })
+    ).not.toBeInTheDocument()
+    await user.click(
+      within(confirm).getByRole("button", { name: "Delete channel" })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+    expect(network.sent).toContainEqual({
+      method: "DELETE",
+      url: "/api/conversations/ch1",
+      body: undefined,
+    })
+  })
 })

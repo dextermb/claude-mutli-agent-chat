@@ -27,6 +27,7 @@ import {
   statusOf,
 } from "@/components/conversation/agent-look"
 import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
+import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer/composer"
@@ -58,6 +59,7 @@ import type {
   Conversation,
   TimelineEntry,
 } from "@/lib/agent-api"
+import { conversationTarget, type DeleteTarget } from "@/lib/delete-targets"
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
@@ -92,6 +94,7 @@ export default function ConversationPage() {
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [configuring, setConfiguring] = useState(false)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const [showingSheet, setShowingSheet] = useState(false)
   const [showingMembers, setShowingMembers] = useState(false)
   const [showingFiles, setShowingFiles] = useState(false)
@@ -496,8 +499,29 @@ export default function ConversationPage() {
           open={configuring}
           conversation={conversation.conversation}
           onOpenChange={setConfiguring}
+          onDelete={() => {
+            setConfiguring(false)
+            if (conversation.conversation) {
+              setDeleting(
+                conversationTarget(
+                  conversation.conversation,
+                  conversation.agents
+                )
+              )
+            }
+          }}
         />
       )}
+      <DeleteDialog
+        target={deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        onDeleted={() => {
+          setDeleting(null)
+          navigate("/")
+        }}
+      />
       {isDirect && panel && isMobile && (
         <SessionSheet
           key={panel.agentId}
