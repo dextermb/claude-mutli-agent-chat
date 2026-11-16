@@ -176,4 +176,18 @@ export const MIGRATIONS: {
       ALTER TABLE agent_sessions ADD COLUMN end_reason TEXT;
     `,
   },
+  {
+    version: 11,
+    sql: `
+      CREATE TABLE conversation_summaries (
+        conversation_id TEXT NOT NULL
+          REFERENCES conversations (id) ON DELETE CASCADE,
+        through_seq INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        cost_usd REAL NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (conversation_id, through_seq)
+      );
+    `,
+  },
 ]

@@ -256,6 +256,40 @@ describe("group chats and channels", () => {
     )
   })
 
+  test("a prompt that leaves messages out holds the summary of the conversation before them", async () => {
+    const calls: { earlier: string | null; lines: string[] }[] = []
+    const { base, sentTo } = await startServer(
+      "resume-1",
+      ":memory:",
+      undefined,
+      undefined,
+      {
+        wakeMessages: 3,
+        summarize: async (input) => {
+          calls.push(input)
+          return { text: "- The release branch is release/2.4.", costUsd: 0.0003 }
+        },
+      }
+    )
+    const runner = await createAgent(base, "test-runner")
+    const { id } = await channel(base, { agentIds: [runner.id] })
+    for (const text of ["One.", "Two.", "Three.", "Four."]) {
+      await sendMessage(base, id, text)
+    }
+
+    await sendMessage(base, id, "@test-runner run the tests.")
+    await untilTurns(base, id, 1)
+
+    expect(calls).toEqual([
+      { earlier: null, lines: ["[User] One.", "[User] Two."] },
+    ])
+    expect(factsTo(sentTo, "test-runner")[0].split("\n").slice(-3)).toEqual([
+      "[Chat app] 5 messages came since your last turn. Here are the last 3. Use read_messages for the older ones.",
+      "[Chat app] The summary of the conversation before these messages:",
+      "- The release branch is release/2.4.",
+    ])
+  })
+
   test("an agent that runs learns in its next prompt only the facts that changed", async () => {
     const { base, sentTo } = await startServer(
       "resume-1",

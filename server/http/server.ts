@@ -19,6 +19,7 @@ import {
 import { defaultScratchRoot, homeShort } from "../paths.ts"
 import { buildArgs } from "../session/args.ts"
 import { COMPACT_PROMPT } from "../session/compact-prompt.ts"
+import type { Summarize } from "../summary/summarizer.ts"
 import {
   ENVIRONMENT_RULE,
   factsNote,
@@ -66,9 +67,15 @@ export type ServerOptions = {
   compactAboveTokens?: number
   minuteMs?: number
   wakeMessages?: number
+  summarize?: Summarize
 }
 
-type QueuedPrompt = { text: string; note: string | null }
+type QueuedPrompt = {
+  text: string
+  note: string | null
+  ready: boolean
+  omittedThrough: number | null
+}
 
 type LiveSession = {
   id: string
@@ -118,6 +125,7 @@ const NO_TRANSCRIPT = "No conversation found with session ID"
 const SLEEP_AFTER_MINUTES = 15
 const COMPACT_ABOVE_TOKENS = 100_000
 const WAKE_MESSAGES = 30
+const SUMMARY_MESSAGES = 400
 const MINUTE_MS = 60_000
 
 export function createServer({
@@ -131,6 +139,7 @@ export function createServer({
   compactAboveTokens = COMPACT_ABOVE_TOKENS,
   minuteMs = MINUTE_MS,
   wakeMessages = WAKE_MESSAGES,
+  summarize,
 }: ServerOptions) {
   const live = new Map<string, LiveSession>()
   const channels = new Map<string, Channel>()
@@ -139,6 +148,7 @@ export function createServer({
   const sentUnread = new Map<string, number>()
   const promptCursors = new Map<string, number>()
   const removedNotes = new Map<string, string[]>()
+  const summaryRuns = new Map<string, Promise<string | null>>()
   const tokens = new Map<string, LiveSession>()
   let chatUrl = ""
   const openRequests = new Map<
@@ -612,6 +622,7 @@ export function createServer({
 
   function deliverNext(session: LiveSession) {
     if (session.state !== "idle") return
+    if (session.queue[0]?.ready === false) return
     const queued = session.queue.shift()
     if (queued === undefined) return
     const facts = factsOf(session)
@@ -651,7 +662,7 @@ export function createServer({
     text: string
   ): QueuedPrompt {
     if (store.getConversation(conversationId)?.kind === "dm") {
-      return { text, note: null }
+      return { text, note: null, ready: true, omittedThrough: null }
     }
     const author = `agent:${agentId}`
     const entries = store.listTimeline(conversationId)
@@ -668,28 +679,80 @@ export function createServer({
       key,
       Math.max(cursor, ...entries.map((entry) => entry.seq))
     )
-    const lines = entries
+    const messages = entries.filter(
+      (entry) =>
+        entry.seq > cursor &&
+        entry.authorKey !== author &&
+        isDoneMessage(entry)
+    )
+    const omitted = messages.slice(0, -wakeMessages)
+    return {
+      text: messages.slice(-wakeMessages).map(messageLine).join("\n"),
+      note:
+        omitted.length > 0
+          ? `[Chat app] ${messages.length} messages came since your last turn. Here are the last ${wakeMessages}. Use read_messages for the older ones.`
+          : null,
+      ready: true,
+      omittedThrough: omitted.at(-1)?.seq ?? null,
+    }
+  }
+
+  function messageLine(entry: TimelineEntry): string {
+    const text =
+      entry.item.kind === "message"
+        ? entry.item.text + sharedFileLines(entry.item.files)
+        : ""
+    return `[${authorName(entry.authorKey)}] ${text}`
+  }
+
+  async function summaryThrough(
+    conversationId: string,
+    throughSeq: number
+  ): Promise<string | null> {
+    for (;;) {
+      const running = summaryRuns.get(conversationId)
+      if (!running) break
+      await running
+    }
+    const latest = store.latestSummary(conversationId)
+    if (latest && latest.throughSeq >= throughSeq) return latest.text
+    const run = runSummary(conversationId, latest, throughSeq)
+    summaryRuns.set(conversationId, run)
+    try {
+      return await run
+    } finally {
+      summaryRuns.delete(conversationId)
+    }
+  }
+
+  async function runSummary(
+    conversationId: string,
+    latest: { throughSeq: number; text: string } | undefined,
+    throughSeq: number
+  ): Promise<string | null> {
+    if (!summarize) return null
+    const lines = store
+      .listTimeline(conversationId)
       .filter(
         (entry) =>
-          entry.seq > cursor &&
-          entry.authorKey !== author &&
-          entry.item.kind === "message" &&
-          entry.item.status === "done"
+          entry.seq > (latest?.throughSeq ?? 0) &&
+          entry.seq <= throughSeq &&
+          isDoneMessage(entry)
       )
-      .map((entry) => {
-        const text =
-          entry.item.kind === "message"
-            ? entry.item.text + sharedFileLines(entry.item.files)
-            : ""
-        return `[${authorName(entry.authorKey)}] ${text}`
-      })
-    return {
-      text: lines.slice(-wakeMessages).join("\n"),
-      note:
-        lines.length > wakeMessages
-          ? `[Chat app] ${lines.length} messages came since your last turn. Here are the last ${wakeMessages}. Use read_messages for the older ones.`
-          : null,
-    }
+      .map(messageLine)
+      .slice(-SUMMARY_MESSAGES)
+    const summary = await summarize({
+      earlier: latest?.text ?? null,
+      lines,
+    }).catch(() => null)
+    if (!summary) return null
+    store.saveSummary({
+      conversationId,
+      throughSeq,
+      text: summary.text,
+      costUsd: summary.costUsd,
+    })
+    return summary.text
   }
 
   function authorName(authorKey: string): string {
@@ -703,12 +766,26 @@ export function createServer({
     const key = `${agentId} ${conversationId}`
     const removed = removedNotes.get(key) ?? []
     removedNotes.delete(key)
-    const queued = promptFor(agentId, conversationId, text)
-    deliver(session, {
-      ...queued,
+    const found = promptFor(agentId, conversationId, text)
+    const queued: QueuedPrompt = {
+      ...found,
       text:
         removed.map((path) => `[Removed file: ${path}]\n`).join("") +
-        queued.text,
+        found.text,
+      ready: found.omittedThrough === null || !summarize,
+    }
+    deliver(session, queued)
+    if (queued.ready || queued.omittedThrough === null) return
+    void summaryThrough(conversationId, queued.omittedThrough).then((text) => {
+      if (text) {
+        queued.note = [
+          queued.note,
+          "[Chat app] The summary of the conversation before these messages:",
+          text,
+        ].join("\n")
+      }
+      queued.ready = true
+      deliverNext(session)
     })
   }
 
@@ -1361,6 +1438,10 @@ export function createServer({
       await new Promise<void>((resolve) => http.close(() => resolve()))
     },
   }
+}
+
+function isDoneMessage(entry: TimelineEntry): boolean {
+  return entry.item.kind === "message" && entry.item.status === "done"
 }
 
 function gapNote(asleepForMs: number | null): string | undefined {
