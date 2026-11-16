@@ -86,6 +86,9 @@ A message, a mention, a `send_message` or Restart starts a process with
 - The gap comes from `ended_at` of the session row that ended with `sleep`.
   A shorter sleep gives no line, because the prompt cache still holds the
   context.
+- A wake after more than one hour writes most of the base to the cache again.
+  It costs about 30% more than a wake within the hour: 0.0126 against 0.0097
+  USD for a short answer on Haiku (F64, F52 in `docs/protocol.md`).
 - In a group chat or a channel, each prompt holds at most the last 30
   messages since the last turn of the agent (`AGENTS_WAKE_MESSAGES`,
   `docs/conversations.md`). This limit is for each prompt, not only after a
@@ -182,8 +185,3 @@ A server test gives `createServer()` its own `summarize` function. The test
 of `claudeSummarizer()` runs `server/test/fake-summarizer.ts` in place of
 `claude`. The fake writes its arguments and its input to a log, then prints
 `summarize.json`, or fails, or hangs (`FAKE_SUMMARIZER_MODE`).
-
-## Not measured yet
-
-- A wake after more than one hour. F47 gives the cache time, and the costs
-  come from the measured prices, not from a probe that waited.
