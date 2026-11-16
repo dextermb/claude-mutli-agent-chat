@@ -429,6 +429,7 @@ export default function ConversationPage() {
                   <Timeline
                     entries={conversation.entries}
                     agents={conversation.agents}
+                    authors={conversation.authors}
                     onAnswer={async (requestId, answer) => {
                       const refusal = await conversation.answer(
                         requestId,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 
 import type {
+  Agent,
   Conversation,
   ConversationAgent,
   SharedFile,
@@ -14,6 +15,7 @@ type ConversationView = {
   status: "loading" | "ready" | "error"
   conversation: Conversation | null
   agents: ConversationAgent[]
+  authors: ConversationAgent[]
   entries: TimelineEntry[]
   files: SharedFileView[]
   deleted: boolean
@@ -23,6 +25,7 @@ const LOADING: ConversationView = {
   status: "loading",
   conversation: null,
   agents: [],
+  authors: [],
   entries: [],
   files: [],
   deleted: false,
@@ -36,9 +39,11 @@ export function useConversation(conversationId: string) {
     let source: EventSource | null = null
     async function load() {
       const [detail, timeline, shared] = await Promise.all([
-        getJson<{ conversation: Conversation; agents: ConversationAgent[] }>(
-          `/api/conversations/${conversationId}`
-        ),
+        getJson<{
+          conversation: Conversation
+          agents: ConversationAgent[]
+          authors?: Agent[]
+        }>(`/api/conversations/${conversationId}`),
         getJson<{ items: TimelineEntry[]; lastEventId: number }>(
           `/api/conversations/${conversationId}/timeline`
         ),
@@ -51,6 +56,11 @@ export function useConversation(conversationId: string) {
         status: "ready",
         conversation: detail.conversation,
         agents: detail.agents,
+        authors: (detail.authors ?? []).map((author) => ({
+          ...author,
+          state: "exited",
+          sessionCwd: author.cwd ?? "",
+        })),
         entries: timeline.items,
         files: shared.files,
         deleted: false,

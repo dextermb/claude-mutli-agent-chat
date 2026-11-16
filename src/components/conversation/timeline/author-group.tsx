@@ -75,7 +75,11 @@ export function AuthorGroup({
         <span className="font-semibold text-foreground-strong">
           {agent.name}
         </span>
-        <Badge>Agent</Badge>
+        {agent.deletedAt ? (
+          <Badge variant="outline">Deleted agent</Badge>
+        ) : (
+          <Badge>Agent</Badge>
+        )}
         <time dateTime={createdAt} className="text-xs text-foreground-faint">
           {clockTime(createdAt)}
         </time>

@@ -18,10 +18,16 @@ import {
 type TimelineProps = {
   entries: TimelineEntry[]
   agents: ConversationAgent[]
+  authors?: ConversationAgent[]
   onAnswer: Answer
 }
 
-export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
+export function Timeline({
+  entries,
+  agents,
+  authors = [],
+  onAnswer,
+}: TimelineProps) {
   const requests = requestsByToolUse(entries)
   const subagentCalls = subagentCallsByParent(entries)
   const compactionTurns = turnsOfCompactions(entries)
@@ -40,7 +46,7 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
         const newDay =
           index === 0 ||
           dayKey(groups[index - 1].entries[0].createdAt) !== dayKey(createdAt)
-        const agent = agents.find(
+        const agent = [...agents, ...authors].find(
           (agent) => `agent:${agent.id}` === group.authorKey
         )
         return (

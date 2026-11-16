@@ -3099,4 +3099,30 @@ describe("a deleted conversation", () => {
       body: undefined,
     })
   })
+
+  test("a message of a deleted agent keeps its name, with the label Deleted agent", async () => {
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot] })
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: { ...releaseChannel, members: ["user:me", "agent:a2"] },
+      agents: [reviewerBot],
+      authors: [{ ...testRunner, deletedAt: "2026-11-16T18:00:00.000Z" }],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [agentMessage],
+      lastEventId: 0,
+    })
+    window.history.pushState({}, "", "/conversations/ch1")
+    render(<App />)
+
+    const message = await screen.findByRole("article", {
+      name: /^test-runner, /,
+    })
+    expect(within(message).getByText("Deleted agent")).toBeInTheDocument()
+    expect(
+      within(message).getByText("I will use a fixed clock.")
+    ).toBeInTheDocument()
+  })
 })
