@@ -1,44 +1,32 @@
 import {
-  BotIcon,
   ChevronDownIcon,
   HashIcon,
-  HouseIcon,
   LockIcon,
-  PlusIcon,
   SquarePenIcon,
   UsersIcon,
 } from "lucide-react"
-import { Fragment, useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Link, useLocation } from "wouter"
 
-import { HUMAN_AVATAR, statusOf } from "@/components/conversation/agent-look"
 import { CreateChannelDialog } from "@/components/dialogs/create-channel-dialog"
 import { StartChatDialog } from "@/components/dialogs/start-chat-dialog"
-import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { AgentRow } from "@/components/sidebar/agent-row"
+import { ConversationRow } from "@/components/sidebar/conversation-row"
+import { SidebarSection } from "@/components/sidebar/sidebar-section"
+import { WorkFooter } from "@/components/sidebar/work-footer"
+import { WorkspaceRail } from "@/components/sidebar/workspace-rail"
+import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
-import { cn } from "@/lib/utils"
-
-const ROW =
-  "data-active:bg-sidebar-primary data-active:font-medium data-active:text-sidebar-primary-foreground"
 
 export function AppSidebar({
   currentId,
@@ -72,43 +60,13 @@ export function AppSidebar({
     navigate(`/conversations/${conversation.id}`)
   }
 
-  const row = (conversation: Conversation, children: ReactNode) => {
-    const isCurrent = conversation.id === currentId
-    const count = isCurrent ? 0 : (unread[conversation.id] ?? 0)
-    return (
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          isActive={isCurrent}
-          className={cn(
-            ROW,
-            count > 0 && "font-semibold text-foreground-strong"
-          )}
-          render={
-            <Link
-              href={`/conversations/${conversation.id}`}
-              onClick={() => onOpenChange(false)}
-              aria-current={isCurrent ? "page" : undefined}
-            />
-          }
-        >
-          {children}
-          {count > 0 && (
-            <>
-              {" "}
-              <span className="sr-only">{`${count} unread`}</span>
-            </>
-          )}
-        </SidebarMenuButton>
-        {count > 0 && (
-          <SidebarMenuBadge
-            aria-hidden="true"
-            className="bg-mention text-primary-foreground peer-hover/menu-button:text-primary-foreground"
-          >
-            {count}
-          </SidebarMenuBadge>
-        )}
-      </SidebarMenuItem>
-    )
+  function rowProps(conversation: Conversation) {
+    return {
+      conversation,
+      current: conversation.id === currentId,
+      unread: unread[conversation.id] ?? 0,
+      onNavigate: () => onOpenChange(false),
+    }
   }
 
   const channels = conversations.filter((item) => item.kind === "channel")
@@ -146,7 +104,7 @@ export function AppSidebar({
               </div>
             </SidebarHeader>
             <SidebarContent>
-              <Group
+              <SidebarSection
                 title="Channels"
                 action={{
                   label: "Create a channel",
@@ -154,22 +112,17 @@ export function AppSidebar({
                 }}
               >
                 {channels.map((channel) => (
-                  <Fragment key={channel.id}>
-                    {row(
-                      channel,
-                      <>
-                        {channel.private ? (
-                          <LockIcon aria-hidden="true" />
-                        ) : (
-                          <HashIcon aria-hidden="true" />
-                        )}
-                        <span>{channel.name}</span>
-                      </>
+                  <ConversationRow key={channel.id} {...rowProps(channel)}>
+                    {channel.private ? (
+                      <LockIcon aria-hidden="true" />
+                    ) : (
+                      <HashIcon aria-hidden="true" />
                     )}
-                  </Fragment>
+                    <span>{channel.name}</span>
+                  </ConversationRow>
                 ))}
-              </Group>
-              <Group
+              </SidebarSection>
+              <SidebarSection
                 title="Group chats"
                 action={{
                   label: "Start a group chat",
@@ -177,18 +130,13 @@ export function AppSidebar({
                 }}
               >
                 {groups.map((group) => (
-                  <Fragment key={group.id}>
-                    {row(
-                      group,
-                      <>
-                        <UsersIcon aria-hidden="true" />
-                        <span>{group.name}</span>
-                      </>
-                    )}
-                  </Fragment>
+                  <ConversationRow key={group.id} {...rowProps(group)}>
+                    <UsersIcon aria-hidden="true" />
+                    <span>{group.name}</span>
+                  </ConversationRow>
                 ))}
-              </Group>
-              <Group
+              </SidebarSection>
+              <SidebarSection
                 title="Agents"
                 action={{
                   label: "New agent",
@@ -197,41 +145,22 @@ export function AppSidebar({
                 }}
               >
                 {agents.map((agent) => {
-                  const status = statusOf(agent.state)
-                  const label = (
-                    <>
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "mx-1 size-2 flex-none rounded-full",
-                          status.dot
-                        )}
-                      />
-                      <span>{agent.name}</span>{" "}
-                      <span className="sr-only">{status.label}</span>
-                    </>
-                  )
                   const dm = directMessages.find((item) =>
                     item.members.includes(`agent:${agent.id}`)
                   )
                   return (
-                    <Fragment key={agent.id}>
-                      {dm ? (
-                        row(dm, label)
-                      ) : (
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            className={ROW}
-                            onClick={() => void openDirectMessage(agent)}
-                          >
-                            {label}
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      )}
-                    </Fragment>
+                    <AgentRow
+                      key={agent.id}
+                      agent={agent}
+                      directMessage={dm}
+                      current={dm?.id === currentId}
+                      unread={dm ? (unread[dm.id] ?? 0) : 0}
+                      onNavigate={() => onOpenChange(false)}
+                      onOpenDirectMessage={() => void openDirectMessage(agent)}
+                    />
                   )
                 })}
-              </Group>
+              </SidebarSection>
             </SidebarContent>
             <SidebarFooter>
               <WorkFooter agents={agents} />
@@ -275,97 +204,4 @@ export function AppSidebar({
   }
 
   return <div className="flex h-svh flex-none border-r">{sidebar}</div>
-}
-
-function WorkspaceRail({ onAgents }: { onAgents: boolean }) {
-  return (
-    <nav
-      aria-label="Workspace"
-      className="flex w-16 flex-none flex-col items-center gap-2 bg-rail py-3"
-    >
-      <div
-        aria-hidden="true"
-        className="mb-2 grid size-9 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
-      >
-        AL
-      </div>
-      <Link
-        href="/"
-        aria-label="Home"
-        className={buttonVariants({
-          variant: onAgents ? "ghost" : "secondary",
-          size: "icon",
-        })}
-      >
-        <HouseIcon />
-      </Link>
-      <Link
-        href="/"
-        aria-label="Agents"
-        className={buttonVariants({
-          variant: onAgents ? "secondary" : "ghost",
-          size: "icon",
-        })}
-      >
-        <BotIcon />
-      </Link>
-      <div className="flex-1" />
-      <Avatar role="img" aria-label="You, online">
-        <AvatarFallback className={HUMAN_AVATAR}>Y</AvatarFallback>
-        <AvatarBadge className="bg-status-online" />
-      </Avatar>
-    </nav>
-  )
-}
-
-function WorkFooter({ agents }: { agents: AgentWithState[] }) {
-  const working = agents.filter((agent) => agent.state === "busy").length
-  const waiting = agents.filter((agent) => agent.state === "waiting").length
-  const parts = [
-    working > 0 && `${working} ${working === 1 ? "agent" : "agents"} working`,
-    waiting > 0 && `${waiting} needs approval`,
-  ].filter(Boolean)
-  if (parts.length === 0) return null
-  return (
-    <p className="m-0 flex items-center gap-2 px-2 py-1 text-xs text-foreground-faint">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "size-2 flex-none rounded-full",
-          statusOf(working > 0 ? "busy" : "waiting").dot
-        )}
-      />
-      {parts.join(" · ")}
-    </p>
-  )
-}
-
-function Group({
-  title,
-  action,
-  children,
-}: {
-  title: string
-  action:
-    | { label: string; href: string; onClick: () => void }
-    | { label: string; onClick: () => void }
-  children: ReactNode
-}) {
-  return (
-    <SidebarGroup aria-label={title} role="group">
-      <SidebarGroupLabel render={<h2 />} className="m-0">
-        {title}
-      </SidebarGroupLabel>
-      <SidebarGroupAction
-        aria-label={action.label}
-        onClick={action.onClick}
-        render={"href" in action ? <Link href={action.href} /> : undefined}
-      >
-        <PlusIcon />
-      </SidebarGroupAction>
-      <SidebarGroupContent>
-        <SidebarMenu>{children}</SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  )
 }
