@@ -1065,6 +1065,7 @@ describe("createServer", () => {
     expect(await response.json()).toEqual({
       conversation,
       agents: [{ ...agent, state: "idle", sessionCwd: agent.cwd }],
+      authors: [],
     })
   })
 

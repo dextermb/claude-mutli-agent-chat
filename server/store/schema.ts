@@ -190,4 +190,10 @@ export const MIGRATIONS: {
       );
     `,
   },
+  {
+    version: 12,
+    sql: `
+      ALTER TABLE agents ADD COLUMN deleted_at TEXT;
+    `,
+  },
 ]

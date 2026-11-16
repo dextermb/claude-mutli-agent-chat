@@ -20,6 +20,7 @@ export type Agent = {
   maxTurns: number | null
   sleepAfterMinutes: number | null
   createdAt: string
+  deletedAt: string | null
 }
 
 export type NewAgent = z.output<typeof agentSchema>

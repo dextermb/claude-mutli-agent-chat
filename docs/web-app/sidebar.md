@@ -26,6 +26,15 @@ the conversation page. It has two columns:
 Each group has a `+`: Create a channel, Start a group chat (it opens Start a
 chat), and New agent.
 
+Each row also has an × (`src/components/sidebar/delete-action.tsx`), a
+`SidebarMenuAction` with `showOnHover`. It shows when the pointer is on the
+row or the row has keyboard focus. Then it takes the place of the unread
+count. Its name is "Delete channel #release-train", "Delete group chat
+<name>" or "Delete agent <name>". The kind is in the name, because a group
+chat with one agent can have the name of that agent. Its tooltip is "Delete
+channel", "Delete group chat" or "Delete agent". It opens the confirm dialog of `docs/delete.md`. After a
+delete that removes the open conversation, the page goes to `/`.
+
 The current conversation has `aria-current="page"` and the `sidebar-primary`
 fill.
 
@@ -42,7 +51,9 @@ The hook opens the app stream (`/api/events`), then loads
 `GET /api/conversations` and `GET /api/agents`. An `agent_state` event
 changes the state of that agent. A `conversation` event adds the
 conversation, or replaces it if the list holds it. An `unread` event sets the
-unread count of the conversation. The count 0 removes it. A `reset` event
+unread count of the conversation. The count 0 removes it. A
+`conversation_deleted` event removes the conversation and its count, and an
+`agent_deleted` event removes the agent. A `reset` event
 loads the lists again.
 
 A row with an unread count is bold, and shows the count in a yellow badge

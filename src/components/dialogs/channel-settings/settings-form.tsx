@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
+import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderField } from "@/components/fields/channel/folder-field"
 import { PrivateField } from "@/components/fields/channel/private-field"
 import { ReplyModeField } from "@/components/fields/channel/reply-mode-field"
@@ -22,9 +23,11 @@ import type { ChannelSettingsDraft } from "../../../../server/schemas.ts"
 export function SettingsForm({
   conversation,
   onSaved,
+  onDelete,
 }: {
   conversation: Conversation
   onSaved: () => void
+  onDelete: () => void
 }) {
   const [topic, setTopic] = useState(conversation.topic ?? "")
   const [isPrivate, setPrivate] = useState(conversation.private)
@@ -88,6 +91,11 @@ export function SettingsForm({
         <ReplyModeField value={replyMode} onChange={setReplyMode} />
         <SleepField value={sleep} onChange={setSleep} />
       </FieldGroup>
+      <DeleteSection
+        action="Delete channel"
+        text={`Deletes the messages and files of #${conversation.name}. The agents stay.`}
+        onDelete={onDelete}
+      />
       {error && (
         <RefusalAlert
           title="The server did not save the settings."

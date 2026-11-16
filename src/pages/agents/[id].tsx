@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
+import { DeleteDialog } from "@/components/dialogs/delete-dialog"
+import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
 import type { ActionRefusal } from "@/components/agent-actions/actions"
 import { AgentActions } from "@/components/agent-actions/agent-actions"
@@ -55,6 +57,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { Agent, Conversation } from "@/lib/agent-api"
+import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
 import { invalid, shown } from "@/lib/form-errors"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 
@@ -110,6 +113,8 @@ export default function AgentPage() {
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
   const [saved, setSaved] = useState<Draft | null>(null)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
+  const listed = agents.find((agent) => agent.id === id)
 
   const form = useForm({
     defaultValues: saved ?? EMPTY,
@@ -692,6 +697,24 @@ export default function AgentPage() {
             )}
           </form.Subscribe>
         </form>
+        {!isNew && listed && (
+          <DeleteSection
+            action="Delete agent"
+            text={`${listed.name} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
+            onDelete={() => setDeleting(agentTarget(listed, conversations))}
+            className="rounded-xl px-5 py-4"
+          />
+        )}
+        <DeleteDialog
+          target={deleting}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null)
+          }}
+          onDeleted={() => {
+            setDeleting(null)
+            navigate("/")
+          }}
+        />
       </main>
     </div>
   )

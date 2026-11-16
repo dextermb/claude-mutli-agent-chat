@@ -6,10 +6,12 @@ export function ChannelSettingsDialog({
   open,
   conversation,
   onOpenChange,
+  onDelete,
 }: {
   open: boolean
   conversation: Conversation
   onOpenChange: (open: boolean) => void
+  onDelete: () => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -18,6 +20,7 @@ export function ChannelSettingsDialog({
           <SettingsForm
             conversation={conversation}
             onSaved={() => onOpenChange(false)}
+            onDelete={onDelete}
           />
         )}
       </DialogContent>

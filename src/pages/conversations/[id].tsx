@@ -27,6 +27,8 @@ import {
   statusOf,
 } from "@/components/conversation/agent-look"
 import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
+import { DeleteDialog } from "@/components/dialogs/delete-dialog"
+import { GroupChatSettingsDialog } from "@/components/dialogs/group-chat-settings-dialog"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer/composer"
@@ -58,6 +60,7 @@ import type {
   Conversation,
   TimelineEntry,
 } from "@/lib/agent-api"
+import { conversationTarget, type DeleteTarget } from "@/lib/delete-targets"
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
@@ -92,6 +95,15 @@ export default function ConversationPage() {
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [configuring, setConfiguring] = useState(false)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
+  function askToDelete() {
+    setConfiguring(false)
+    if (conversation.conversation) {
+      setDeleting(
+        conversationTarget(conversation.conversation, conversation.agents)
+      )
+    }
+  }
   const [showingSheet, setShowingSheet] = useState(false)
   const [showingMembers, setShowingMembers] = useState(false)
   const [showingFiles, setShowingFiles] = useState(false)
@@ -104,6 +116,9 @@ export default function ConversationPage() {
   } | null>(null)
   const search = useSearch()
   const [, navigate] = useLocation()
+  useEffect(() => {
+    if (conversation.deleted) navigate("/")
+  }, [conversation.deleted, navigate])
   const tab = new URLSearchParams(search).get("tab") ?? "messages"
   const focusEntry = useRef<string | null>(null)
   const { scrollRef, contentRef, atBottom, jumpToBottom } = useStickToBottom(
@@ -275,11 +290,15 @@ export default function ConversationPage() {
               {people + agentCount}
             </Button>
           )}
-          {conversation.conversation.kind === "channel" && (
+          {!isDirect && (
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Channel settings"
+              aria-label={
+                conversation.conversation.kind === "channel"
+                  ? "Channel settings"
+                  : "Group chat settings"
+              }
               onClick={() => setConfiguring(true)}
             >
               <EllipsisIcon />
@@ -410,6 +429,7 @@ export default function ConversationPage() {
                   <Timeline
                     entries={conversation.entries}
                     agents={conversation.agents}
+                    authors={conversation.authors}
                     onAnswer={async (requestId, answer) => {
                       const refusal = await conversation.answer(
                         requestId,
@@ -493,8 +513,27 @@ export default function ConversationPage() {
           open={configuring}
           conversation={conversation.conversation}
           onOpenChange={setConfiguring}
+          onDelete={askToDelete}
         />
       )}
+      {conversation.conversation.kind === "group" && (
+        <GroupChatSettingsDialog
+          open={configuring}
+          conversation={conversation.conversation}
+          onOpenChange={setConfiguring}
+          onDelete={askToDelete}
+        />
+      )}
+      <DeleteDialog
+        target={deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        onDeleted={() => {
+          setDeleting(null)
+          navigate("/")
+        }}
+      />
       {isDirect && panel && isMobile && (
         <SessionSheet
           key={panel.agentId}

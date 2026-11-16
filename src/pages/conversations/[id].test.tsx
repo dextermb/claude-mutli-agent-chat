@@ -3007,3 +3007,122 @@ describe("the scroll of the messages", () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe("a deleted conversation", () => {
+  test("the page of a channel that is deleted elsewhere goes to the home page", async () => {
+    openChannel([])
+    await screen.findByRole("heading", { name: "release-train" })
+
+    act(() =>
+      network.stream("/api/conversations/ch1/events").emit(1, {
+        type: "conversation_deleted",
+        conversationId: "ch1",
+      })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+  })
+
+  test("delete channel in channel settings asks first, then deletes the channel and goes to the home page", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("DELETE", "/api/conversations/ch1", null, 204)
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const settings = await screen.findByRole("dialog", {
+      name: "Channel settings",
+    })
+    await user.click(
+      within(settings).getByRole("button", { name: "Delete channel" })
+    )
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Delete #release-train?",
+    })
+    expect(
+      screen.queryByRole("dialog", { name: "Channel settings" })
+    ).not.toBeInTheDocument()
+    await user.click(
+      within(confirm).getByRole("button", { name: "Delete channel" })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+    expect(network.sent).toContainEqual({
+      method: "DELETE",
+      url: "/api/conversations/ch1",
+      body: undefined,
+    })
+  })
+
+  test("delete group chat in group chat settings asks first, then deletes the group chat and goes to the home page", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+    network.on("GET", "/api/conversations/g1", {
+      conversation: squadGroup,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    network.on("DELETE", "/api/conversations/g1", null, 204)
+    window.history.pushState({}, "", "/conversations/g1")
+    render(<App />)
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(
+      await header.findByRole("button", { name: "Group chat settings" })
+    )
+    const settings = await screen.findByRole("dialog", {
+      name: "Group chat settings",
+    })
+    await user.click(
+      within(settings).getByRole("button", { name: "Delete group chat" })
+    )
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Delete this group chat?",
+    })
+    expect(within(confirm).getAllByRole("listitem")[0]).toHaveTextContent(
+      "The messages and the shared files of reviewer-bot, test-runner are deleted."
+    )
+    await user.click(
+      within(confirm).getByRole("button", { name: "Delete group chat" })
+    )
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"))
+    expect(network.sent).toContainEqual({
+      method: "DELETE",
+      url: "/api/conversations/g1",
+      body: undefined,
+    })
+  })
+
+  test("a message of a deleted agent keeps its name, with the label Deleted agent", async () => {
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot] })
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: { ...releaseChannel, members: ["user:me", "agent:a2"] },
+      agents: [reviewerBot],
+      authors: [{ ...testRunner, deletedAt: "2026-11-16T18:00:00.000Z" }],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [agentMessage],
+      lastEventId: 0,
+    })
+    window.history.pushState({}, "", "/conversations/ch1")
+    render(<App />)
+
+    const message = await screen.findByRole("article", {
+      name: /^test-runner, /,
+    })
+    expect(within(message).getByText("Deleted agent")).toBeInTheDocument()
+    expect(
+      within(message).getByText("I will use a fixed clock.")
+    ).toBeInTheDocument()
+  })
+})

@@ -75,6 +75,7 @@ export function openStore(location: string) {
       sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
+      deletedAt: null,
     }
     db.prepare(
       `INSERT INTO agents (id, name, colour, model, permission_mode, cwd,
@@ -84,10 +85,9 @@ export function openStore(location: string) {
          :autostart, :allowedTools, :disallowedTools, :systemPrompt, :description,
          :maxTurns, :sleepAfterMinutes, :createdAt)`
     ).run({
-      ...created,
-      autostart: created.autostart ? 1 : 0,
-      allowedTools: JSON.stringify(created.allowedTools),
-      disallowedTools: JSON.stringify(created.disallowedTools),
+      ...agentColumns(created),
+      id: created.id,
+      createdAt: created.createdAt,
     })
     return created
   }
@@ -100,20 +100,13 @@ export function openStore(location: string) {
          system_prompt = :systemPrompt, description = :description,
          max_turns = :maxTurns, sleep_after_minutes = :sleepAfterMinutes
        WHERE id = :id`
-    ).run({
-      ...agent,
-      sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
-      id,
-      autostart: agent.autostart ? 1 : 0,
-      allowedTools: JSON.stringify(agent.allowedTools),
-      disallowedTools: JSON.stringify(agent.disallowedTools),
-    })
+    ).run({ ...agentColumns(agent), id })
     return getAgent(id)
   }
 
   function listAgents(): Agent[] {
     return db
-      .prepare("SELECT * FROM agents ORDER BY name")
+      .prepare("SELECT * FROM agents WHERE deleted_at IS NULL ORDER BY name")
       .all()
       .map((row) => toAgent(row as Row))
   }
@@ -212,6 +205,56 @@ export function openStore(location: string) {
       `DELETE FROM conversation_members
        WHERE conversation_id = ? AND member_key = ?`
     ).run(conversationId, memberKey)
+  }
+
+  function listAuthorKeys(conversationId: string): string[] {
+    return db
+      .prepare(
+        `SELECT DISTINCT author_key FROM timeline_items
+         WHERE conversation_id = ? ORDER BY author_key`
+      )
+      .all(conversationId)
+      .map((row) => String(row.author_key))
+  }
+
+  function deleteConversation(id: string) {
+    db.prepare("DELETE FROM conversations WHERE id = ?").run(id)
+  }
+
+  function deleteAgent(id: string) {
+    const memberKey = `agent:${id}`
+    const deletedConversationIds: string[] = []
+    const changedConversationIds: string[] = []
+    inTransaction(db, () => {
+      const memberships = db
+        .prepare(
+          `SELECT c.id, c.kind,
+             (SELECT COUNT(*) FROM conversation_members o
+              WHERE o.conversation_id = c.id AND o.agent_id IS NOT NULL
+                AND o.member_key != :memberKey) AS other_agents
+           FROM conversations c
+           JOIN conversation_members m ON m.conversation_id = c.id
+           WHERE m.member_key = :memberKey
+           ORDER BY c.created_at, c.rowid`
+        )
+        .all({ memberKey })
+      for (const row of memberships) {
+        const conversationId = String(row.id)
+        const alone = row.kind === "group" && Number(row.other_agents) === 0
+        if (row.kind === "dm" || alone) {
+          deleteConversation(conversationId)
+          deletedConversationIds.push(conversationId)
+        } else {
+          removeMember(conversationId, memberKey)
+          changedConversationIds.push(conversationId)
+        }
+      }
+      db.prepare("UPDATE agents SET deleted_at = ? WHERE id = ?").run(
+        new Date().toISOString(),
+        id
+      )
+    })
+    return { deletedConversationIds, changedConversationIds }
   }
 
   function joinedSeq(conversationId: string, memberKey: string): number {
@@ -768,6 +811,9 @@ export function openStore(location: string) {
     getSharedFile,
     removeSharedFile,
     removeMember,
+    deleteConversation,
+    listAuthorKeys,
+    deleteAgent,
     joinedSeq,
     findDirectMessage,
     createSession,
@@ -822,6 +868,23 @@ function toConversation(row: Row, members: string[]): Conversation {
   }
 }
 
+function agentColumns(agent: NewAgent) {
+  return {
+    name: agent.name,
+    colour: agent.colour,
+    model: agent.model,
+    permissionMode: agent.permissionMode,
+    cwd: agent.cwd,
+    autostart: agent.autostart ? 1 : 0,
+    allowedTools: JSON.stringify(agent.allowedTools),
+    disallowedTools: JSON.stringify(agent.disallowedTools),
+    systemPrompt: agent.systemPrompt,
+    description: agent.description,
+    maxTurns: agent.maxTurns,
+    sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
+  }
+}
+
 function toAgent(row: Row): Agent {
   return {
     id: String(row.id),
@@ -839,6 +902,7 @@ function toAgent(row: Row): Agent {
     sleepAfterMinutes:
       row.sleep_after_minutes === null ? null : Number(row.sleep_after_minutes),
     createdAt: String(row.created_at),
+    deletedAt: row.deleted_at === null ? null : String(row.deleted_at),
   }
 }
 

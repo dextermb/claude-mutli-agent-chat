@@ -42,6 +42,8 @@ export type StreamMessage =
   | { type: "agent_state"; agentId: string; state: SessionState }
   | { type: "conversation"; conversation: Conversation }
   | { type: "unread"; conversationId: string; count: number }
+  | { type: "conversation_deleted"; conversationId: string }
+  | { type: "agent_deleted"; agentId: string }
   | { type: "reset" }
   | { type: "line"; agentId: string; line: LogLine }
   | { type: "files"; files: SharedFileView[] }

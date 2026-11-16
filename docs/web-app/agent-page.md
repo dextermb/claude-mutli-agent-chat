@@ -31,6 +31,10 @@ Both dialogs then say that each turn that runs stops, and that a waiting
 message gets no reply. A refusal shows an alert with the title "Stop agent
 did not work." or "Restart session did not work.", and the reason.
 
+At the end of the page of a saved agent, a bordered section "Delete agent"
+opens the confirm dialog of `docs/delete.md`. After the delete, the page goes
+to `/`.
+
 The form sends every field. A new agent goes to `POST /api/agents`, then the
 page moves to `/agents/<id>`. A saved agent goes to `PATCH /api/agents/:id`.
 The form checks each field with the schema of the server, and shows each

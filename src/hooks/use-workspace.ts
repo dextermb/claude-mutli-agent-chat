@@ -86,6 +86,23 @@ function applyMessage(workspace: Workspace, message: StreamMessage): Workspace {
     if (message.count === 0) delete unread[message.conversationId]
     return { ...workspace, unread }
   }
+  if (message.type === "conversation_deleted") {
+    const unread = { ...workspace.unread }
+    delete unread[message.conversationId]
+    return {
+      ...workspace,
+      conversations: workspace.conversations.filter(
+        (item) => item.id !== message.conversationId
+      ),
+      unread,
+    }
+  }
+  if (message.type === "agent_deleted") {
+    return {
+      ...workspace,
+      agents: workspace.agents.filter((agent) => agent.id !== message.agentId),
+    }
+  }
   if (message.type === "conversation") {
     const { conversation } = message
     const known = workspace.conversations.some(

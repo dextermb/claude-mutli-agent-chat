@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { Link } from "wouter"
 
+import { DeleteAction, type Deletion } from "@/components/sidebar/delete-action"
 import { ROW_CLASS } from "@/components/sidebar/row-class"
 import {
   SidebarMenuBadge,
@@ -15,12 +16,14 @@ export function ConversationRow({
   current,
   unread,
   onNavigate,
+  deletion,
   children,
 }: {
   conversation: Conversation
   current: boolean
   unread: number
   onNavigate: () => void
+  deletion?: Deletion
   children: ReactNode
 }) {
   const count = current ? 0 : unread
@@ -51,11 +54,16 @@ export function ConversationRow({
       {count > 0 && (
         <SidebarMenuBadge
           aria-hidden="true"
-          className="bg-mention text-primary-foreground peer-hover/menu-button:text-primary-foreground"
+          className={cn(
+            "bg-mention text-primary-foreground peer-hover/menu-button:text-primary-foreground",
+            deletion &&
+              "md:group-focus-within/menu-item:hidden md:group-hover/menu-item:hidden"
+          )}
         >
           {count}
         </SidebarMenuBadge>
       )}
+      {deletion && <DeleteAction deletion={deletion} />}
     </SidebarMenuItem>
   )
 }

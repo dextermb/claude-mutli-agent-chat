@@ -16,25 +16,25 @@ directory gives the same information.
 
 ## The directories
 
-| Directory                  | Holds                                                                             |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| `alerts`                   | `RefusalAlert`, the alert for a refused request                                   |
-| `agent-actions`            | The Stop and Restart actions of the agent page                                    |
-| `agent-form`               | The command preview and the tool rules of the agent form                          |
-| `dialogs`                  | The dialogs that open from a page: create a channel, start a chat, add members    |
-| `dialogs/channel-settings` | The Channel settings dialog and its form                                          |
-| `dialogs/folder`           | The Pick a folder dialog and its picker                                           |
-| `fields/channel`           | One field of the channel forms in each file                                       |
-| `sidebar`                  | The sidebar, its rows, its sections, the workspace rail and the work footer       |
-| `theme`                    | The theme provider, its context and `useTheme`                                    |
-| `conversation`             | The parts of a conversation page. See `docs/web-app/conversation.md`              |
-| `conversation/cards`       | The approval card and the question card                                           |
-| `conversation/composer`    | The message box, its mention list, its attachment chip, the model and the context |
-| `conversation/files`       | The shared files: the panel, the list, a row, the files of a message and the tab  |
-| `conversation/session`     | The session panel, the sheet, the members panel and the session log               |
-| `conversation/timeline`    | The timeline, its dividers, groups, entries and mentions, and the jump button     |
-| `conversation/tool-call`   | A tool call line, its description, its diff and its output                        |
-| `ui`                       | The shadcn components                                                             |
+| Directory                  | Holds                                                                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `alerts`                   | `RefusalAlert`, the alert for a refused request                                                                                         |
+| `agent-actions`            | The Stop and Restart actions of the agent page                                                                                          |
+| `agent-form`               | The command preview and the tool rules of the agent form                                                                                |
+| `dialogs`                  | The dialogs that open from a page: create a channel, start a chat, add members, group chat settings, the delete confirm and its section |
+| `dialogs/channel-settings` | The Channel settings dialog and its form                                                                                                |
+| `dialogs/folder`           | The Pick a folder dialog and its picker                                                                                                 |
+| `fields/channel`           | One field of the channel forms in each file                                                                                             |
+| `sidebar`                  | The sidebar, its rows and their ×, its sections, the workspace rail and the work footer                                                 |
+| `theme`                    | The theme provider, its context and `useTheme`                                                                                          |
+| `conversation`             | The parts of a conversation page. See `docs/web-app/conversation.md`                                                                    |
+| `conversation/cards`       | The approval card and the question card                                                                                                 |
+| `conversation/composer`    | The message box, its mention list, its attachment chip, the model and the context                                                       |
+| `conversation/files`       | The shared files: the panel, the list, a row, the files of a message and the tab                                                        |
+| `conversation/session`     | The session panel, the sheet, the members panel and the session log                                                                     |
+| `conversation/timeline`    | The timeline, its dividers, groups, entries and mentions, and the jump button                                                           |
+| `conversation/tool-call`   | A tool call line, its description, its diff and its output                                                                              |
+| `ui`                       | The shadcn components                                                                                                                   |
 
 ## The helpers
 
@@ -53,3 +53,4 @@ directory gives the same information.
 | `attachment-hint.ts` | The hint that tells why Send waits                   |
 | `folder-list.ts`     | The shape of the folder list of the server           |
 | `highlight.ts`       | The syntax colours of a code block, with Shiki       |
+| `delete-targets.ts`  | The title, the list and the route of a delete        |

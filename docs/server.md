@@ -95,6 +95,8 @@ then loads its data again and opens a new stream.
 
 A change of members or of the settings of a channel also sends
 `{ type: "conversation", conversation }` on the stream of that conversation.
+A delete sends `{ type: "conversation_deleted", conversationId }` on it, then
+closes it (`docs/delete.md`).
 
 Each line that a process writes or reads also goes to the open streams of
 its conversation as `{ type: "line", agentId, line }`, for the Session log.
@@ -107,11 +109,13 @@ these lines would push the other events out of the log of 500.
 `GET /api/events` is one more stream, for the whole app. It works in the
 same way, with its own counter and log. It sends:
 
-| Event                                       | When                                                               |
-| ------------------------------------------- | ------------------------------------------------------------------ |
-| `{ type: "agent_state", agentId, state }`   | The state of an agent over all its sessions changes                |
-| `{ type: "conversation", conversation }`    | The server makes a conversation, or its members or settings change |
-| `{ type: "unread", conversationId, count }` | The unread count of a conversation changes                         |
+| Event                                              | When                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------ |
+| `{ type: "agent_state", agentId, state }`          | The state of an agent over all its sessions changes                |
+| `{ type: "conversation", conversation }`           | The server makes a conversation, or its members or settings change |
+| `{ type: "unread", conversationId, count }`        | The unread count of a conversation changes                         |
+| `{ type: "conversation_deleted", conversationId }` | A conversation is deleted (`docs/delete.md`)                       |
+| `{ type: "agent_deleted", agentId }`               | An agent is deleted                                                |
 
 The unread count of a conversation counts the agent items for the user to
 read after the place that the user saw last: messages, notices, permission

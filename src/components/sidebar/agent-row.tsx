@@ -1,5 +1,6 @@
 import { statusOf } from "@/components/conversation/agent-look"
 import { ConversationRow } from "@/components/sidebar/conversation-row"
+import { DeleteAction, type Deletion } from "@/components/sidebar/delete-action"
 import { ROW_CLASS } from "@/components/sidebar/row-class"
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
@@ -12,6 +13,7 @@ export function AgentRow({
   unread,
   onNavigate,
   onOpenDirectMessage,
+  deletion,
 }: {
   agent: AgentWithState
   directMessage: Conversation | undefined
@@ -19,6 +21,7 @@ export function AgentRow({
   unread: number
   onNavigate: () => void
   onOpenDirectMessage: () => void
+  deletion: Deletion
 }) {
   const status = statusOf(agent.state)
   const label = (
@@ -37,6 +40,7 @@ export function AgentRow({
         current={current}
         unread={unread}
         onNavigate={onNavigate}
+        deletion={deletion}
       >
         {label}
       </ConversationRow>
@@ -47,6 +51,7 @@ export function AgentRow({
       <SidebarMenuButton className={ROW_CLASS} onClick={onOpenDirectMessage}>
         {label}
       </SidebarMenuButton>
+      <DeleteAction deletion={deletion} />
     </SidebarMenuItem>
   )
 }

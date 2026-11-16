@@ -503,6 +503,38 @@ export function createServer({
     return running.map((session) => session.conversationId)
   }
 
+  function existingAgent(agentId: string): Agent | undefined {
+    const agent = store.getAgent(agentId)
+    return agent?.deletedAt === null ? agent : undefined
+  }
+
+  async function stopConversation(conversationId: string) {
+    const running = [...live.values()].filter(
+      (session) => session.conversationId === conversationId
+    )
+    for (const session of running) stopTurn(session)
+    await Promise.all(running.map((session) => session.handle?.stop()))
+  }
+
+  async function conversationDeleted(conversationId: string) {
+    const event = { type: "conversation_deleted", conversationId }
+    publish(conversationId, event)
+    publishTo(appChannel, event)
+    for (const client of channelOf(conversationId).clients) client.end()
+    channels.delete(conversationId)
+    sentUnread.delete(conversationId)
+    summaryRuns.delete(conversationId)
+    for (const forgotten of [promptCursors, removedNotes]) {
+      for (const key of forgotten.keys()) {
+        if (key.endsWith(` ${conversationId}`)) forgotten.delete(key)
+      }
+    }
+    await rm(uploadsOf(uploadsFolder, conversationId), {
+      recursive: true,
+      force: true,
+    })
+  }
+
   function agentFoldersOf(
     conversationId: string
   ): { agentId: string; cwd: string }[] {
@@ -681,9 +713,7 @@ export function createServer({
     )
     const messages = entries.filter(
       (entry) =>
-        entry.seq > cursor &&
-        entry.authorKey !== author &&
-        isDoneMessage(entry)
+        entry.seq > cursor && entry.authorKey !== author && isDoneMessage(entry)
     )
     const omitted = messages.slice(0, -wakeMessages)
     return {
@@ -1159,7 +1189,7 @@ export function createServer({
     }
 
     if ((params = route("GET", "api/agents/:id"))) {
-      const agent = store.getAgent(params.id)
+      const agent = existingAgent(params.id)
       if (!agent) return send(response, 404, { error: "no such agent" })
       return send(response, 200, { agent })
     }
@@ -1170,16 +1200,37 @@ export function createServer({
     }
 
     if ((params = route("POST", "api/agents/:id/stop"))) {
-      if (!store.getAgent(params.id)) {
+      if (!existingAgent(params.id)) {
         return send(response, 404, { error: "no such agent" })
       }
       await stopAgent(params.id)
       return send(response, 202, {})
     }
 
+    if ((params = route("DELETE", "api/agents/:id"))) {
+      const agentId = params.id
+      if (!existingAgent(agentId)) {
+        return send(response, 404, { error: "no such agent" })
+      }
+      await stopAgent(agentId)
+      const { deletedConversationIds, changedConversationIds } =
+        store.deleteAgent(agentId)
+      for (const conversationId of deletedConversationIds) {
+        await conversationDeleted(conversationId)
+      }
+      for (const conversationId of changedConversationIds) {
+        promptCursors.delete(`${agentId} ${conversationId}`)
+        removedNotes.delete(`${agentId} ${conversationId}`)
+        membersChanged(conversationId)
+      }
+      publishTo(appChannel, { type: "agent_deleted", agentId })
+      response.writeHead(204).end()
+      return
+    }
+
     if ((params = route("POST", "api/agents/:id/restart"))) {
       const agentId = params.id
-      if (!store.getAgent(agentId)) {
+      if (!existingAgent(agentId)) {
         return send(response, 404, { error: "no such agent" })
       }
       const conversationIds = await stopAgent(agentId)
@@ -1190,7 +1241,7 @@ export function createServer({
     }
 
     if ((params = route("PATCH", "api/agents/:id"))) {
-      const current = store.getAgent(params.id)
+      const current = existingAgent(params.id)
       if (!current) return send(response, 404, { error: "no such agent" })
       const checked = checkBody(agentSchema, {
         ...current,
@@ -1205,6 +1256,23 @@ export function createServer({
       return send(response, 200, {
         agent: store.updateAgent(params.id, checked.data),
       })
+    }
+
+    if ((params = route("DELETE", "api/conversations/:id"))) {
+      const conversation = store.getConversation(params.id)
+      if (!conversation) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      if (conversation.kind === "dm") {
+        return send(response, 400, {
+          error: "A DM goes with its agent. Delete the agent.",
+        })
+      }
+      await stopConversation(conversation.id)
+      store.deleteConversation(conversation.id)
+      await conversationDeleted(conversation.id)
+      response.writeHead(204).end()
+      return
     }
 
     if ((params = route("PATCH", "api/conversations/:id"))) {
@@ -1251,7 +1319,12 @@ export function createServer({
           },
         ]
       })
-      return send(response, 200, { conversation, agents })
+      const members = new Set(conversation.members)
+      const authors = store
+        .listAuthorKeys(conversation.id)
+        .filter((key) => key.startsWith("agent:") && !members.has(key))
+        .flatMap((key) => store.getAgent(key.slice("agent:".length)) ?? [])
+      return send(response, 200, { conversation, agents, authors })
     }
 
     if (route("GET", "api/conversations")) {
@@ -1276,7 +1349,7 @@ export function createServer({
         if (!made.ok) return send(response, made.status, made.body)
         return send(response, 201, { conversation: made.conversation })
       }
-      const agent = store.getAgent(text(body.agentId))
+      const agent = existingAgent(text(body.agentId))
       if (body.kind !== "dm" || !agent) {
         return send(response, 400, { error: "Give kind dm and an agentId." })
       }
@@ -1302,7 +1375,7 @@ export function createServer({
     | { ok: true; conversation: Conversation }
     | { ok: false; status: number; body: Record<string, unknown> } {
     const agents = texts(body.agentIds).flatMap(
-      (agentId) => store.getAgent(agentId) ?? []
+      (agentId) => existingAgent(agentId) ?? []
     )
     const members = ["user:me", ...agents.map((agent) => `agent:${agent.id}`)]
     let conversation: Conversation
@@ -1367,7 +1440,7 @@ export function createServer({
     }
     for (const agentId of agentIds) {
       const memberKey = `agent:${agentId}`
-      if (!store.getAgent(agentId)) continue
+      if (!existingAgent(agentId)) continue
       if (conversation.members.includes(memberKey)) continue
       store.addMember(conversation.id, memberKey)
     }
