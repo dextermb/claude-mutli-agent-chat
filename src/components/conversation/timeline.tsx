@@ -11,7 +11,10 @@ import {
 } from "@/components/conversation/agent-look"
 import { QuestionCard } from "@/components/conversation/question-card"
 import { MessageFiles } from "@/components/conversation/shared-files"
-import { ToolCallCard } from "@/components/conversation/tool-call-card"
+import {
+  OutputBlock,
+  ToolCallLine,
+} from "@/components/conversation/tool-call-line"
 import type { RequestAnswer } from "@/hooks/use-conversation"
 import type {
   ConversationAgent,
@@ -20,6 +23,7 @@ import type {
   ToolCallItem,
 } from "@/lib/agent-api"
 import { Separator } from "@/components/ui/separator"
+import { Trace } from "@/components/ui/trace"
 import { clockTime, dayKey, dayName, longDay } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { mentionPattern } from "../../../server/conversation/mentions.ts"
@@ -130,17 +134,24 @@ function AuthorGroup({
   onAnswer: Answer
 }) {
   const createdAt = group.entries[0].createdAt
-  const entries = group.entries.map((entry) => (
-    <EntryBody
-      key={entry.id}
-      entry={entry}
-      agent={agent}
-      agents={agents}
-      requests={requests}
-      subagentCalls={subagentCalls}
-      onAnswer={onAnswer}
-    />
-  ))
+  const entries = runsOfCalls(group.entries).map((run) => {
+    const bodies = run.map((entry) => (
+      <EntryBody
+        key={entry.id}
+        entry={entry}
+        agent={agent}
+        agents={agents}
+        requests={requests}
+        subagentCalls={subagentCalls}
+        onAnswer={onAnswer}
+      />
+    ))
+    return run[0].item.kind === "tool_call" ? (
+      <Trace key={run[0].id}>{bodies}</Trace>
+    ) : (
+      bodies
+    )
+  })
   if (!agent) {
     return (
       <article
@@ -196,7 +207,7 @@ function EntryBody({
   const { item } = entry
   if (item.kind === "tool_call") {
     return (
-      <ToolCallCard
+      <ToolCallLine
         call={item}
         cwd={agent?.sessionCwd ?? ""}
         request={requests.get(item.toolUseId)}
@@ -383,9 +394,9 @@ function FailedNotice({
         )}
       </p>
       {open && (
-        <pre className="m-0 max-w-[640px] overflow-x-auto rounded-[14px] border bg-rail px-3 py-2 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
-          {stderr}
-        </pre>
+        <div className="max-w-[640px]">
+          <OutputBlock text={stderr} failed />
+        </div>
       )}
     </div>
   )
@@ -423,6 +434,23 @@ function hasToolCall(entries: TimelineEntry[], toolUseId: string): boolean {
   return entries.some(
     ({ item }) => item.kind === "tool_call" && item.toolUseId === toolUseId
   )
+}
+
+function runsOfCalls(entries: TimelineEntry[]): TimelineEntry[][] {
+  const runs: TimelineEntry[][] = []
+  for (const entry of entries) {
+    const last = runs.at(-1)
+    if (
+      last &&
+      last[0].item.kind === "tool_call" &&
+      entry.item.kind === "tool_call"
+    ) {
+      last.push(entry)
+    } else {
+      runs.push([entry])
+    }
+  }
+  return runs
 }
 
 function groupByAuthor(entries: TimelineEntry[]): Group[] {
