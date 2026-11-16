@@ -24,6 +24,9 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
   tools, and neither is there. A recording on 2026-11-15 asked for both: the
   answer was "No such tool available: Grep", and the agent used `grep` and
   `find` through Bash. The boards show tools that the agents do not have.
+- **People** (other humans, their names and presence, a name in place of
+  "You", and people in Start a chat and Add members). The app runs locally,
+  so it has only one user.
 
 ## Tier 3: still ahead
 
@@ -31,8 +34,6 @@ What shipped is in `docs/web-app/*.md`, `docs/server.md`, `docs/store.md` and
   zone and chips in the composer, a link by path or by hash to a file in the
   folder of an agent, else a copy to the uploads of the conversation with
   `--add-dir`, and the shared files of a message in the thread.
-- **People**: other humans, their names and presence, a name in place of
-  "You", and people in Start a chat and Add members.
 - **The rail pages** Direct messages and Activity. Their buttons are
   disabled with the tooltip "Not built yet".
 - **The composer buttons** Attach a file and Run a slash command.
