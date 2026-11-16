@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs"
+import { rm } from "node:fs/promises"
 import {
   createServer as createHttpServer,
   type IncomingMessage,
@@ -20,12 +21,17 @@ import { environmentPrompt } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
 import { chatTools, type ChatServer } from "../mcp/tools.ts"
 import { listFolders } from "./folders.ts"
-import { checkFiles, sharedFileLines } from "./shared-files.ts"
+import { checkFiles, isFile, sharedFileLines } from "./shared-files.ts"
 import { saveUpload, UPLOAD_LIMIT, uploadsOf } from "./uploads.ts"
 import type { PermissionItem, QuestionItem } from "../timeline/reduce.ts"
 import type { SessionEvent, SessionState } from "../session/session.ts"
 import type { Agent, Conversation, SessionRow, Store } from "../store/store.ts"
-import type { SessionCard, SessionConfig, TimelineEntry } from "../api-types.ts"
+import type {
+  SessionCard,
+  SessionConfig,
+  SharedFileView,
+  TimelineEntry,
+} from "../api-types.ts"
 
 export type SessionHandle = {
   prompt(text: string): void
@@ -98,6 +104,7 @@ export function createServer({
   const sentAgentStates = new Map<string, SessionState>()
   const sentUnread = new Map<string, number>()
   const promptCursors = new Map<string, number>()
+  const removedNotes = new Map<string, string[]>()
   const tokens = new Map<string, LiveSession>()
   let chatUrl = ""
   const openRequests = new Map<
@@ -339,6 +346,20 @@ export function createServer({
     return running.map((session) => session.conversationId)
   }
 
+  function sharedFilesOf(conversationId: string): SharedFileView[] {
+    return store.listSharedFiles(conversationId).map((file) => ({
+      id: file.id,
+      name: file.name,
+      path: file.path,
+      kind: file.kind,
+      size: file.size,
+      sharedBy: authorName(file.sharedBy),
+      sharedAt: file.sharedAt,
+      removedAt: file.removedAt,
+      exists: isFile(file.path),
+    }))
+  }
+
   function stopTurn(session: LiveSession) {
     session.queue = []
     if (session.state === "busy" || session.state === "waiting") {
@@ -433,7 +454,15 @@ export function createServer({
 
   function prompt(agentId: string, conversationId: string, text: string) {
     const session = liveSessionFor(agentId, conversationId)
-    if (session) deliver(session, promptFor(agentId, conversationId, text))
+    if (!session) return
+    const key = `${agentId} ${conversationId}`
+    const removed = removedNotes.get(key) ?? []
+    removedNotes.delete(key)
+    deliver(
+      session,
+      removed.map((path) => `[Removed file: ${path}]\n`).join("") +
+        promptFor(agentId, conversationId, text)
+    )
   }
 
   function addressedAgents(
@@ -548,6 +577,33 @@ export function createServer({
       return send(response, answer.status, answer.body)
     }
 
+    if ((params = route("GET", "api/conversations/:id/files"))) {
+      if (!store.getConversation(params.id)) {
+        return send(response, 404, { error: "no such conversation" })
+      }
+      return send(response, 200, { files: sharedFilesOf(params.id) })
+    }
+
+    if ((params = route("DELETE", "api/conversations/:id/files/:fileId"))) {
+      const file = store.getSharedFile(params.fileId)
+      if (!file || file.conversationId !== params.id) {
+        return send(response, 404, { error: "no such shared file" })
+      }
+      const removed = store.removeSharedFile(file.id, "user:me")
+      if (!file.removedAt) {
+        if (file.kind === "copied") await rm(file.path, { force: true })
+        for (const agentId of agentIdsOf(params.id)) {
+          const key = `${agentId} ${params.id}`
+          removedNotes.set(key, [...(removedNotes.get(key) ?? []), file.path])
+        }
+      }
+      const files = sharedFilesOf(params.id)
+      publish(params.id, { type: "files", files })
+      return send(response, 200, {
+        file: files.find((item) => item.id === removed?.id),
+      })
+    }
+
     if ((params = route("POST", "api/conversations/:id/messages"))) {
       const conversationId = params.id
       if (!store.getConversation(conversationId)) {
@@ -567,6 +623,13 @@ export function createServer({
       }
       const entry = store.addUserMessage(conversationId, text, checked.files)
       publish(conversationId, { type: "item", entry })
+      if (checked.files.length > 0) {
+        store.shareFiles(conversationId, entry.id, checked.files, "user:me")
+        publish(conversationId, {
+          type: "files",
+          files: sharedFilesOf(conversationId),
+        })
+      }
       for (const agentId of addressedAgents(conversationId, entry)) {
         prompt(agentId, conversationId, text + sharedFileLines(checked.files))
       }
@@ -936,6 +999,7 @@ export function createServer({
     postMessage,
     createGroupOrChannel,
     addMembers,
+    sharedFiles: sharedFilesOf,
   }
 
   async function answerChat(

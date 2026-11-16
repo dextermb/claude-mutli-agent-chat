@@ -148,4 +148,75 @@ describe("uploads", () => {
     })
     expect(fakeCopy.status).toBe(400)
   })
+
+  test("the shared files of a conversation are a set of paths, and the user can remove one", async () => {
+    const { base, conversation } = await startServer()
+    const copied = (await (
+      await upload(base, conversation.id, "ci-log.txt", "line 1\n")
+    ).json()) as { name: string; path: string; size: number }
+    const share = () =>
+      postJson(base, `/api/conversations/${conversation.id}/messages`, {
+        text: "The log.",
+        files: [{ ...copied, kind: "copied" }],
+      })
+    await share()
+    await share()
+
+    const listed = (await (
+      await fetch(`${base}/api/conversations/${conversation.id}/files`)
+    ).json()) as { files: { id: string }[] }
+
+    expect(listed.files).toEqual([
+      {
+        id: expect.any(String),
+        name: "ci-log.txt",
+        path: copied.path,
+        kind: "copied",
+        size: 7,
+        sharedBy: "User",
+        sharedAt: expect.any(String),
+        removedAt: null,
+        exists: true,
+      },
+    ])
+
+    const removed = await fetch(
+      `${base}/api/conversations/${conversation.id}/files/${listed.files[0].id}`,
+      { method: "DELETE" }
+    )
+
+    expect(removed.status).toBe(200)
+    expect(await removed.json()).toMatchObject({
+      file: { removedAt: expect.any(String), exists: false },
+    })
+    expect(existsSync(copied.path)).toBe(false)
+  })
+
+  test("after a removal, the next prompt of each agent starts with the removed path", async () => {
+    const { base, conversation, sentTo } = await startServer()
+    const linkedPath = join(process.cwd(), "package.json")
+    await postJson(base, `/api/conversations/${conversation.id}/messages`, {
+      text: "See this.",
+      files: [{ path: linkedPath, kind: "linked" }],
+    })
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    )
+    const { files } = (await (
+      await fetch(`${base}/api/conversations/${conversation.id}/files`)
+    ).json()) as { files: { id: string }[] }
+
+    await fetch(
+      `${base}/api/conversations/${conversation.id}/files/${files[0].id}`,
+      { method: "DELETE" }
+    )
+    await sendMessage(base, conversation.id, "Go on.")
+
+    await vi.waitFor(() =>
+      expect(promptsTo(sentTo, "reviewer-bot").at(-1)).toBe(
+        `[Removed file: ${linkedPath}]\nGo on.`
+      )
+    )
+    expect(existsSync(linkedPath)).toBe(true)
+  })
 })

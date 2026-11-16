@@ -1,3 +1,4 @@
+import { statSync } from "node:fs"
 import { stat } from "node:fs/promises"
 import { basename, resolve, sep } from "node:path"
 import type { SharedFile } from "../timeline/reduce.ts"
@@ -49,5 +50,13 @@ async function fileSize(path: string): Promise<number | null> {
     return info.isFile() ? info.size : null
   } catch {
     return null
+  }
+}
+
+export function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
   }
 }

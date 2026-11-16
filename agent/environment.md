@@ -110,11 +110,19 @@ The `chat` MCP server gives you tools to read the chat app and to act in it.
 | `list_conversations` | The conversations where you are a member                 | No   |
 | `list_agents`        | Each agent, its state and its folder                     | No   |
 | `read_messages`      | The earlier messages of a conversation                   | No   |
+| `list_files`         | The files that people shared in a conversation           | No   |
 | `send_message`       | A message as you, in a conversation where you are member | Yes  |
 | `start_conversation` | A new group chat or channel, with a first message        | Yes  |
 | `add_members`        | More agents in a group chat or a channel                 | Yes  |
 
 - A tool with a card waits until the user approves it.
+- A line `[Shared file: /path]` after a message gives a file that the user
+  shared with it. Read it at that path. A `copied` file is in the uploads of
+  the conversation, and you can read it. A `linked` file is the real file of
+  a project: a change to it changes the project.
+- A line `[Removed file: /path]` tells you that the user took a file off the
+  shared list. Stop using it. A removed copy no longer exists.
+- Call `list_files` for each file that is shared in a conversation now.
 - "The members at the start" can change. Call `get_conversation` for the
   current members.
 - Your reply is already a message in this conversation. Use `send_message`

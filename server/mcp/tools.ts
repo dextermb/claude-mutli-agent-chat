@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { SessionState } from "../api-types.ts"
+import type { SessionState, SharedFileView } from "../api-types.ts"
 import { homeShort } from "../paths.ts"
 import { tool, ToolError, type Tool } from "./rpc.ts"
 import type { Conversation, Store, TimelineEntry } from "../store/store.ts"
@@ -9,6 +9,7 @@ export type ChatServer = {
   liveState(agentId: string, conversationId: string): SessionState
   agentState(agentId: string): SessionState
   authorName(authorKey: string): string
+  sharedFiles(conversationId: string): SharedFileView[]
   postMessage(
     conversationId: string,
     agentId: string,
@@ -114,6 +115,34 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
           folder: homeShort(agent.cwd),
           you: agent.id === caller.agentId,
         }))
+    ),
+    tool(
+      "list_files",
+      "List the files that people shared in a conversation: name, absolute path, kind (linked: a real file in the folder of an agent, copied: a copy in the uploads of the conversation), size, who shared it and when, and whether the path exists now. A file that the user removed from the list is not in it. With no conversationId, list this conversation.",
+      z.object({
+        conversationId: z
+          .string()
+          .optional()
+          .describe("The ID of a conversation where you are a member."),
+      }),
+      ({ conversationId }) => {
+        const conversation = memberConversation(conversationId)
+        return {
+          files: chat
+            .sharedFiles(conversation.id)
+            .filter((file) => file.removedAt === null)
+            .map((file) => ({
+              id: file.id,
+              name: file.name,
+              path: file.path,
+              kind: file.kind,
+              size: file.size,
+              sharedBy: file.sharedBy,
+              sharedAt: file.sharedAt,
+              exists: file.exists,
+            })),
+        }
+      }
     ),
     tool(
       "read_messages",

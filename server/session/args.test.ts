@@ -17,6 +17,7 @@ const CHAT_READ_TOOLS = [
   "mcp__chat__list_conversations",
   "mcp__chat__list_agents",
   "mcp__chat__read_messages",
+  "mcp__chat__list_files",
 ]
 
 const reviewer: AgentConfig = {

@@ -507,6 +507,59 @@ export function openStore(location: string) {
     return entry
   }
 
+  function shareFiles(
+    conversationId: string,
+    itemId: string,
+    files: SharedFile[],
+    sharedBy: string
+  ) {
+    const sharedAt = new Date().toISOString()
+    const upsert = db.prepare(
+      `INSERT INTO shared_files (id, conversation_id, item_id, name, path, kind,
+         size, shared_by, shared_at)
+       VALUES (:id, :conversationId, :itemId, :name, :path, :kind, :size,
+         :sharedBy, :sharedAt)
+       ON CONFLICT (conversation_id, path) DO UPDATE SET item_id = :itemId,
+         name = :name, kind = :kind, size = :size, shared_by = :sharedBy,
+         shared_at = :sharedAt, removed_at = NULL, removed_by = NULL`
+    )
+    for (const file of files) {
+      upsert.run({
+        id: randomUUID(),
+        conversationId,
+        itemId,
+        name: file.name,
+        path: file.path,
+        kind: file.kind,
+        size: file.size,
+        sharedBy,
+        sharedAt,
+      })
+    }
+  }
+
+  function listSharedFiles(conversationId: string): SharedFileRow[] {
+    return db
+      .prepare(
+        "SELECT * FROM shared_files WHERE conversation_id = ? ORDER BY shared_at DESC, name"
+      )
+      .all(conversationId)
+      .map((row) => toSharedFile(row as Row))
+  }
+
+  function getSharedFile(id: string): SharedFileRow | undefined {
+    const row = db.prepare("SELECT * FROM shared_files WHERE id = ?").get(id)
+    return row ? toSharedFile(row as Row) : undefined
+  }
+
+  function removeSharedFile(id: string, removedBy: string) {
+    db.prepare(
+      `UPDATE shared_files SET removed_at = ?, removed_by = ?
+       WHERE id = ? AND removed_at IS NULL`
+    ).run(new Date().toISOString(), removedBy, id)
+    return getSharedFile(id)
+  }
+
   function rebuildTimeline(sessionId: string) {
     inTransaction(db, () => rebuildSession(sessionId))
   }
@@ -627,6 +680,10 @@ export function openStore(location: string) {
     markRead,
     addMember,
     updateConversation,
+    shareFiles,
+    listSharedFiles,
+    getSharedFile,
+    removeSharedFile,
     removeMember,
     joinedSeq,
     findDirectMessage,
@@ -696,4 +753,30 @@ function toAgent(row: Row): Agent {
 
 function configWithLimit(config: SessionConfig): SessionConfig {
   return { ...config, maxTurns: config.maxTurns ?? null }
+}
+
+export type SharedFileRow = SharedFile & {
+  id: string
+  conversationId: string
+  itemId: string | null
+  sharedBy: string
+  sharedAt: string
+  removedAt: string | null
+  removedBy: string | null
+}
+
+function toSharedFile(row: Row): SharedFileRow {
+  return {
+    id: String(row.id),
+    conversationId: String(row.conversation_id),
+    itemId: row.item_id === null ? null : String(row.item_id),
+    name: String(row.name),
+    path: String(row.path),
+    kind: String(row.kind) as SharedFile["kind"],
+    size: Number(row.size),
+    sharedBy: String(row.shared_by),
+    sharedAt: String(row.shared_at),
+    removedAt: row.removed_at === null ? null : String(row.removed_at),
+    removedBy: row.removed_by === null ? null : String(row.removed_by),
+  }
 }

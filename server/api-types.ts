@@ -74,3 +74,15 @@ export type TimelineEntry = {
   createdAt: string
   item: TimelineItem
 }
+
+export type SharedFileView = {
+  id: string
+  name: string
+  path: string
+  kind: "linked" | "copied"
+  size: number
+  sharedBy: string
+  sharedAt: string
+  removedAt: string | null
+  exists: boolean
+}
