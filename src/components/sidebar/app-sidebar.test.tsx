@@ -91,4 +91,32 @@ describe("delete from the sidebar", () => {
       body: undefined,
     })
   })
+
+  test("a refused delete shows the reason, and the dialog stays open", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "DELETE",
+      "/api/conversations/ch1",
+      { error: "The channel is busy." },
+      409
+    )
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete #release-train" })
+    )
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Delete #release-train?",
+    })
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete channel" })
+    )
+
+    const alert = await within(dialog).findByRole("alert")
+    expect(alert).toHaveTextContent("Delete channel did not work.")
+    expect(alert).toHaveTextContent("The channel is busy.")
+    expect(
+      within(dialog).getByRole("button", { name: "Delete channel" })
+    ).toBeEnabled()
+  })
 })
