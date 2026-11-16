@@ -83,3 +83,4 @@ boards, but the boards show some things that the app does not build:
 | `docs/web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs Start a chat, Create a channel and Members            |
 | `docs/web-app/agent-page.md`    | The form for a new or a saved agent                                                                  |
 | `docs/web-app/files.md`         | Attach, drop and `@` files, the chips, and the shared files in the thread and the panel              |
+| `docs/web-app/scroll.md`        | How the messages stick to the bottom, and the jump button                                            |

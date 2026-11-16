@@ -32,6 +32,7 @@ gives the parts of the app, the main decisions, and the risks.
 | `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar                |
 | `web-app/agent-page.md`    | The form for a new or a saved agent                                          |
 | `web-app/files.md`         | Attach, drop and `@` files, and the shared files in the thread and the panel |
+| `web-app/scroll.md`        | How the messages stick to the bottom, and the jump button                    |
 | `forms.md`                 | The two forms, the shared Zod schema, and the shape of a refusal             |
 | `routing.md`               | The file-based router: from a file in `src/pages` to a URL                   |
 

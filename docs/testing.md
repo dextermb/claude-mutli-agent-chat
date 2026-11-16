@@ -31,6 +31,14 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
     each observer, as a change of the window width does.
   - `elementHeight(height)` sets what `offsetHeight` answers for each
     element.
+  - `scrollLayout(size)` sets what `scrollHeight` and `clientHeight` answer
+    for each element. It also keeps `scrollTop` between 0 and
+    `scrollHeight - clientHeight`, as a browser does.
+  - `userScroll(element, top)` sets `scrollTop` and sends a `scroll` event,
+    as a scroll of the user does. user-event cannot scroll.
+  - jsdom has no `Element.scrollTo()`. `src/test/setup.ts` calls
+    `fakeScrollTo()` one time. It adds a `scrollTo()` that sets `scrollTop`
+    and sends a `scroll` event.
 
 ## The seams under test
 

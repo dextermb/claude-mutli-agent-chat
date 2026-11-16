@@ -32,7 +32,7 @@ directory gives the same information.
 | `conversation/composer`    | The message box, its mention list, its attachment chip, the model and the context |
 | `conversation/files`       | The shared files: the panel, the list, a row, the files of a message and the tab  |
 | `conversation/session`     | The session panel, the sheet, the members panel and the session log               |
-| `conversation/timeline`    | The timeline and its dividers, groups, entries and mentions                       |
+| `conversation/timeline`    | The timeline, its dividers, groups, entries and mentions, and the jump button     |
 | `conversation/tool-call`   | A tool call line, its description, its diff and its output                        |
 | `ui`                       | The shadcn components                                                             |
 

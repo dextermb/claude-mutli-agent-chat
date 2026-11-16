@@ -43,6 +43,8 @@ import {
   elementHeight,
   fakeResizeObserver,
   resizeAll,
+  scrollLayout,
+  userScroll,
 } from "@/test/fake-layout"
 import { fakeNetwork } from "@/test/fake-network"
 import { screenWidth, windowFocus } from "@/test/fake-screen"
@@ -2868,5 +2870,140 @@ describe("unread rows", () => {
     expect(
       await sidebar.findByRole("link", { name: "test-runner Idle" })
     ).toHaveAttribute("aria-current", "page")
+  })
+})
+
+describe("the scroll of the messages", () => {
+  test("a conversation opens at the bottom of its messages", async () => {
+    scrollLayout(() => ({ scrollHeight: 1000, clientHeight: 400 }))
+    openConversation([userMessage, agentMessage])
+
+    await screen.findByText("I will use a fixed clock.")
+
+    expect(screen.getByRole("region", { name: "Messages" }).scrollTop).toBe(600)
+  })
+
+  test("a new message keeps the view at the bottom", async () => {
+    fakeResizeObserver()
+    let scrollHeight = 1000
+    scrollLayout(() => ({ scrollHeight, clientHeight: 400 }))
+    openConversation([userMessage])
+    await screen.findByText("Fix the flaky auth test.")
+
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "item", entry: agentMessage })
+    )
+    scrollHeight = 1300
+    resizeAll()
+
+    expect(screen.getByRole("region", { name: "Messages" }).scrollTop).toBe(900)
+  })
+
+  test("after a scroll up, a new message does not move the view, and the jump button shows", async () => {
+    fakeResizeObserver()
+    let scrollHeight = 1000
+    scrollLayout(() => ({ scrollHeight, clientHeight: 400 }))
+    openConversation([userMessage])
+    await screen.findByText("Fix the flaky auth test.")
+    const messages = screen.getByRole("region", { name: "Messages" })
+    expect(
+      screen.queryByRole("button", { name: "Jump to the latest message" })
+    ).not.toBeInTheDocument()
+
+    userScroll(messages, 200)
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "item", entry: agentMessage })
+    )
+    scrollHeight = 1300
+    resizeAll()
+
+    expect(messages.scrollTop).toBe(200)
+    expect(
+      screen.getByRole("button", { name: "Jump to the latest message" })
+    ).toBeInTheDocument()
+  })
+
+  test("a click on the jump button goes to the bottom and hides the button", async () => {
+    const user = userEvent.setup()
+    fakeResizeObserver()
+    let scrollHeight = 1000
+    scrollLayout(() => ({ scrollHeight, clientHeight: 400 }))
+    openConversation([userMessage])
+    await screen.findByText("Fix the flaky auth test.")
+    const messages = screen.getByRole("region", { name: "Messages" })
+    userScroll(messages, 200)
+
+    await user.click(
+      screen.getByRole("button", { name: "Jump to the latest message" })
+    )
+
+    expect(messages.scrollTop).toBe(600)
+    expect(
+      screen.queryByRole("button", { name: "Jump to the latest message" })
+    ).not.toBeInTheDocument()
+    act(() =>
+      network
+        .stream("/api/conversations/c1/events")
+        .emit(1, { type: "item", entry: agentMessage })
+    )
+    scrollHeight = 1300
+    resizeAll()
+    expect(messages.scrollTop).toBe(900)
+  })
+
+  test("a message that the user sends goes to the bottom", async () => {
+    const user = userEvent.setup()
+    scrollLayout(() => ({ scrollHeight: 1000, clientHeight: 400 }))
+    network.on("POST", "/api/conversations/c1/messages", {}, 202)
+    openConversation([userMessage])
+    await screen.findByText("Fix the flaky auth test.")
+    const messages = screen.getByRole("region", { name: "Messages" })
+    userScroll(messages, 200)
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Message test-runner" }),
+      "Run the tests again.{Enter}"
+    )
+
+    expect(messages.scrollTop).toBe(600)
+    expect(
+      screen.queryByRole("button", { name: "Jump to the latest message" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("another conversation opens at the bottom, after a scroll up in this one", async () => {
+    const user = userEvent.setup()
+    scrollLayout(() => ({ scrollHeight: 1000, clientHeight: 400 }))
+    openConversation([userMessage])
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: releaseChannel,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    await screen.findByText("Fix the flaky auth test.")
+    const messages = screen.getByRole("region", { name: "Messages" })
+    userScroll(messages, 200)
+    const sidebar = within(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    )
+
+    await user.click(
+      await sidebar.findByRole("link", { name: "release-train" })
+    )
+
+    expect(
+      await screen.findByRole("heading", { name: "release-train" })
+    ).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Messages" }).scrollTop).toBe(600)
+    expect(
+      screen.queryByRole("button", { name: "Jump to the latest message" })
+    ).not.toBeInTheDocument()
   })
 })
