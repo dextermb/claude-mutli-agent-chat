@@ -85,6 +85,7 @@ type LiveSession = {
   contextTokens: number
   runningJobs: Set<string>
   asleepForMs: number | null
+  restartNote: string | null
   lastOutSeq: number
   exit: { code: number | null; stderr: string } | null
 }
@@ -113,6 +114,7 @@ const MAX_BODY_BYTES = 1_000_000
 const EVENT_LOG_SIZE = 500
 const LOG_PAGE = 200
 const SUMMARY_HEADING = "\nSummary:\n"
+const NO_TRANSCRIPT = "No conversation found with session ID"
 const SLEEP_AFTER_MINUTES = 15
 const COMPACT_ABOVE_TOKENS = 100_000
 const WAKE_MESSAGES = 30
@@ -255,6 +257,7 @@ export function createServer({
       contextTokens: 0,
       runningJobs: new Set(),
       asleepForMs: null,
+      restartNote: null,
       lastOutSeq: 0,
       exit: null,
     }
@@ -363,7 +366,10 @@ export function createServer({
         else if (session.compactingForSleep) stopAsleep(session)
         else armSleep(session)
       }
-      if (event.state === "failed") addFailedNotice(session)
+      if (event.state === "failed") {
+        if (transcriptGone(session)) startAgain(session)
+        else addFailedNotice(session)
+      }
     }
   }
 
@@ -519,6 +525,56 @@ export function createServer({
     }
   }
 
+  function transcriptGone(session: LiveSession): boolean {
+    const row = store.getSession(session.id)
+    return (
+      row?.claudeSessionId !== null &&
+      row?.claudeSessionNew === false &&
+      (session.exit?.stderr ?? "").includes(NO_TRANSCRIPT)
+    )
+  }
+
+  function startAgain(gone: LiveSession) {
+    const agent = store.getAgent(gone.agentId)
+    const conversation = store.getConversation(gone.conversationId)
+    const earlier = store.getSession(gone.id)
+    if (!agent || !conversation || !earlier?.claudeSessionId) return
+    const kept = store.lastCompaction(
+      agent.id,
+      conversation.id,
+      earlier.claudeSessionId
+    )
+    const row = store.createSession({
+      agentId: agent.id,
+      conversationId: conversation.id,
+      claudeSessionId: randomUUID(),
+      claudeSessionNew: true,
+      config: configOf(agent, folderFor(agent, conversation)),
+    })
+    const [entry] = store.saveItems(row.id, [
+      {
+        kind: "session_start",
+        id: "start",
+        status: "done",
+        claudeSessionId: row.claudeSessionId ?? "",
+      },
+    ])
+    if (entry) publish(conversation.id, { type: "item", entry })
+    const session = start(row)
+    if (!session) return
+    session.queue = gone.queue
+    session.asleepForMs = gone.asleepForMs
+    session.restartNote = [
+      "[Chat app] Claude Code deleted the transcript of your earlier session, so this is a new session. Use read_messages for the earlier messages of this conversation.",
+      ...(kept?.item.summary
+        ? [
+            "[Chat app] The summary that you kept in your earlier session:",
+            summaryPart(kept.item.summary),
+          ]
+        : []),
+    ].join("\n")
+  }
+
   function addFailedNotice(session: LiveSession) {
     const [entry] = store.saveItems(session.id, [
       {
@@ -561,11 +617,13 @@ export function createServer({
     const facts = factsOf(session)
     const notes = [
       gapNote(session.asleepForMs),
+      session.restartNote,
       facts ? factsNote(session.facts, facts) : undefined,
       queued.note,
     ].filter((note) => note !== undefined && note !== null)
     if (facts) session.facts = facts
     session.asleepForMs = null
+    session.restartNote = null
     session.handle?.prompt(
       queued.text,
       notes.length > 0 ? notes.join("\n") : undefined
