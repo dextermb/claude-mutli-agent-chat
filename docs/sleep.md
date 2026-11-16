@@ -181,9 +181,8 @@ of `claudeSummarizer()` runs `server/test/fake-summarizer.ts` in place of
 
 - A wake after more than one hour. F47 gives the cache time, and the costs
   come from the measured prices, not from a probe that waited.
-- An automatic compaction at the window (`trigger: "auto"`), and
-  `--autocompact`.
-- A compaction that fails: its `compact_result`, and whether a summary line
-  comes. The reducer keeps such a compaction `running`.
+- `--autocompact`. An automatic compaction is recorded (F59), but only with
+  `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, not at the real window.
+- A compaction that fails for a reason other than `too_few_groups` (F60).
 - A `PreCompact` hook that fails, and whether it stops the compaction.
 - That a hook gets `AGENT_CHAT` from the environment of the process.

@@ -480,6 +480,31 @@ describe("the DM page", () => {
     expect(screen.getAllByRole("article")).toHaveLength(1)
   })
 
+  test("a compaction that failed shows nothing, and the agent block stays whole", async () => {
+    openConversation([
+      userMessage,
+      {
+        ...compaction,
+        item: {
+          kind: "compaction",
+          id: "item-30",
+          status: "failed",
+          trigger: null,
+          preTokens: null,
+          postTokens: null,
+          summary: null,
+        },
+      },
+      { ...agentMessage, seq: 18 },
+    ])
+
+    expect(
+      await screen.findByText("I will use a fixed clock.")
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/memory/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole("article")).toHaveLength(2)
+  })
+
   test("a compaction that runs says that the agent compacts its memory now", async () => {
     openConversation([
       userMessage,

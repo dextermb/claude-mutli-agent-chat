@@ -53,6 +53,7 @@ export function Timeline({ entries, agents, onAnswer }: TimelineProps) {
   const shown = entries.filter(
     (entry) =>
       ![...compactionTurns.values()].includes(entry) &&
+      !(entry.item.kind === "compaction" && entry.item.status === "failed") &&
       !(entry.item.kind === "tool_call" && entry.item.parentToolUseId) &&
       (entry.item.kind !== "permission" ||
         !hasToolCall(entries, entry.item.toolUseId))

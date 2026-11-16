@@ -16,6 +16,7 @@ type Run = {
   answerTogetherInReverse?: boolean
   settleMs?: number
   extraArgs?: string[]
+  env?: Record<string, string>
 }
 
 type Scenario = {
@@ -155,6 +156,23 @@ const scenarios: Scenario[] = [
     ],
   },
   {
+    name: "compact-auto",
+    permissionMode: "default",
+    runs: [
+      {
+        prompts: [
+          "Remember the word kiwi. Reply with the single word ok.",
+          "Remember the colour blue too. Reply with the single word ok.",
+          "Remember the number 7 too. Reply with the single word ok.",
+          "Remember the city Lisbon too. Reply with the single word ok.",
+          "Remember the animal otter too. Reply with the single word ok.",
+          "Which word did I ask you to remember first? Reply with that word only.",
+        ],
+        env: { CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: "1" },
+      },
+    ],
+  },
+  {
     name: "two-requests",
     permissionMode: "default",
     runs: [
@@ -249,7 +267,7 @@ function record(
   ]
   const child = spawn("claude", args, {
     cwd: workDir,
-    env: childEnvironment(process.env),
+    env: childEnvironment({ ...process.env, ...run.env }),
     stdio: ["pipe", "pipe", "pipe"],
   })
   const envelopes: Envelope[] = []

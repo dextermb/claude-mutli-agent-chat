@@ -39,7 +39,7 @@ Each item has an `id` (`item-1`, `item-2`, …), unique in its session, and a
 | `permission` | A `permission_request`, then its `permission_answer`          | `pending`, `allowed`, `denied`, `expired` |
 | `question`   | A `permission_request` for `AskUserQuestion`, then its answer | `pending`, `answered`, `expired`          |
 | `turn`       | A `result` line                                               | `done`, `stopped`, `limit`                |
-| `compaction` | `compaction_status`, `compact_boundary`, then the summary     | `running`, `done`                         |
+| `compaction` | `compaction_status`, `compact_boundary`, then the summary     | `running`, `done`, `failed`               |
 
 ### Messages
 
@@ -126,11 +126,12 @@ the first turn.
 ### Compactions
 
 Claude Code compacts the context of a session when the server sends
-`/compact`, or when the context gets near its window (F41 in
-`docs/protocol.md`):
+`/compact` (F41 in `docs/protocol.md`), or by itself before a request when
+the context gets near its window (F59):
 
 ```
 compaction_status "compacting"   → adds a compaction item, running
+compaction_status failed         → the status failed (F60), and nothing more
 compact_boundary                 → sets trigger, preTokens and postTokens
 synthetic_text                   → sets the summary, and the status done
 result                           → a turn, as for each prompt
@@ -138,13 +139,17 @@ result                           → a turn, as for each prompt
 
 - The reducer changes only a compaction that runs. A `compact_boundary` or a
   `synthetic_text` line with no running compaction changes nothing.
-- `trigger` is `manual` for `/compact`. An automatic compaction is not
-  recorded yet.
+- `trigger` is `manual` for `/compact`, and `auto` for a compaction that
+  Claude Code starts. An automatic compaction comes inside a turn, before
+  its answer, so that turn also has messages and tool calls.
+- A compaction fails when the session has too little history
+  (`too_few_groups`). The turn goes on as usual.
 - The summary (F42) is the text that the agent keeps in place of the old
   context.
 - The browser shows a compaction item as a divider
   (`docs/web-app/conversation.md`), and the session card shows the last one
-  (`docs/server.md`).
+  with the status `done` (`docs/server.md`). A failed compaction shows
+  nothing.
 - A compaction item is not unread (`docs/store.md`).
 
 ### Subagents

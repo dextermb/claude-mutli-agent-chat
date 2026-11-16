@@ -141,6 +141,8 @@ The fixture column names a file in `server/protocol/fixtures`. A finding with
 | F56 | **A tool list with no `ToolSearch` loads each MCP schema.** `--tools Read` gave a first request of 280k tokens and cost 0.28 USD for "OK". Deferred tools keep about 240k tokens of the user's MCP schemas out of each agent. | Probe |
 | F57 | **The `SessionStart` hooks run again after each compaction.** Five hooks ran as `SessionStart:compact`. Two wrote output (8.4 KB and 0.4 KB), and that output goes back into the context: `post_tokens` was 17.7k with hooks and 12.1k with `disableAllHooks`. | Probe |
 | F58 | **A `PreCompact` hook sends no hook line, and `--settings` cannot remove it.** Only the replayed line `<local-command-stdout>Compacted PreCompact [bd prime] completed successfully</local-command-stdout>` names it. With `--settings '{"hooks":{"PreCompact":[]}}'`, `bd prime` still ran: the hooks of `--settings` add to the user's hooks. Only `disableAllHooks: true` stops them, and it stops each hook of each event. | Probe |
+| F59 | **An automatic compaction runs inside a turn, before the request.** With `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=1`, Claude Code compacts when the context is over 1% of the window, so before each request. The turn writes `system/init`, `system/status` with `status: "compacting"`, the `SessionStart:compact` hook lines, `system/status` with `compact_result: "success"`, the echo of the prompt, `system/compact_boundary` with `trigger: "auto"`, the summary line, and then the answer of the turn as usual. The summary line has `isSynthetic: true` like F42, but its `content` is an array of text blocks, not a string. In the fixture: 51,547 → 15,411 tokens, and the agent still knew the first word after four compactions. | `compact-auto` |
+| F60 | **A compaction can fail, and the turn goes on.** With too little history, the status line after `compacting` has `status: null`, `compact_result: "failed"` and `compact_error: "too_few_groups"`. No `compact_boundary` and no summary line come, and the turn answers as usual. In the fixture, the first two prompts failed this way. | `compact-auto` |
 
 ## The decoder and the encoders
 
@@ -160,9 +162,9 @@ kind that the app does not read is `unknown` with the raw object.
 | `result` | `result`, with `contextWindows`: the `contextWindow` of each model in `modelUsage` |
 | `task` | `system/task_started`, `task_updated` and `task_notification` |
 | `rate_limit` | `rate_limit_event` |
-| `compaction_status` | `system/status`, with `status` (for example `compacting`) and `compact_result` |
+| `compaction_status` | `system/status`, with `status` (for example `compacting`) and `compact_result` (`success` or `failed`, F60) |
 | `compact_boundary` | `system/compact_boundary`, with the `trigger`, `pre_tokens` and `post_tokens` of `compact_metadata` |
-| `synthetic_text` | `user` with `isSynthetic: true` and a string `content`, for example the summary of a compaction (F42) |
+| `synthetic_text` | `user` with `isSynthetic: true`, from a string `content` (F42) or from its text blocks (F59), for example the summary of a compaction |
 
 A `tool_results` line gives `structured` (the `tool_use_result`) only when it
 holds one result, because that field belongs to the whole line.
@@ -193,6 +195,7 @@ to stdout.
 | `add-dir.jsonl` | `--add-dir`: a `Read` in the added folder (F38), then a prompt with `@notes.txt` (F39) |
 | `max-turns.jsonl` | `--max-turns 1`: a `Read` call that reaches the limit, then a prompt with no tool (F36) |
 | `compact.jsonl` | A prompt, then `/compact` with instructions, then a prompt that needs the memory (F41, F42) |
+| `compact-auto.jsonl` | Six short prompts with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=1`: two automatic compactions that fail, then four that succeed (F59, F60) |
 | `summarize.json` | The JSON answer of one summarizer run with `--output-format json`, not a stream (F46). The recorder does not make it: run the command of F46 again, with the input of `server/summary/summarizer.test.ts` |
 
 To record them again:
@@ -202,7 +205,7 @@ pnpm fixtures:record                       # each scenario
 pnpm fixtures:record server/protocol/fixtures interrupt   # one scenario
 ```
 
-The recorder (`scripts/record-fixtures.ts`) costs about 0.08 USD for each
+The recorder (`scripts/record-fixtures.ts`) costs about 0.14 USD for each
 full run. It uses a fixed work folder, `/tmp/claude-fixture/<scenario>`, so
 that no path of the machine gets into a file. Before it writes a file, it:
 
