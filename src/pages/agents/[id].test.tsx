@@ -432,6 +432,19 @@ describe("the agent configuration page", () => {
     expect(manual).not.toBeChecked()
   })
 
+  test("the command is closed at first, and opens from its summary", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const command = within(
+      await screen.findByRole("region", { name: "Command" })
+    )
+    expect(command.getByRole("code", { hidden: true })).not.toBeVisible()
+
+    await user.click(command.getByText("Command"))
+
+    expect(command.getByRole("code")).toBeVisible()
+  })
+
   test("the command shows how Claude Code starts the agent, follows the form, and can be copied", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
@@ -442,6 +455,7 @@ describe("the agent configuration page", () => {
       )
     )
     const command = within(screen.getByRole("region", { name: "Command" }))
+    await user.click(command.getByText("Command"))
 
     expect(
       command.getByText(
