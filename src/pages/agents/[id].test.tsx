@@ -378,6 +378,46 @@ describe("the agent configuration page", () => {
     }
   })
 
+  test("a saved agent counts its unsaved changes, and discard brings back the saved values", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+    await waitFor(() =>
+      expect(screen.getByLabelText("Working directory")).toHaveValue(
+        "/home/user/code/web-app"
+      )
+    )
+    expect(screen.getByText("All changes are saved.")).toBeInTheDocument()
+
+    await pick("Model", "claude-haiku-5-5")
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Maximum turns" }),
+      "5"
+    )
+
+    expect(screen.getByText("2 unsaved changes")).toBeInTheDocument()
+    const model = within(
+      screen.getByRole("region", { name: "Model and permissions" })
+    )
+    expect(model.getByText("Changed")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("region", { name: "Identity" })).queryByText(
+        "Changed"
+      )
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Discard" }))
+
+    expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent(
+      "claude-sonnet-5-5"
+    )
+    expect(
+      screen.getByRole("spinbutton", { name: "Maximum turns" })
+    ).toHaveValue(null)
+    expect(screen.getByText("All changes are saved.")).toBeInTheDocument()
+    expect(model.queryByText("Changed")).not.toBeInTheDocument()
+  })
+
   test("a usual tool goes into the allowed tools with one click", async () => {
     const user = userEvent.setup()
     network.on("POST", "/api/agents", { agent: testRunner }, 201)

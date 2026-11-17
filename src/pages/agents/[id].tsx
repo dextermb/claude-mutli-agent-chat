@@ -1,5 +1,5 @@
 import { BotIcon, CheckIcon, FolderIcon, MenuIcon } from "lucide-react"
-import { useForm } from "@tanstack/react-form"
+import { useForm, useStore } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
@@ -10,6 +10,7 @@ import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
 import { OnThisPage, type PageSection } from "@/components/forms/on-this-page"
+import { FormBar } from "@/components/forms/form-bar"
 import { SettingsSection } from "@/components/forms/settings-section"
 import type { ActionRefusal } from "@/components/agent-actions/actions"
 import { AgentActions } from "@/components/agent-actions/agent-actions"
@@ -51,6 +52,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { Agent, Conversation } from "@/lib/agent-api"
+import { changedFields, unsavedText } from "@/lib/changed-fields"
 import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
 import { invalid, shown } from "@/lib/form-errors"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
@@ -59,13 +61,25 @@ type Draft = AgentDraft
 
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
 const USUAL_TOOLS = ["Read", "Edit", "Write", "Bash(git status)"]
-const SECTIONS: PageSection[] = [
-  { id: "identity", title: "Identity" },
-  { id: "model", title: "Model and permissions" },
-  { id: "folder", title: "Folder and limits" },
-  { id: "tools", title: "Tools" },
-  { id: "instructions", title: "Instructions" },
-  { id: "command", title: "Command" },
+const SECTIONS: (PageSection & { fields: (keyof Draft)[] })[] = [
+  {
+    id: "identity",
+    title: "Identity",
+    fields: ["name", "colour", "description"],
+  },
+  {
+    id: "model",
+    title: "Model and permissions",
+    fields: ["model", "permissionMode"],
+  },
+  {
+    id: "folder",
+    title: "Folder and limits",
+    fields: ["cwd", "maxTurns", "sleepAfterMinutes", "autostart"],
+  },
+  { id: "tools", title: "Tools", fields: ["allowedTools", "disallowedTools"] },
+  { id: "instructions", title: "Instructions", fields: ["systemPrompt"] },
+  { id: "command", title: "Command", fields: [] },
 ]
 const EMPTY: Draft = {
   name: "",
@@ -149,6 +163,15 @@ export default function AgentPage() {
     setError(null)
     if (isNew) navigate(`/agents/${body.agent.id}`)
   }
+
+  const values = useStore(form.store, (state) => state.values)
+  const changed = saved ? changedFields(values, saved) : []
+  const sections = SECTIONS.map((section) => ({
+    ...section,
+    changed: section.fields.some((name) => changed.includes(name)),
+  }))
+  const changedIn = (sectionId: string) =>
+    sections.find((section) => section.id === sectionId)?.changed ?? false
 
   const agent = agents.find((item) => item.id === id)
   const directMessage = conversations.find(
@@ -247,18 +270,10 @@ export default function AgentPage() {
                   </div>
                   <p className="m-0 text-muted-foreground">
                     {isNew
-                      ? "The agent starts when it gets its first message."
+                      ? "A headless Claude Code agent. Only the name is necessary."
                       : placesOf(id, conversations)}
                   </p>
                 </div>
-                {isNew && (
-                  <Link
-                    href="/"
-                    className={buttonVariants({ variant: "ghost" })}
-                  >
-                    Cancel
-                  </Link>
-                )}
                 {agent && agent.state !== "exited" && (
                   <AgentActions
                     agentId={agent.id}
@@ -266,10 +281,6 @@ export default function AgentPage() {
                     onRefusal={setActionRefusal}
                   />
                 )}
-                <Button type="submit">
-                  <CheckIcon />
-                  {isNew ? "Create agent" : "Save agent"}
-                </Button>
               </header>
               {error && (
                 <RefusalAlert
@@ -286,6 +297,7 @@ export default function AgentPage() {
               )}
               <SettingsSection
                 id="identity"
+                changed={changedIn("identity")}
                 title="Identity"
                 description="How people see and mention the agent."
               >
@@ -353,6 +365,7 @@ export default function AgentPage() {
 
               <SettingsSection
                 id="model"
+                changed={changedIn("model")}
                 title="Model and permissions"
                 description="Which model runs, and what it can do without your approval."
               >
@@ -387,6 +400,7 @@ export default function AgentPage() {
 
               <SettingsSection
                 id="folder"
+                changed={changedIn("folder")}
                 title="Folder and limits"
                 description="Where the agent works, and when it stops."
               >
@@ -557,6 +571,7 @@ export default function AgentPage() {
 
               <SettingsSection
                 id="tools"
+                changed={changedIn("tools")}
                 title="Tools"
                 description="Allowed tools run without a prompt. Blocked tools never run."
               >
@@ -594,6 +609,7 @@ export default function AgentPage() {
 
               <SettingsSection
                 id="instructions"
+                changed={changedIn("instructions")}
                 title="Instructions"
                 description="Added to the Claude Code system prompt. Keep repo rules in CLAUDE.md. The agent loads them."
               >
@@ -647,8 +663,46 @@ export default function AgentPage() {
                 />
               )}
             </div>
-            <OnThisPage sections={SECTIONS} />
+            <OnThisPage sections={sections} />
           </div>
+          <FormBar
+            status={
+              isNew ? (
+                "The agent starts when it gets its first message."
+              ) : (
+                <>
+                  <span className="font-medium text-foreground-strong">
+                    {unsavedText(changed.length)}
+                  </span>
+                  {changed.length > 0 && (
+                    <span className="text-xs">
+                      The process that runs now keeps the old values.
+                    </span>
+                  )}
+                </>
+              )
+            }
+          >
+            {isNew ? (
+              <Link href="/" className={buttonVariants({ variant: "ghost" })}>
+                Cancel
+              </Link>
+            ) : (
+              changed.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => form.reset()}
+                >
+                  Discard
+                </Button>
+              )
+            )}
+            <Button type="submit">
+              <CheckIcon />
+              {isNew ? "Create agent" : "Save agent"}
+            </Button>
+          </FormBar>
         </form>
         <DeleteDialog
           target={deleting}
