@@ -115,6 +115,7 @@ same way, with its own counter and log. It sends:
 | `{ type: "conversation", conversation }`           | The server makes a conversation, or its members or settings change |
 | `{ type: "unread", conversationId, count }`        | The unread count of a conversation changes                         |
 | `{ type: "conversation_deleted", conversationId }` | A conversation is deleted (`docs/delete.md`)                       |
+| `{ type: "agent", agent }`                         | An agent is created or saved. `agent` has its `state`              |
 | `{ type: "agent_deleted", agentId }`               | An agent is deleted                                                |
 
 The unread count of a conversation counts the agent items for the user to

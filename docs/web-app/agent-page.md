@@ -68,11 +68,18 @@ the page shows an error toast with the title "The server refused the agent."
 and the reason, and each message of the server under its field. See
 `docs/forms.md`.
 
-The page keeps a loaded agent in state and gives it to `useForm()` as the
-default values. A call to `form.reset()` is not enough to load it: the page
-renders again when the workspace loads, and the form then goes back to the
-default values of its options, because the user has not changed a field yet.
-Discard calls `form.reset()`, which goes back to the saved agent.
+The route keeps one page from `/agents/new` to `/agents/<id>` and back, so
+the page starts its form again on each change of the id. `/agents/new` calls
+`form.reset()` with the empty agent. A loaded agent goes into state with its
+id, and the page calls `form.reset()` with it. The page also gives the loaded
+agent to `useForm()` as the default values, because the page renders again
+when the workspace loads, and the form then goes back to the default values
+of its options. Discard calls `form.reset()`, which goes back to the saved
+agent.
+
+A create and a save each send an `agent` event on the app stream
+(`docs/server.md`). `useWorkspace()` adds the agent or replaces it, so the
+sidebar, Create a channel and Start a chat show the new name at once.
 
 Identity has the name (with `@` before it), the colour and a one-line
 Description. The colour is a row of six swatches, and the legend names the

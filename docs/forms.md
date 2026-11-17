@@ -41,6 +41,24 @@ The `<Toaster>` of `src/components/ui/toast.tsx` is around the app in
 `src/App.tsx`. Today the agent page and its Stop agent and Restart session
 use them. The dialogs still show a refusal in an alert in the dialog.
 
+## After a success
+
+A form clears its values after a success, and the app shows the change at
+once, because each write route sends an event on the app stream
+(`docs/server.md`):
+
+| Form                        | After a success                                       | The event                           |
+| --------------------------- | ----------------------------------------------------- | ----------------------------------- |
+| The agent page, new agent   | goes to `/agents/<id>`. New agent opens an empty form | `agent`                             |
+| The agent page, saved agent | stays. Discard goes back to the saved values          | `agent`                             |
+| Create a channel            | `form.reset()`, goes to the channel                   | `conversation`                      |
+| Start a chat                | clears the picked agents and the search, goes there   | `conversation`, for a new chat only |
+| Channel settings            | closes. The form mounts again on each open            | `conversation`                      |
+| Add members                 | clears the picked agents, closes                      | `conversation`                      |
+
+The sidebar, Create a channel and Start a chat take their agents from
+`useWorkspace()`. Add members reads `GET /api/agents` each time it opens.
+
 ## One schema
 
 `server/schemas.ts` holds `agentSchema` and `channelSchema`. It imports only
