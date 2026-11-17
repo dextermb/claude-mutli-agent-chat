@@ -4,6 +4,7 @@ import { shownName } from "../../server/agent-names.ts"
 export type DeleteTarget = {
   title: string
   action: string
+  done: string
   url: string
   points: string[]
   conversationIds: string[]
@@ -21,6 +22,7 @@ export function conversationTarget(
   return {
     title: channel ? `Delete ${name}?` : "Delete this group chat?",
     action: channel ? "Delete channel" : "Delete group chat",
+    done: channel ? `${name} is deleted.` : "The group chat is deleted.",
     url: `/api/conversations/${conversation.id}`,
     conversationIds: [conversation.id],
     points: [
@@ -59,6 +61,7 @@ export function agentTarget(
   return {
     title: `Delete ${name}?`,
     action: "Delete agent",
+    done: `${name} is deleted.`,
     url: `/api/agents/${agent.id}`,
     conversationIds: gone.map((item) => item.id),
     points: [

@@ -38,8 +38,22 @@ While its request runs, a button shows a Spinner, says what it does
   reason. A message for a field still shows under its field.
 
 The `<Toaster>` of `src/components/ui/toast.tsx` is around the app in
-`src/App.tsx`. Today the agent page and its Stop agent and Restart session
-use them. The dialogs still show a refusal in an alert in the dialog.
+`src/App.tsx`. The agent page, its Stop agent and Restart session, the
+dialogs and the session panel use it.
+
+| Where                 | Pending label                         | Success toast                                                         |
+| --------------------- | ------------------------------------- | --------------------------------------------------------------------- |
+| Create a channel      | "Creating…"                           | "#name is created."                                                   |
+| Channel settings      | "Saving…"                             | "#name is saved."                                                     |
+| Group chat settings   | "Saving…"                             | "Group chat settings are saved."                                      |
+| Start a chat          | "Starting…"                           | "The DM with test-runner is started." or "The group chat is started." |
+| Members (Add members) | "Adding…"                             | "test-runner is added." or "2 agents are added."                      |
+| Delete dialog         | a Spinner                             | "#name is deleted." (`DeleteTarget.done`)                             |
+| Session panel         | "Stopping…", "Starting…", "Removing…" | `docs/web-app/session-panel.md`                                       |
+
+A refusal in a dialog stays in an alert in the dialog, next to the fields,
+because the dialog stays open. A toast shows only a success. The session panel
+has no fields, so it shows a refusal in an error toast.
 
 ## After a success
 

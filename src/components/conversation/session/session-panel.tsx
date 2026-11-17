@@ -1,12 +1,6 @@
-import { useState } from "react"
-
 import { AllowedTools } from "@/components/conversation/session/allowed-tools"
-import { RefusalOf } from "@/components/conversation/session/refusal-of"
 import { SessionActions } from "@/components/conversation/session/session-actions"
-import type {
-  Refusal,
-  SessionDetailsProps,
-} from "@/components/conversation/session/session-details"
+import type { SessionDetailsProps } from "@/components/conversation/session/session-details"
 import { SessionFacts } from "@/components/conversation/session/session-facts"
 import {
   Card,
@@ -18,7 +12,6 @@ import {
 } from "@/components/ui/card"
 
 export function SessionPanel(details: SessionDetailsProps) {
-  const [refusal, setRefusal] = useState<Refusal>(null)
   return (
     <aside
       aria-label="Session"
@@ -27,7 +20,6 @@ export function SessionPanel(details: SessionDetailsProps) {
       <h2 className="m-0 px-1 text-sm font-semibold text-foreground-strong">
         Session
       </h2>
-      <RefusalOf refusal={refusal} onClose={() => setRefusal(null)} />
       <Card size="sm">
         <CardHeader>
           <CardTitle>Session</CardTitle>
@@ -37,7 +29,7 @@ export function SessionPanel(details: SessionDetailsProps) {
           <SessionFacts card={details.card} withModel />
         </CardContent>
         <CardFooter>
-          <SessionActions {...details} onRefusal={setRefusal} />
+          <SessionActions {...details} />
         </CardFooter>
       </Card>
       {details.card && (

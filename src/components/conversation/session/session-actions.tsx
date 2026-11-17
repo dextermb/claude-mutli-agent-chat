@@ -1,10 +1,7 @@
 import { RotateCcwIcon, SquareIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
 
-import type {
-  Refusal,
-  SessionDetailsProps,
-} from "@/components/conversation/session/session-details"
+import type { SessionDetailsProps } from "@/components/conversation/session/session-details"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +14,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
+import { toastDone, toastRefusal } from "@/lib/toasts"
+
+type Action = "stop" | "new" | "remove"
 
 export function SessionActions({
   agentName,
@@ -24,12 +25,20 @@ export function SessionActions({
   onStopTurn,
   onNewSession,
   onRemove,
-  onRefusal,
-}: SessionDetailsProps & { onRefusal: (refusal: Refusal) => void }) {
+}: SessionDetailsProps) {
   const [asking, setAsking] = useState(false)
-  async function act(title: string, action: () => Promise<string | null>) {
+  const [pending, setPending] = useState<Action | null>(null)
+  async function act(
+    which: Action,
+    title: string,
+    done: string,
+    action: () => Promise<string | null>
+  ) {
+    setPending(which)
     const reason = await action()
-    onRefusal(reason === null ? null : { title, reason })
+    setPending(null)
+    if (reason === null) toastDone(done)
+    else toastRefusal(title, reason)
   }
   return (
     <div className="flex flex-wrap gap-2">
@@ -37,10 +46,18 @@ export function SessionActions({
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => void act("Stop turn did not work.", onStopTurn)}
+          disabled={pending !== null}
+          onClick={() =>
+            void act(
+              "stop",
+              "Stop turn did not work.",
+              `The turn of ${agentName} is stopped.`,
+              onStopTurn
+            )
+          }
         >
-          <SquareIcon />
-          Stop turn
+          {pending === "stop" ? <Spinner aria-hidden="true" /> : <SquareIcon />}
+          {pending === "stop" ? "Stopping…" : "Stop turn"}
         </Button>
       )}
       <AlertDialog open={asking} onOpenChange={setAsking}>
@@ -63,15 +80,26 @@ export function SessionActions({
             <li>A divider marks the new session in the timeline.</li>
           </ul>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending === "new"}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
+              disabled={pending === "new"}
               onClick={() => {
-                setAsking(false)
-                void act("New session did not work.", onNewSession)
+                void act(
+                  "new",
+                  "New session did not work.",
+                  `A new session of ${agentName} is started.`,
+                  onNewSession
+                ).then(() => setAsking(false))
               }}
             >
-              <RotateCcwIcon />
-              Start new session
+              {pending === "new" ? (
+                <Spinner aria-hidden="true" />
+              ) : (
+                <RotateCcwIcon />
+              )}
+              {pending === "new" ? "Starting…" : "Start new session"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -80,10 +108,22 @@ export function SessionActions({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => void act("Remove did not work.", onRemove)}
+          disabled={pending !== null}
+          onClick={() =>
+            void act(
+              "remove",
+              "Remove did not work.",
+              `${agentName} is removed.`,
+              onRemove
+            )
+          }
         >
-          <Trash2Icon />
-          Remove
+          {pending === "remove" ? (
+            <Spinner aria-hidden="true" />
+          ) : (
+            <Trash2Icon />
+          )}
+          {pending === "remove" ? "Removing…" : "Remove"}
         </Button>
       )}
     </div>

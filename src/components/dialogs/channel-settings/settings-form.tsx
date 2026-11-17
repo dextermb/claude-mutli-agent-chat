@@ -17,8 +17,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { FieldGroup } from "@/components/ui/field"
+import { Spinner } from "@/components/ui/spinner"
 import type { Conversation } from "@/lib/agent-api"
 import { refusalOf } from "@/lib/refusal"
+import { toastDone } from "@/lib/toasts"
 import type { ChannelSettingsDraft } from "../../../../server/schemas.ts"
 
 export function SettingsForm({
@@ -71,6 +73,7 @@ export function SettingsForm({
       setError(refusal)
       return
     }
+    toastDone(`#${conversation.name} is saved.`)
     onSaved()
   }
 
@@ -111,7 +114,8 @@ export function SettingsForm({
           Cancel
         </DialogClose>
         <Button type="submit" disabled={saving}>
-          Save
+          {saving && <Spinner aria-hidden="true" />}
+          {saving ? "Saving…" : "Save"}
         </Button>
       </DialogFooter>
     </form>

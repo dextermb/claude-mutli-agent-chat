@@ -101,7 +101,33 @@ describe("the Create a channel dialog", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe("/conversations/ch1")
     )
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("dialog", { name: "Create a channel" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("the button shows that the channel is created, and a toast says when it is created", async () => {
+    const user = userEvent.setup()
+    const release = network.hold(
+      "POST",
+      "/api/conversations",
+      { conversation: releaseChannel },
+      201
+    )
+    const dialog = await openDialog(user)
+
+    await user.type(within(dialog).getByLabelText("Name"), "release-train")
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create channel" })
+    )
+
+    expect(
+      await within(dialog).findByRole("button", { name: "Creating…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "#release-train is created." })
+    ).toBeInTheDocument()
   })
 
   test("a channel name with capitals shows the rule after the field, and sends nothing", async () => {

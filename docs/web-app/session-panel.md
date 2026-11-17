@@ -55,14 +55,22 @@ model, Stop turn, New session and Remove. After Remove, the row closes. At the
 end, "Invite agents" (a channel) or "Add people or agents" (a group chat)
 opens the dialog of `docs/web-app/sidebar.md`.
 
-## A refused action
+## Pending buttons and toasts
 
-When the server refuses Stop turn, New session or Remove, an alert shows a
-title for the action ("Stop turn did not work.") and the reason. In a DM, it
-is at the top of the panel. In a group chat or a channel, it is in the open
-row. The alert closes at the next action that works, or with "Close the
-alert". Each agent has its own alert, so the reason of one agent does not
-show in the session of another.
+While a request runs, its button shows a Spinner and says "Stopping…",
+"Starting…" or "Removing…", and the three buttons are disabled. The confirm
+button of New session shows "Starting…", and the dialog closes when the
+request ends. A toast then gives the result (`docs/forms.md`):
+
+| Action      | Success                                    |
+| ----------- | ------------------------------------------ |
+| Stop turn   | "The turn of test-runner is stopped."      |
+| New session | "A new session of test-runner is started." |
+| Remove      | "test-runner is removed."                  |
+
+When the server refuses an action, an error toast shows the title of the
+action ("Stop turn did not work.") and the reason. It stays until the user
+closes it.
 
 A new session shows in the timeline as a divider: "New session · 14:03", or
 "New session for test-runner · 14:03" when the conversation has more than one
