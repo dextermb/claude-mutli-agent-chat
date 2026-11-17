@@ -2,7 +2,7 @@
 
 This page holds the routes that read the disk: the uploads, the shared files
 of a conversation, the `@` search of paths, and the folders of Browse. The
-user-facing side is in `../web-app/conversation.md`.
+user-facing side is in `../web-app/files.md`.
 
 ## Two kinds of shared file
 

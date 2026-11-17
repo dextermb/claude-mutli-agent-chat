@@ -1,7 +1,7 @@
 # The scroll of the messages
 
 This page tells how the messages of a conversation stay at the bottom while
-new content arrives. The timeline itself is in `docs/web-app/conversation.md`.
+new content arrives. The timeline itself is in `docs/web-app/conversation/timeline.md`.
 
 ## The parts
 

@@ -61,7 +61,7 @@ A row with an unread count is bold, and shows the count in a yellow badge
 after the last visit (`docs/server.md`). A screen reader hears the count after
 the name: "release-train 2 unread". The row of the open conversation never
 shows a count, because the page reads each new item at once
-(`docs/web-app/conversation.md`).
+(`docs/web-app/conversation/data.md`).
 
 When an agent works or waits, a footer counts them: "2 agents working · 1
 needs approval". With no such agent, the footer is not there.
