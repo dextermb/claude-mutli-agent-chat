@@ -43,6 +43,7 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
+  InputGroupText,
 } from "@/components/ui/input-group"
 import {
   Select,
@@ -318,22 +319,32 @@ export default function AgentPage() {
                     {(field) => (
                       <Field data-invalid={invalid(field.state.meta)}>
                         <FieldLabel htmlFor="agent-name">Name</FieldLabel>
-                        <Input
-                          id="agent-name"
-                          className="font-mono"
-                          placeholder="test-runner"
-                          value={field.state.value}
-                          aria-invalid={invalid(field.state.meta)}
-                          aria-describedby={
-                            invalid(field.state.meta)
-                              ? "agent-name-error"
-                              : "agent-name-description"
-                          }
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(event.currentTarget.value)
-                          }
-                        />
+                        <InputGroup>
+                          <InputGroupAddon>
+                            <InputGroupText
+                              aria-hidden="true"
+                              className="font-mono"
+                            >
+                              @
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            id="agent-name"
+                            className="font-mono"
+                            placeholder="test-runner"
+                            value={field.state.value}
+                            aria-invalid={invalid(field.state.meta)}
+                            aria-describedby={
+                              invalid(field.state.meta)
+                                ? "agent-name-error"
+                                : "agent-name-description"
+                            }
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.currentTarget.value)
+                            }
+                          />
+                        </InputGroup>
                         {!invalid(field.state.meta) && (
                           <FieldDescription id="agent-name-description">
                             People type @{field.state.value || "name"} to call
@@ -369,6 +380,10 @@ export default function AgentPage() {
                             field.handleChange(event.currentTarget.value)
                           }
                         />
+                        <FieldDescription>
+                          Optional. For the people who read this page. The agent
+                          does not see it.
+                        </FieldDescription>
                       </Field>
                     )}
                   </form.Field>
@@ -472,90 +487,92 @@ export default function AgentPage() {
                       </Field>
                     )}
                   </form.Field>
-                  <form.Field name="maxTurns">
-                    {(field) => (
-                      <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-turns">
-                          Maximum turns
-                        </FieldLabel>
-                        <Input
-                          id="agent-turns"
-                          type="number"
-                          min={1}
-                          step={1}
-                          className="w-36 font-mono"
-                          value={field.state.value ?? ""}
-                          aria-invalid={invalid(field.state.meta)}
-                          aria-describedby={
-                            invalid(field.state.meta)
-                              ? "agent-turns-error"
-                              : "agent-turns-description"
-                          }
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(
-                              event.currentTarget.value === ""
-                                ? null
-                                : Number(event.currentTarget.value)
-                            )
-                          }
-                        />
-                        {!invalid(field.state.meta) && (
-                          <FieldDescription id="agent-turns-description">
-                            The most turns for each message. Leave it empty for
-                            no limit.
-                          </FieldDescription>
-                        )}
-                        <FieldError
-                          id="agent-turns-error"
-                          errors={shown(field.state.meta)}
-                        />
-                      </Field>
-                    )}
-                  </form.Field>
-                  <form.Field name="sleepAfterMinutes">
-                    {(field) => (
-                      <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-sleep">
-                          Sleep after (minutes)
-                        </FieldLabel>
-                        <Input
-                          id="agent-sleep"
-                          type="number"
-                          min={0}
-                          max={55}
-                          step={1}
-                          className="w-36 font-mono"
-                          value={field.state.value ?? ""}
-                          aria-invalid={invalid(field.state.meta)}
-                          aria-describedby={
-                            invalid(field.state.meta)
-                              ? "agent-sleep-error"
-                              : "agent-sleep-description"
-                          }
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(
-                              event.currentTarget.value === ""
-                                ? null
-                                : Number(event.currentTarget.value)
-                            )
-                          }
-                        />
-                        {!invalid(field.state.meta) && (
-                          <FieldDescription id="agent-sleep-description">
-                            After this idle time, the agent saves its memory and
-                            its process stops. Empty: the app value. 0: never. A
-                            channel can set its own time.
-                          </FieldDescription>
-                        )}
-                        <FieldError
-                          id="agent-sleep-error"
-                          errors={shown(field.state.meta)}
-                        />
-                      </Field>
-                    )}
-                  </form.Field>
+                  <div className="grid items-start gap-4 sm:grid-cols-2">
+                    <form.Field name="maxTurns">
+                      {(field) => (
+                        <Field data-invalid={invalid(field.state.meta)}>
+                          <FieldLabel htmlFor="agent-turns">
+                            Maximum turns
+                          </FieldLabel>
+                          <Input
+                            id="agent-turns"
+                            type="number"
+                            min={1}
+                            step={1}
+                            className="font-mono"
+                            value={field.state.value ?? ""}
+                            aria-invalid={invalid(field.state.meta)}
+                            aria-describedby={
+                              invalid(field.state.meta)
+                                ? "agent-turns-error"
+                                : "agent-turns-description"
+                            }
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(
+                                event.currentTarget.value === ""
+                                  ? null
+                                  : Number(event.currentTarget.value)
+                              )
+                            }
+                          />
+                          {!invalid(field.state.meta) && (
+                            <FieldDescription id="agent-turns-description">
+                              The most turns for each message. Leave it empty
+                              for no limit.
+                            </FieldDescription>
+                          )}
+                          <FieldError
+                            id="agent-turns-error"
+                            errors={shown(field.state.meta)}
+                          />
+                        </Field>
+                      )}
+                    </form.Field>
+                    <form.Field name="sleepAfterMinutes">
+                      {(field) => (
+                        <Field data-invalid={invalid(field.state.meta)}>
+                          <FieldLabel htmlFor="agent-sleep">
+                            Sleep after (minutes)
+                          </FieldLabel>
+                          <Input
+                            id="agent-sleep"
+                            type="number"
+                            min={0}
+                            max={55}
+                            step={1}
+                            className="font-mono"
+                            value={field.state.value ?? ""}
+                            aria-invalid={invalid(field.state.meta)}
+                            aria-describedby={
+                              invalid(field.state.meta)
+                                ? "agent-sleep-error"
+                                : "agent-sleep-description"
+                            }
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(
+                                event.currentTarget.value === ""
+                                  ? null
+                                  : Number(event.currentTarget.value)
+                              )
+                            }
+                          />
+                          {!invalid(field.state.meta) && (
+                            <FieldDescription id="agent-sleep-description">
+                              After this idle time, the agent saves its memory
+                              and its process stops. Empty: the app value. 0:
+                              never. A channel can set its own time.
+                            </FieldDescription>
+                          )}
+                          <FieldError
+                            id="agent-sleep-error"
+                            errors={shown(field.state.meta)}
+                          />
+                        </Field>
+                      )}
+                    </form.Field>
+                  </div>
                   <form.Field name="autostart">
                     {(field) => (
                       <Field orientation="horizontal">
@@ -633,7 +650,7 @@ export default function AgentPage() {
                       </FieldLabel>
                       <Textarea
                         id="agent-prompt"
-                        rows={8}
+                        rows={10}
                         className="font-mono"
                         placeholder="Write what the agent does and when it stops."
                         value={field.state.value ?? ""}
@@ -641,9 +658,7 @@ export default function AgentPage() {
                           field.handleChange(event.currentTarget.value)
                         }
                       />
-                      <FieldDescription>
-                        Keep repo rules in CLAUDE.md. The agent loads them.
-                      </FieldDescription>
+                      <FieldDescription>Optional.</FieldDescription>
                     </Field>
                   )}
                 </form.Field>

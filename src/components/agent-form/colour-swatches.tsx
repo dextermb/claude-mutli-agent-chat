@@ -25,7 +25,7 @@ export function ColourSwatches({
     <FieldSet>
       <FieldLegend variant="label">
         <span id="agent-colour-label">Colour</span>
-        <span aria-hidden="true" className="text-muted-foreground">
+        <span aria-hidden="true" className="mx-1.5 text-muted-foreground">
           ·
         </span>
         <span className="font-normal text-muted-foreground">{value}</span>

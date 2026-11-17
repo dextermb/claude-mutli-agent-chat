@@ -90,7 +90,15 @@ The browser tests use `src/test/fake-network.ts`. It replaces `fetch` and
 stream events. A page opens two streams, so `network.stream(address)` finds
 the last stream whose address starts with `address`.
 `network.fail(method, url)` makes `fetch` reject for that request, as it does
-when the server is down.
+when the server is down. `network.hold(method, url, reply, status)` keeps the
+reply until the test calls the function that it gives back, so the test can
+see a button while its request runs.
+
+`<App />` holds the `<Toaster>`, so a page test sees each toast. A success
+toast is a `dialog` with the toast title as its name. An error toast has a
+high priority, and Base UI hides it from screen readers until it gets the
+focus. A screen reader gets its title and reason from a hidden `alert`, so a
+test finds an error toast with `findByRole("alert")`.
 `src/test/conversation-data.ts` holds the conversation, the
 agent and the timeline entries that the tests show.
 
