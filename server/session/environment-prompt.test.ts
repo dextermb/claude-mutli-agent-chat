@@ -183,4 +183,10 @@ describe("rulesNote", () => {
   test("a conversation with no rules gives no block", () => {
     expect(rulesNote(undefined, null, "group")).toBeUndefined()
   })
+
+  test("a resumed session with no rules now learns that rules from an earlier prompt do not apply", () => {
+    expect(rulesNote(undefined, null, "channel", true)).toBe(
+      "[Chat app] This channel has no rules now. Do not follow rules from an earlier prompt."
+    )
+  })
 })

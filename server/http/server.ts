@@ -24,6 +24,7 @@ import type { Summarize } from "../summary/summarizer.ts"
 import {
   ENVIRONMENT_RULE,
   factsNote,
+  rulesNote,
   sessionFacts,
 } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
@@ -88,6 +89,8 @@ type LiveSession = {
   queue: QueuedPrompt[]
   cwd: string
   facts: string[] | null
+  rules: string | null | undefined
+  rulesEarlier: boolean
   sleepTimer: ReturnType<typeof setTimeout> | null
   compactingForSleep: boolean
   contextTokens: number
@@ -263,6 +266,8 @@ export function createServer({
       queue: [],
       cwd,
       facts: null,
+      rules: undefined,
+      rulesEarlier: row.claudeSessionId !== null && !row.claudeSessionNew,
       sleepTimer: null,
       compactingForSleep: false,
       contextTokens: 0,
@@ -331,6 +336,10 @@ export function createServer({
         }
       }
       for (const item of event.items) {
+        if (item.kind === "compaction" && item.status === "done") {
+          session.rules = undefined
+          session.rulesEarlier = true
+        }
         if (item.kind === "tool_call" && item.job) {
           if (item.job.status === "running") session.runningJobs.add(item.id)
           else session.runningJobs.delete(item.id)
@@ -659,13 +668,24 @@ export function createServer({
     const queued = session.queue.shift()
     if (queued === undefined) return
     const facts = factsOf(session)
+    const conversation = store.getConversation(session.conversationId)
+    const rules = conversation?.rules ?? null
     const notes = [
       gapNote(session.asleepForMs),
       session.restartNote,
       facts ? factsNote(session.facts, facts) : undefined,
+      conversation
+        ? rulesNote(
+            session.rules,
+            rules,
+            conversation.kind,
+            session.rulesEarlier
+          )
+        : undefined,
       queued.note,
     ].filter((note) => note !== undefined && note !== null)
     if (facts) session.facts = facts
+    session.rules = rules
     session.asleepForMs = null
     session.restartNote = null
     session.handle?.prompt(

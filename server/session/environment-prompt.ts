@@ -47,12 +47,17 @@ export function factsNote(
 export function rulesNote(
   sent: string | null | undefined,
   now: string | null,
-  kind: Conversation["kind"]
+  kind: Conversation["kind"],
+  earlier = false
 ): string | undefined {
   if (now === sent) return undefined
   const place = kindName(kind)
   if (now === null) {
-    return sent ? `[Chat app] The user removed the rules of this ${place}.` : undefined
+    if (sent) return `[Chat app] The user removed the rules of this ${place}.`
+    if (sent === undefined && earlier) {
+      return `[Chat app] This ${place} has no rules now. Do not follow rules from an earlier prompt.`
+    }
+    return undefined
   }
   const heading =
     typeof sent === "string"
