@@ -16,26 +16,27 @@ directory gives the same information.
 
 ## The directories
 
-| Directory                  | Holds                                                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `alerts`                   | `RefusalAlert`, the alert for a refused request                                                                                         |
-| `agent-actions`            | The Stop and Restart actions of the agent page                                                                                          |
-| `agent-form`               | The command preview, the tool rules, the permission mode cards and the colour swatches of the agent form                                |
-| `forms`                    | The layout of a form on a page: a section, On this page, and the bar at the foot. See `docs/forms.md`                                   |
-| `dialogs`                  | The dialogs that open from a page: create a channel, start a chat, add members, group chat settings, the delete confirm and its section |
-| `dialogs/channel-settings` | The Channel settings dialog and its form                                                                                                |
-| `dialogs/folder`           | The Pick a folder dialog and its picker                                                                                                 |
-| `fields/channel`           | One field of the channel forms in each file                                                                                             |
-| `sidebar`                  | The sidebar, its rows and their ×, its sections, the workspace rail and the work footer                                                 |
-| `theme`                    | The theme provider, its context and `useTheme`                                                                                          |
-| `conversation`             | The parts of a conversation page. See `docs/web-app/conversation.md`                                                                    |
-| `conversation/cards`       | The approval card and the question card                                                                                                 |
-| `conversation/composer`    | The message box, its mention list, its attachment chip, the model and the context                                                       |
-| `conversation/files`       | The shared files: the panel, the list, a row, the files of a message and the tab                                                        |
-| `conversation/session`     | The session panel, the sheet, the members panel and the session log                                                                     |
-| `conversation/timeline`    | The timeline, its dividers, groups, entries and mentions, and the jump button                                                           |
-| `conversation/tool-call`   | A tool call line, its description, its diff and its output                                                                              |
-| `ui`                       | The shadcn components                                                                                                                   |
+| Directory                     | Holds                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `alerts`                      | `RefusalAlert`, the alert for a refused request                                                                    |
+| `agent-actions`               | The Stop and Restart actions of the agent page                                                                     |
+| `agent-form`                  | The command preview, the tool rules, the permission mode cards and the colour swatches of the agent form           |
+| `forms`                       | The layout of a form on a page: a section, On this page, and the bar at the foot. See `docs/forms.md`              |
+| `dialogs`                     | The dialogs that open from a page: create a channel, start a chat, add members, the delete confirm and its section |
+| `dialogs/channel-settings`    | The Channel settings dialog and its form                                                                           |
+| `dialogs/group-chat-settings` | The Group chat settings dialog and its form                                                                        |
+| `dialogs/folder`              | The Pick a folder dialog and its picker                                                                            |
+| `fields/channel`              | One field of the channel forms in each file. The Rules field is also in Group chat settings                        |
+| `sidebar`                     | The sidebar, its rows and their ×, its sections, the workspace rail and the work footer                            |
+| `theme`                       | The theme provider, its context and `useTheme`                                                                     |
+| `conversation`                | The parts of a conversation page: the working line and the Rules badge. See `docs/web-app/conversation.md`         |
+| `conversation/cards`          | The approval card and the question card                                                                            |
+| `conversation/composer`       | The message box, its mention list, its attachment chip, the model and the context                                  |
+| `conversation/files`          | The shared files: the panel, the list, a row, the files of a message and the tab                                   |
+| `conversation/session`        | The session panel, the sheet, the members panel and the session log                                                |
+| `conversation/timeline`       | The timeline, its dividers, groups, entries and mentions, and the jump button                                      |
+| `conversation/tool-call`      | A tool call line, its description, its diff and its output                                                         |
+| `ui`                          | The shadcn components                                                                                              |
 
 ## The helpers
 
