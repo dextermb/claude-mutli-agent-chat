@@ -43,7 +43,7 @@ export function CommandPreview({
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <ChevronRightIcon
             aria-hidden="true"
-            className="size-4 transition-transform group-open/command:rotate-90"
+            className="size-4 transition-transform group-open/command:rotate-90 motion-reduce:transition-none"
           />
           <TerminalIcon aria-hidden="true" className="size-4" />
           <h2

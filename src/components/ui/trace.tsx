@@ -118,7 +118,7 @@ function TraceCollapsibleTrigger({
       {...props}
     >
       {children}
-      <TraceIcon className="transition-transform group-aria-expanded/trace-collapsible-trigger:rotate-90">
+      <TraceIcon className="transition-transform group-aria-expanded/trace-collapsible-trigger:rotate-90 motion-reduce:transition-none">
         <ChevronRightIcon />
       </TraceIcon>
     </CollapsibleTrigger>
@@ -131,11 +131,7 @@ function TraceCollapsibleContent({
   ...props
 }: React.ComponentProps<typeof CollapsibleContent>) {
   return (
-    <CollapsibleContent
-      data-slot="trace-collapsible-content"
-      className="h-(--collapsible-panel-height) min-w-0 overflow-hidden transition-[height] duration-200 data-ending-style:h-0 data-starting-style:h-0"
-      {...props}
-    >
+    <CollapsibleContent data-slot="trace-collapsible-content" {...props}>
       <div
         data-slot="trace-collapsible-content-inner"
         className={cn(
