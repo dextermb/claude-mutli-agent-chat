@@ -95,8 +95,12 @@ The Working directory input has Browse at its end. It opens
 `src/components/dialogs/folder/folder-dialog.tsx`, "Pick a folder", at the folder
 in the field when that is an absolute path that exists, else at the home
 folder (`GET /api/folders`, `docs/server/files.md`). The dialog shows the path in
-mono, Up (disabled at `/`), one button for each subfolder, or "No folders in
-this folder.", and Cancel and "Use this folder". Browse always puts an
+mono, Up (disabled at `/`), a "Filter folders" input, one button for each
+subfolder, or "No folders in this folder.", and Cancel and "Use this folder".
+The filter is fuzzy (`src/lib/fuzzy.ts`): the letters must appear in the name
+in order, and a tighter match comes first. It filters the open folder only, and
+it clears when the user opens another folder. When no name matches, the list
+says "No folders match." Browse always puts an
 absolute path in the field, because the server does not expand `~` in the
 working directory. The field can stay empty. Its description says "Empty: the
 agent works in the folder of each channel, or in a scratch folder."
