@@ -378,6 +378,34 @@ describe("the agent configuration page", () => {
     }
   })
 
+  test("a usual tool goes into the allowed tools with one click", async () => {
+    const user = userEvent.setup()
+    network.on("POST", "/api/agents", { agent: testRunner }, 201)
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/new")
+    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    const allowed = within(screen.getByRole("group", { name: "Allowed tools" }))
+
+    await user.click(allowed.getByRole("button", { name: "Allow Read" }))
+    await user.click(
+      allowed.getByRole("button", { name: "Allow Bash(git status)" })
+    )
+
+    expect(
+      allowed.getByRole("button", { name: "Remove Read" })
+    ).toBeInTheDocument()
+    expect(
+      allowed.queryByRole("button", { name: "Allow Read" })
+    ).not.toBeInTheDocument()
+    expect(
+      allowed.getByRole("button", { name: "Allow Edit" })
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+    expect(
+      network.sent.find((request) => request.method === "POST")
+    ).toMatchObject({ body: { allowedTools: ["Read", "Bash(git status)"] } })
+  })
+
   test("the colour is a row of swatches, and the legend names the picked colour", async () => {
     const user = userEvent.setup()
     openPage("/agents/new")

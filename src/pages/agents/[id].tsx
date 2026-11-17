@@ -58,6 +58,7 @@ import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 type Draft = AgentDraft
 
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
+const USUAL_TOOLS = ["Read", "Edit", "Write", "Bash(git status)"]
 const SECTIONS: PageSection[] = [
   { id: "identity", title: "Identity" },
   { id: "model", title: "Model and permissions" },
@@ -568,6 +569,7 @@ export default function AgentPage() {
                         inputLabel="Add an allowed tool"
                         placeholder="Add a tool, for example Bash(git status)"
                         empty="No allowed tools. Each tool waits for your approval."
+                        usual={USUAL_TOOLS}
                         rules={field.state.value ?? []}
                         onChange={(rules) => field.handleChange(rules)}
                       />
