@@ -4,7 +4,8 @@
 for a saved agent (`/agents/:id`).
 
 Both screens show the sidebar (`docs/web-app/sidebar.md`) and the breadcrumb
-"Agents / name", where Agents links to `/`. On a saved agent, the row of its
+"Agents / name", where Agents links to `/`. The page shows the display name
+of the agent, or its username (`docs/agent-names.md`). On a saved agent, the row of its
 DM in the sidebar is active.
 
 The page is one column of five sections, in the layout of `docs/forms.md`:
@@ -14,8 +15,8 @@ the right links to each section and to the Command.
 
 The header:
 
-- **New agent:** a bot icon and "A headless Claude Code agent. Only the name
-  is necessary."
+- **New agent:** a bot icon and "A headless Claude Code agent. Only the
+  username is necessary."
 - **Saved agent:** its avatar with a status dot, its status Badge, the line
   "Headless Claude Code agent. Runs in 2 channels and 1 group chat.", and
   Stop agent and Restart session while the agent has a process (its state is
@@ -74,8 +75,11 @@ renders again when the workspace loads, and the form then goes back to the
 default values of its options, because the user has not changed a field yet.
 Discard calls `form.reset()`, which goes back to the saved agent.
 
-Identity has the name (with `@` before it), the colour and a one-line
-Description. The colour is a row of six swatches, and the legend names the
+Identity has the Display name, the Username (with `@` before it), the colour
+and a one-line Description. The display name is optional. The username takes
+only lowercase letters, numbers and hyphens, and a taken username shows the
+`409` message of the server under the field. The heading of a saved agent
+shows its display name, then `@username`. The colour is a row of six swatches, and the legend names the
 colour that is picked. The description is for the people who read the page.
 It does not go into a prompt, and a change to it does not mark a running
 session as changed.

@@ -7,11 +7,11 @@ turn for a message, and what prompt that agent gets. The routes are in
 
 ## Kinds
 
-| Kind      | Made by                                                             | Name                              | Reply mode                     |
-| --------- | ------------------------------------------------------------------- | --------------------------------- | ------------------------------ |
-| `dm`      | `POST /api/conversations` `{ kind: "dm", agentId }`                 | The name of the agent             | `every`                        |
-| `group`   | `{ kind: "group", agentIds }`, one or more agents                   | The agent names, joined with `, ` | `mention`                      |
-| `channel` | `{ kind: "channel", name, topic?, private?, replyMode?, agentIds }` | The name, which must not be empty | `mention`, or `every` if asked |
+| Kind      | Made by                                                             | Name                                | Reply mode                     |
+| --------- | ------------------------------------------------------------------- | ----------------------------------- | ------------------------------ |
+| `dm`      | `POST /api/conversations` `{ kind: "dm", agentId }`                 | The display name of the agent       | `every`                        |
+| `group`   | `{ kind: "group", agentIds }`, one or more agents                   | The display names, joined with `, ` | `mention`                      |
+| `channel` | `{ kind: "channel", name, topic?, private?, replyMode?, agentIds }` | The name, which must not be empty   | `mention`, or `every` if asked |
 
 A group chat is private. A channel is public unless `private: true`.
 
@@ -76,7 +76,8 @@ A message that comes while an agent works waits in the queue of that agent.
 
 `parseMentions(text, members)` in `server/conversation/mentions.ts` gives the
 keys of the members that the text mentions, in the order of the text. A
-mention is `@` and the full name of a member:
+mention is `@` and the full username of a member. A display name is not a
+mention (`agent-names.md`):
 
 - `@test-runner` does not mention `test`, and `@test-runners` mentions
   nobody, because a name must end where the word ends.
