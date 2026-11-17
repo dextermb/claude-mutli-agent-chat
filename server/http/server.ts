@@ -1206,7 +1206,12 @@ export function createServer({
           fields: checked.fields,
         })
       }
-      return send(response, 201, { agent: store.createAgent(checked.data) })
+      const agent = store.createAgent(checked.data)
+      publishTo(appChannel, {
+        type: "agent",
+        agent: { ...agent, state: agentState(agent.id) },
+      })
+      return send(response, 201, { agent })
     }
 
     if ((params = route("GET", "api/agents/:id"))) {
@@ -1274,9 +1279,14 @@ export function createServer({
           fields: checked.fields,
         })
       }
-      return send(response, 200, {
-        agent: store.updateAgent(params.id, checked.data),
-      })
+      const agent = store.updateAgent(params.id, checked.data)
+      if (agent) {
+        publishTo(appChannel, {
+          type: "agent",
+          agent: { ...agent, state: agentState(agent.id) },
+        })
+      }
+      return send(response, 200, { agent })
     }
 
     if ((params = route("DELETE", "api/conversations/:id"))) {
