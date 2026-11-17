@@ -355,6 +355,29 @@ describe("the agent configuration page", () => {
     ).toBeInTheDocument()
   })
 
+  test("the page lists its sections, and each link goes to its section", async () => {
+    openPage("/agents/new")
+    const contents = within(
+      await screen.findByRole("navigation", { name: "On this page" })
+    )
+
+    const links = contents.getAllByRole("link")
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Identity",
+      "Model and permissions",
+      "Folder and limits",
+      "Tools",
+      "Instructions",
+      "Command",
+    ])
+    for (const link of links) {
+      const id = link.getAttribute("href")?.replace("#", "") ?? ""
+      expect(document.getElementById(id)).toHaveAccessibleName(
+        link.textContent ?? ""
+      )
+    }
+  })
+
   test("the colour is a row of swatches, and the legend names the picked colour", async () => {
     const user = userEvent.setup()
     openPage("/agents/new")

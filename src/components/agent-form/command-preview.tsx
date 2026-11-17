@@ -9,9 +9,11 @@ import {
 } from "../../../server/session/claude-args.ts"
 
 export function CommandPreview({
+  id,
   agent,
   cwd,
 }: {
+  id?: string
   agent: AgentConfig
   cwd: string
 }) {
@@ -32,7 +34,11 @@ export function CommandPreview({
     )
   )
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
+    <section
+      id={id}
+      aria-labelledby={headingId}
+      className="flex scroll-mt-5 flex-col gap-2"
+    >
       <div className="flex flex-wrap items-center gap-2">
         <TerminalIcon aria-hidden="true" className="size-4" />
         <h2

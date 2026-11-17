@@ -9,6 +9,8 @@ import { ModeChoice } from "@/components/agent-form/mode-choice"
 import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
+import { OnThisPage, type PageSection } from "@/components/forms/on-this-page"
+import { SettingsSection } from "@/components/forms/settings-section"
 import type { ActionRefusal } from "@/components/agent-actions/actions"
 import { AgentActions } from "@/components/agent-actions/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
@@ -22,13 +24,6 @@ import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import {
   Field,
   FieldContent,
@@ -63,6 +58,14 @@ import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 type Draft = AgentDraft
 
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
+const SECTIONS: PageSection[] = [
+  { id: "identity", title: "Identity" },
+  { id: "model", title: "Model and permissions" },
+  { id: "folder", title: "Folder and limits" },
+  { id: "tools", title: "Tools" },
+  { id: "instructions", title: "Instructions" },
+  { id: "command", title: "Command" },
+]
 const EMPTY: Draft = {
   name: "",
   colour: "green",
@@ -158,70 +161,36 @@ export default function AgentPage() {
         open={showingSidebar}
         onOpenChange={setShowingSidebar}
       />
-      <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-5 pb-8 sm:px-8">
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <form
           noValidate
           onSubmit={(event) => {
             event.preventDefault()
             void form.handleSubmit()
           }}
-          className="flex flex-col gap-6"
+          className="flex flex-1 flex-col"
         >
-          <nav
-            aria-label="Breadcrumb"
-            className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
-          >
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Open the sidebar"
-                onClick={() => setShowingSidebar(true)}
+          <div className="flex flex-1 items-start justify-center gap-12 px-4 pt-5 pb-10 sm:px-8">
+            <div className="flex w-full max-w-[760px] min-w-0 flex-col gap-7">
+              <nav
+                aria-label="Breadcrumb"
+                className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
               >
-                <MenuIcon />
-              </Button>
-            )}
-            <Link href="/" className="hover:text-foreground-strong">
-              Agents
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span className="text-foreground">
-              {isNew ? (
-                "New agent"
-              ) : (
-                <form.Subscribe selector={(state) => state.values.name}>
-                  {(name) => name}
-                </form.Subscribe>
-              )}
-            </span>
-          </nav>
-          <header className="flex flex-wrap items-center gap-4">
-            {isNew ? (
-              <div
-                aria-hidden="true"
-                className="grid size-12 flex-none place-items-center rounded-full bg-muted text-muted-foreground"
-              >
-                <BotIcon className="size-[22px]" />
-              </div>
-            ) : (
-              <form.Subscribe selector={(state) => state.values}>
-                {(values) => (
-                  <Avatar size="lg">
-                    <AvatarFallback
-                      className={AVATAR_COLOURS[values.colour ?? ""]}
-                    >
-                      {initialsOf(values.name)}
-                    </AvatarFallback>
-                    {agent && (
-                      <AvatarBadge className={statusOf(agent.state).dot} />
-                    )}
-                  </Avatar>
+                {isMobile && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open the sidebar"
+                    onClick={() => setShowingSidebar(true)}
+                  >
+                    <MenuIcon />
+                  </Button>
                 )}
-              </form.Subscribe>
-            )}
-            <div className="flex min-w-60 flex-1 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="m-0 text-xl font-semibold text-foreground-strong">
+                <Link href="/" className="hover:text-foreground-strong">
+                  Agents
+                </Link>
+                <span aria-hidden="true">/</span>
+                <span className="text-foreground">
                   {isNew ? (
                     "New agent"
                   ) : (
@@ -229,61 +198,96 @@ export default function AgentPage() {
                       {(name) => name}
                     </form.Subscribe>
                   )}
-                </h1>
-                {agent && (
-                  <Badge
-                    variant="outline"
-                    className={statusOf(agent.state).text}
+                </span>
+              </nav>
+              <header className="flex flex-wrap items-center gap-4">
+                {isNew ? (
+                  <div
+                    aria-hidden="true"
+                    className="grid size-12 flex-none place-items-center rounded-full bg-muted text-muted-foreground"
                   >
-                    {statusOf(agent.state).label}
-                  </Badge>
+                    <BotIcon className="size-[22px]" />
+                  </div>
+                ) : (
+                  <form.Subscribe selector={(state) => state.values}>
+                    {(values) => (
+                      <Avatar size="lg">
+                        <AvatarFallback
+                          className={AVATAR_COLOURS[values.colour ?? ""]}
+                        >
+                          {initialsOf(values.name)}
+                        </AvatarFallback>
+                        {agent && (
+                          <AvatarBadge className={statusOf(agent.state).dot} />
+                        )}
+                      </Avatar>
+                    )}
+                  </form.Subscribe>
                 )}
-              </div>
-              <p className="m-0 text-muted-foreground">
-                {isNew
-                  ? "The agent starts when it gets its first message."
-                  : placesOf(id, conversations)}
-              </p>
-            </div>
-            {isNew && (
-              <Link href="/" className={buttonVariants({ variant: "ghost" })}>
-                Cancel
-              </Link>
-            )}
-            {agent && agent.state !== "exited" && (
-              <AgentActions
-                agentId={agent.id}
-                agentName={agent.name}
-                onRefusal={setActionRefusal}
-              />
-            )}
-            <Button type="submit">
-              <CheckIcon />
-              {isNew ? "Create agent" : "Save agent"}
-            </Button>
-          </header>
-          {error && (
-            <RefusalAlert
-              title="The server refused the agent."
-              refusal={error}
-            />
-          )}
-          {actionRefusal && (
-            <RefusalAlert
-              title={actionRefusal.title}
-              refusal={actionRefusal.reason}
-              onClose={() => setActionRefusal(null)}
-            />
-          )}
-          <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Identity</CardTitle>
-                <CardDescription>
-                  How people see and mention the agent.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                <div className="flex min-w-60 flex-1 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h1 className="m-0 text-xl font-semibold text-foreground-strong">
+                      {isNew ? (
+                        "New agent"
+                      ) : (
+                        <form.Subscribe selector={(state) => state.values.name}>
+                          {(name) => name}
+                        </form.Subscribe>
+                      )}
+                    </h1>
+                    {agent && (
+                      <Badge
+                        variant="outline"
+                        className={statusOf(agent.state).text}
+                      >
+                        {statusOf(agent.state).label}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="m-0 text-muted-foreground">
+                    {isNew
+                      ? "The agent starts when it gets its first message."
+                      : placesOf(id, conversations)}
+                  </p>
+                </div>
+                {isNew && (
+                  <Link
+                    href="/"
+                    className={buttonVariants({ variant: "ghost" })}
+                  >
+                    Cancel
+                  </Link>
+                )}
+                {agent && agent.state !== "exited" && (
+                  <AgentActions
+                    agentId={agent.id}
+                    agentName={agent.name}
+                    onRefusal={setActionRefusal}
+                  />
+                )}
+                <Button type="submit">
+                  <CheckIcon />
+                  {isNew ? "Create agent" : "Save agent"}
+                </Button>
+              </header>
+              {error && (
+                <RefusalAlert
+                  title="The server refused the agent."
+                  refusal={error}
+                />
+              )}
+              {actionRefusal && (
+                <RefusalAlert
+                  title={actionRefusal.title}
+                  refusal={actionRefusal.reason}
+                  onClose={() => setActionRefusal(null)}
+                />
+              )}
+              <SettingsSection
+                id="identity"
+                title="Identity"
+                description="How people see and mention the agent."
+              >
                 <FieldGroup>
                   <form.Field name="name">
                     {(field) => (
@@ -344,17 +348,13 @@ export default function AgentPage() {
                     )}
                   </form.Field>
                 </FieldGroup>
-              </CardContent>
-            </Card>
+              </SettingsSection>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Runtime</CardTitle>
-                <CardDescription>
-                  How Claude Code starts this agent.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <SettingsSection
+                id="model"
+                title="Model and permissions"
+                description="Which model runs, and what it can do without your approval."
+              >
                 <FieldGroup>
                   <form.Field name="model">
                     {(field) => (
@@ -381,6 +381,15 @@ export default function AgentPage() {
                       />
                     )}
                   </form.Field>
+                </FieldGroup>
+              </SettingsSection>
+
+              <SettingsSection
+                id="folder"
+                title="Folder and limits"
+                description="Where the agent works, and when it stops."
+              >
+                <FieldGroup>
                   <form.Field name="cwd">
                     {(field) => (
                       <Field data-invalid={invalid(field.state.meta)}>
@@ -543,17 +552,13 @@ export default function AgentPage() {
                     )}
                   </form.Field>
                 </FieldGroup>
-              </CardContent>
-            </Card>
+              </SettingsSection>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Tools</CardTitle>
-                <CardDescription>
-                  Allowed tools run without a prompt. Blocked tools never run.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <SettingsSection
+                id="tools"
+                title="Tools"
+                description="Allowed tools run without a prompt. Blocked tools never run."
+              >
                 <FieldGroup>
                   <form.Field name="allowedTools">
                     {(field) => (
@@ -583,17 +588,13 @@ export default function AgentPage() {
                     )}
                   </form.Field>
                 </FieldGroup>
-              </CardContent>
-            </Card>
+              </SettingsSection>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Instructions</CardTitle>
-                <CardDescription>
-                  Added to the Claude Code system prompt. This is optional.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <SettingsSection
+                id="instructions"
+                title="Instructions"
+                description="Added to the Claude Code system prompt. Keep repo rules in CLAUDE.md. The agent loads them."
+              >
                 <form.Field name="systemPrompt">
                   {(field) => (
                     <Field>
@@ -616,33 +617,37 @@ export default function AgentPage() {
                     </Field>
                   )}
                 </form.Field>
-              </CardContent>
-            </Card>
+              </SettingsSection>
+              <form.Subscribe selector={(state) => state.values}>
+                {(values) => (
+                  <CommandPreview
+                    id="command"
+                    agent={{
+                      model: values.model,
+                      permissionMode: values.permissionMode,
+                      allowedTools: values.allowedTools ?? [],
+                      disallowedTools: values.disallowedTools ?? [],
+                      systemPrompt: values.systemPrompt || null,
+                      maxTurns: values.maxTurns ?? null,
+                    }}
+                    cwd={values.cwd ?? ""}
+                  />
+                )}
+              </form.Subscribe>
+              {!isNew && listed && (
+                <DeleteSection
+                  action="Delete agent"
+                  text={`${listed.name} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
+                  onDelete={() =>
+                    setDeleting(agentTarget(listed, conversations))
+                  }
+                  className="rounded-xl px-5 py-4"
+                />
+              )}
+            </div>
+            <OnThisPage sections={SECTIONS} />
           </div>
-          <form.Subscribe selector={(state) => state.values}>
-            {(values) => (
-              <CommandPreview
-                agent={{
-                  model: values.model,
-                  permissionMode: values.permissionMode,
-                  allowedTools: values.allowedTools ?? [],
-                  disallowedTools: values.disallowedTools ?? [],
-                  systemPrompt: values.systemPrompt || null,
-                  maxTurns: values.maxTurns ?? null,
-                }}
-                cwd={values.cwd ?? ""}
-              />
-            )}
-          </form.Subscribe>
         </form>
-        {!isNew && listed && (
-          <DeleteSection
-            action="Delete agent"
-            text={`${listed.name} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
-            onDelete={() => setDeleting(agentTarget(listed, conversations))}
-            className="rounded-xl px-5 py-4"
-          />
-        )}
         <DeleteDialog
           target={deleting}
           onOpenChange={(open) => {
