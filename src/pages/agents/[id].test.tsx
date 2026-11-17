@@ -378,6 +378,26 @@ describe("the agent configuration page", () => {
     }
   })
 
+  test("after a save with errors, the bar names the fields to fix", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    await user.type(
+      await screen.findByRole("spinbutton", { name: "Maximum turns" }),
+      "0"
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+
+    expect(
+      await screen.findByText("Fix 2 fields: Name, Maximum turns.")
+    ).toBeInTheDocument()
+    await user.type(screen.getByLabelText("Name"), "test-runner")
+    await user.tab()
+    expect(
+      await screen.findByText("Fix 1 field: Maximum turns.")
+    ).toBeInTheDocument()
+  })
+
   test("a saved agent counts its unsaved changes, and discard brings back the saved values", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })

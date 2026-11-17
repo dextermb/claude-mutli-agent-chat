@@ -1,4 +1,10 @@
-import { BotIcon, CheckIcon, FolderIcon, MenuIcon } from "lucide-react"
+import {
+  BotIcon,
+  CheckIcon,
+  CircleAlertIcon,
+  FolderIcon,
+  MenuIcon,
+} from "lucide-react"
 import { useForm, useStore } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
@@ -54,7 +60,7 @@ import { useWorkspace } from "@/hooks/use-workspace"
 import type { Agent, Conversation } from "@/lib/agent-api"
 import { changedFields, unsavedText } from "@/lib/changed-fields"
 import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
-import { invalid, shown } from "@/lib/form-errors"
+import { fixText, invalid, shown } from "@/lib/form-errors"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 
 type Draft = AgentDraft
@@ -81,6 +87,20 @@ const SECTIONS: (PageSection & { fields: (keyof Draft)[] })[] = [
   { id: "instructions", title: "Instructions", fields: ["systemPrompt"] },
   { id: "command", title: "Command", fields: [] },
 ]
+const LABELS: Record<keyof Draft, string> = {
+  name: "Name",
+  colour: "Colour",
+  description: "Description",
+  model: "Model",
+  permissionMode: "Permission mode",
+  cwd: "Working directory",
+  maxTurns: "Maximum turns",
+  sleepAfterMinutes: "Sleep after",
+  autostart: "Start when the app opens",
+  allowedTools: "Allowed tools",
+  disallowedTools: "Blocked tools",
+  systemPrompt: "System prompt",
+}
 const EMPTY: Draft = {
   name: "",
   colour: "green",
@@ -166,6 +186,13 @@ export default function AgentPage() {
 
   const values = useStore(form.store, (state) => state.values)
   const changed = saved ? changedFields(values, saved) : []
+  const fieldMeta = useStore(form.store, (state) => state.fieldMeta)
+  const toFix = (Object.keys(LABELS) as (keyof Draft)[])
+    .filter((name) => {
+      const meta = fieldMeta[name]
+      return meta !== undefined && invalid(meta)
+    })
+    .map((name) => LABELS[name])
   const sections = SECTIONS.map((section) => ({
     ...section,
     changed: section.fields.some((name) => changed.includes(name)),
@@ -667,7 +694,15 @@ export default function AgentPage() {
           </div>
           <FormBar
             status={
-              isNew ? (
+              toFix.length > 0 ? (
+                <span className="flex items-center gap-2 text-foreground-strong">
+                  <CircleAlertIcon
+                    aria-hidden="true"
+                    className="size-4 flex-none text-destructive"
+                  />
+                  {fixText(toFix)}
+                </span>
+              ) : isNew ? (
                 "The agent starts when it gets its first message."
               ) : (
                 <>
