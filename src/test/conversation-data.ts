@@ -8,6 +8,7 @@ import type {
 export const testRunner: ConversationAgent = {
   id: "a1",
   name: "test-runner",
+  displayName: null,
   colour: "aqua",
   model: "claude-sonnet-5-5",
   permissionMode: "acceptEdits",

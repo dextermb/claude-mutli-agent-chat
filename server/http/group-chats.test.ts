@@ -14,10 +14,15 @@ import {
 
 afterEach(runCleanups)
 
-async function createAgent(base: string, name: string) {
+async function createAgent(
+  base: string,
+  name: string,
+  displayName: string | null = null
+) {
   const response = await postJson(base, "/api/agents", {
     ...testRunner,
     name,
+    displayName,
   })
   return ((await response.json()) as { agent: { id: string } }).agent
 }
@@ -63,7 +68,7 @@ async function untilTurns(base: string, conversationId: string, count: number) {
 describe("group chats and channels", () => {
   test("an agent added to a group chat joins its members and its name, and both streams say so", async () => {
     const { base } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const writer = await createAgent(base, "docs-writer")
     const group = await groupChat(base, [reviewer.id, runner.id])
@@ -84,7 +89,7 @@ describe("group chats and channels", () => {
       conversation: { name: string; members: string[] }
     }
     expect(conversation).toMatchObject({
-      name: "reviewer-bot, test-runner, docs-writer",
+      name: "code-reviewer, test-runner, docs-writer",
       members: [
         "user:me",
         `agent:${reviewer.id}`,
@@ -104,7 +109,7 @@ describe("group chats and channels", () => {
 
   test("stop turn for one agent interrupts that agent and not the other", async () => {
     const { base, sentTo } = await startServer("interrupt")
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
     const stream = openEvents(base, group.id)
@@ -112,7 +117,7 @@ describe("group chats and channels", () => {
     await sendMessage(
       base,
       group.id,
-      "@reviewer-bot @test-runner write a long story."
+      "@code-reviewer @test-runner write a long story."
     )
     await vi.waitFor(() =>
       expect(
@@ -135,13 +140,13 @@ describe("group chats and channels", () => {
           line.type === "control_request" &&
           (line.request as { subtype: string }).subtype === "interrupt"
       )
-    await vi.waitFor(() => expect(interrupts("reviewer-bot")).toHaveLength(1))
+    await vi.waitFor(() => expect(interrupts("code-reviewer")).toHaveLength(1))
     expect(interrupts("test-runner")).toHaveLength(0)
   })
 
   test("a group chat with two agents takes their names, and its reply mode is mention", async () => {
     const { base } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
 
     const response = await postJson(base, "/api/conversations", {
@@ -153,11 +158,33 @@ describe("group chats and channels", () => {
     expect(await response.json()).toEqual({
       conversation: expect.objectContaining({
         kind: "group",
-        name: "reviewer-bot, test-runner",
+        name: "code-reviewer, test-runner",
         private: true,
         replyMode: "mention",
         members: ["user:me", `agent:${reviewer.id}`, `agent:${runner.id}`],
       }),
+    })
+  })
+
+  test("a group chat and a DM take the display names of their agents", async () => {
+    const { base } = await startServer()
+    const reviewer = await createAgent(base, "code-reviewer", "Code Reviewer")
+    const runner = await createAgent(base, "test-runner")
+
+    const group = await postJson(base, "/api/conversations", {
+      kind: "group",
+      agentIds: [reviewer.id, runner.id],
+    })
+    const direct = await postJson(base, "/api/conversations", {
+      kind: "dm",
+      agentId: reviewer.id,
+    })
+
+    expect(await group.json()).toMatchObject({
+      conversation: { name: "Code Reviewer, test-runner" },
+    })
+    expect(await direct.json()).toMatchObject({
+      conversation: { name: "Code Reviewer" },
     })
   })
 
@@ -195,7 +222,7 @@ describe("group chats and channels", () => {
 
   test("an agent in a channel learns the channel, its topic and its members from its first prompt, not from its system prompt", async () => {
     const { base, started, sentTo } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const created = await postJson(base, "/api/conversations", {
       kind: "channel",
@@ -216,7 +243,7 @@ describe("group chats and channels", () => {
         '- You are the agent "test-runner".',
         `- This conversation is the channel "#release-train" (ID "${conversation.id}"). Its topic: "Ship v2.4 on Friday.".`,
         "- An agent gets a turn when a message mentions it with @name. If your message asks a question and mentions no agent, the next message of the user with no mention also comes to you.",
-        "- The members: User, reviewer-bot, test-runner (you).",
+        "- The members: User, code-reviewer, test-runner (you).",
         "- You work in /home/user/code/web-app.",
       ].join("\n"),
     ])
@@ -247,9 +274,11 @@ describe("group chats and channels", () => {
     await untilTurns(base, id, 1)
 
     expect(promptsTo(sentTo, "test-runner")).toEqual([
-      ["[User] Three.", "[User] Four.", "[User] @test-runner run the tests."].join(
-        "\n"
-      ),
+      [
+        "[User] Three.",
+        "[User] Four.",
+        "[User] @test-runner run the tests.",
+      ].join("\n"),
     ])
     expect(factsTo(sentTo, "test-runner")[0].split("\n").at(-1)).toBe(
       "[Chat app] 5 messages came since your last turn. Here are the last 3. Use read_messages for the older ones."
@@ -267,7 +296,10 @@ describe("group chats and channels", () => {
         wakeMessages: 3,
         summarize: async (input) => {
           calls.push(input)
-          return { text: "- The release branch is release/2.4.", costUsd: 0.0003 }
+          return {
+            text: "- The release branch is release/2.4.",
+            costUsd: 0.0003,
+          }
         },
       }
     )
@@ -302,11 +334,14 @@ describe("group chats and channels", () => {
         summarize: async () => {
           runs += 1
           await new Promise((resolve) => setTimeout(resolve, 50))
-          return { text: "- The release branch is release/2.4.", costUsd: 0.0003 }
+          return {
+            text: "- The release branch is release/2.4.",
+            costUsd: 0.0003,
+          }
         },
       }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const { id } = await channel(base, {
       agentIds: [reviewer.id, runner.id],
@@ -315,11 +350,11 @@ describe("group chats and channels", () => {
       await sendMessage(base, id, text)
     }
 
-    await sendMessage(base, id, "@reviewer-bot @test-runner what is open?")
+    await sendMessage(base, id, "@code-reviewer @test-runner what is open?")
     await untilTurns(base, id, 2)
 
     expect(runs).toBe(1)
-    for (const name of ["reviewer-bot", "test-runner"]) {
+    for (const name of ["code-reviewer", "test-runner"]) {
       expect(factsTo(sentTo, name)[0]).toContain(
         "- The release branch is release/2.4."
       )
@@ -399,7 +434,7 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ fixture: "max-turns", reply: "Done." })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const writer = await createAgent(base, "docs-writer")
     const { id } = await channel(base, { agentIds: [reviewer.id, runner.id] })
@@ -415,7 +450,7 @@ describe("group chats and channels", () => {
     expect(factsTo(sentTo, "test-runner").slice(1)).toEqual([
       [
         "[Chat app] This session changed:",
-        "- The members: User, reviewer-bot, test-runner (you), docs-writer.",
+        "- The members: User, code-reviewer, test-runner (you), docs-writer.",
       ].join("\n"),
     ])
     expect(promptsTo(sentTo, "test-runner")).toEqual([
@@ -466,7 +501,7 @@ describe("group chats and channels", () => {
 
   test("in a group chat, only the agent that the message mentions gets a turn", async () => {
     const { base, startedAgents } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
@@ -480,7 +515,7 @@ describe("group chats and channels", () => {
 
   test("in a channel with every message mode, each agent gets a turn for a message with no mention", async () => {
     const { base, startedAgents } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const created = await postJson(base, "/api/conversations", {
       kind: "channel",
@@ -495,7 +530,7 @@ describe("group chats and channels", () => {
     await sendMessage(base, conversation.id, "The release branch is cut.")
     await untilTurns(base, conversation.id, 2)
 
-    expect([...startedAgents].sort()).toEqual(["reviewer-bot", "test-runner"])
+    expect([...startedAgents].sort()).toEqual(["code-reviewer", "test-runner"])
   })
 
   test("a mentioned agent gets each message since its last turn, each with its author", async () => {
@@ -504,15 +539,15 @@ describe("group chats and channels", () => {
       ":memory:",
       undefined,
       (name) =>
-        name === "reviewer-bot"
+        name === "code-reviewer"
           ? { reply: "The key is on a fragment." }
           : { reply: "I added the test." }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot look at PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer look at PR 212.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "@test-runner add a test for it.")
     await untilTurns(base, group.id, 2)
@@ -523,8 +558,8 @@ describe("group chats and channels", () => {
 
     expect(promptsTo(sentTo, "test-runner")).toEqual([
       [
-        "[User] @reviewer-bot look at PR 212.",
-        "[reviewer-bot] The key is on a fragment.",
+        "[User] @code-reviewer look at PR 212.",
+        "[code-reviewer] The key is on a fragment.",
         "[User] @test-runner add a test for it.",
       ].join("\n"),
       "[User] @test-runner thank you.",
@@ -538,12 +573,12 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "Done." })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
     await sendMessage(base, group.id, "@test-runner run the tests.")
     await untilTurns(base, group.id, 1)
-    await sendMessage(base, group.id, "@reviewer-bot look at PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer look at PR 212.")
     await untilTurns(base, group.id, 2)
 
     await postJson(
@@ -563,7 +598,7 @@ describe("group chats and channels", () => {
 
   test("a removed agent stops its process, and leaves the members and the name of the group chat", async () => {
     const { base } = await startServer("interrupt")
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
     const stream = openEvents(base, group.id)
@@ -585,7 +620,7 @@ describe("group chats and channels", () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
       conversation: {
-        name: "reviewer-bot",
+        name: "code-reviewer",
         members: ["user:me", `agent:${reviewer.id}`],
       },
     })
@@ -628,11 +663,11 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "Done." })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const writer = await createAgent(base, "docs-writer")
     const group = await groupChat(base, [reviewer.id, runner.id])
-    await sendMessage(base, group.id, "@reviewer-bot look at PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer look at PR 212.")
     await untilTurns(base, group.id, 1)
 
     await postJson(base, `/api/conversations/${group.id}/members`, {
@@ -653,21 +688,21 @@ describe("group chats and channels", () => {
       ":memory:",
       undefined,
       (name) =>
-        name === "reviewer-bot"
+        name === "code-reviewer"
           ? { reply: "@test-runner please add a test for the 404 page." }
           : { reply: "I added the test." }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer review PR 212.")
     await untilTurns(base, group.id, 2)
 
     expect(promptsTo(sentTo, "test-runner")).toEqual([
       [
-        "[User] @reviewer-bot review PR 212.",
-        "[reviewer-bot] @test-runner please add a test for the 404 page.",
+        "[User] @code-reviewer review PR 212.",
+        "[code-reviewer] @test-runner please add a test for the 404 page.",
       ].join("\n"),
     ])
   })
@@ -678,23 +713,23 @@ describe("group chats and channels", () => {
       ":memory:",
       undefined,
       (name) =>
-        name === "reviewer-bot"
+        name === "code-reviewer"
           ? { reply: "Which branch do you want me to review?" }
           : { reply: "I ran the tests." }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer review PR 212.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "The release branch.")
     await vi.waitFor(() =>
-      expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(2)
+      expect(promptsTo(sentTo, "code-reviewer")).toHaveLength(2)
     )
 
-    expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
-      "[User] @reviewer-bot review PR 212.",
+    expect(promptsTo(sentTo, "code-reviewer")).toEqual([
+      "[User] @code-reviewer review PR 212.",
       "[User] The release branch.",
     ])
     expect(promptsTo(sentTo, "test-runner")).toEqual([])
@@ -707,16 +742,16 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "The run is at https://ci.dev/runs?id=212 now." })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot start the CI run.")
+    await sendMessage(base, group.id, "@code-reviewer start the CI run.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "Thank you, both.")
     await new Promise((resolve) => setTimeout(resolve, 200))
 
-    expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    expect(promptsTo(sentTo, "code-reviewer")).toHaveLength(1)
   })
 
   test("a question mark with punctuation after it, as in optional chaining, is not a question", async () => {
@@ -726,16 +761,16 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "I changed it to user?.name in the header." })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot fix the header.")
+    await sendMessage(base, group.id, "@code-reviewer fix the header.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "Thank you, both.")
     await new Promise((resolve) => setTimeout(resolve, 200))
 
-    expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    expect(promptsTo(sentTo, "code-reviewer")).toHaveLength(1)
   })
 
   test("a question mark inside Markdown emphasis is a question", async () => {
@@ -745,17 +780,17 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "**Which branch?** The tests _need it?_" })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot run the tests.")
+    await sendMessage(base, group.id, "@code-reviewer run the tests.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "The release branch.")
 
     await vi.waitFor(() =>
-      expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
-        "[User] @reviewer-bot run the tests.",
+      expect(promptsTo(sentTo, "code-reviewer")).toEqual([
+        "[User] @code-reviewer run the tests.",
         "[User] The release branch.",
       ])
     )
@@ -768,17 +803,17 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "Which branch? The tests need it." })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot run the tests.")
+    await sendMessage(base, group.id, "@code-reviewer run the tests.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "The release branch.")
 
     await vi.waitFor(() =>
-      expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
-        "[User] @reviewer-bot run the tests.",
+      expect(promptsTo(sentTo, "code-reviewer")).toEqual([
+        "[User] @code-reviewer run the tests.",
         "[User] The release branch.",
       ])
     )
@@ -790,20 +825,20 @@ describe("group chats and channels", () => {
       ":memory:",
       undefined,
       (name) =>
-        name === "reviewer-bot"
+        name === "code-reviewer"
           ? { reply: "@test-runner which branch is it?" }
           : { reply: "I ran the tests." }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer review PR 212.")
     await untilTurns(base, group.id, 2)
     await sendMessage(base, group.id, "Thank you, both.")
     await new Promise((resolve) => setTimeout(resolve, 200))
 
-    expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    expect(promptsTo(sentTo, "code-reviewer")).toHaveLength(1)
   })
 
   test("a message that mentions another agent does not go to the agent that asked a question", async () => {
@@ -812,21 +847,21 @@ describe("group chats and channels", () => {
       ":memory:",
       undefined,
       (name) =>
-        name === "reviewer-bot"
+        name === "code-reviewer"
           ? { reply: "Which branch do you want me to review?" }
           : { reply: "I ran the tests." }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer review PR 212.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "@test-runner which branch is it?")
     await untilTurns(base, group.id, 2)
 
-    expect(promptsTo(sentTo, "reviewer-bot")).toEqual([
-      "[User] @reviewer-bot review PR 212.",
+    expect(promptsTo(sentTo, "code-reviewer")).toEqual([
+      "[User] @code-reviewer review PR 212.",
     ])
   })
 
@@ -837,20 +872,20 @@ describe("group chats and channels", () => {
       undefined,
       () => ({ reply: "Which branch do you want me to review?" })
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer review PR 212.")
     await untilTurns(base, group.id, 1)
     await sendMessage(base, group.id, "The release branch.")
     await vi.waitFor(() =>
-      expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(2)
+      expect(promptsTo(sentTo, "code-reviewer")).toHaveLength(2)
     )
     await sendMessage(base, group.id, "Thank you, both.")
     await new Promise((resolve) => setTimeout(resolve, 200))
 
-    expect(promptsTo(sentTo, "reviewer-bot")).toHaveLength(2)
+    expect(promptsTo(sentTo, "code-reviewer")).toHaveLength(2)
   })
 
   test("stop removes a prompt that the mention of an agent put in the queue of a busy agent", async () => {
@@ -859,18 +894,18 @@ describe("group chats and channels", () => {
       ":memory:",
       undefined,
       (name) =>
-        name === "reviewer-bot"
+        name === "code-reviewer"
           ? { reply: "@test-runner add a test for the 404 page." }
           : { fixture: "interrupt" }
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
     await sendMessage(base, group.id, "@test-runner write a long story.")
     await vi.waitFor(() =>
       expect(promptsTo(sentTo, "test-runner")).toHaveLength(1)
     )
-    await sendMessage(base, group.id, "@reviewer-bot review PR 212.")
+    await sendMessage(base, group.id, "@code-reviewer review PR 212.")
     await untilTurns(base, group.id, 1)
 
     await postJson(base, `/api/conversations/${group.id}/stop`, {})
@@ -893,11 +928,11 @@ describe("group chats and channels", () => {
       undefined,
       (name) => (name === "test-runner" ? { fixture: "interrupt" } : {})
     )
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
 
-    await sendMessage(base, group.id, "@test-runner @reviewer-bot start.")
+    await sendMessage(base, group.id, "@test-runner @code-reviewer start.")
     await untilTurns(base, group.id, 1)
 
     const listed = (await (await fetch(`${base}/api/agents`)).json()) as {
@@ -908,7 +943,7 @@ describe("group chats and channels", () => {
         .filter(({ id }) => id === reviewer.id || id === runner.id)
         .map(({ name, state }) => ({ name, state }))
     ).toEqual([
-      { name: "reviewer-bot", state: "idle" },
+      { name: "code-reviewer", state: "idle" },
       { name: "test-runner", state: "busy" },
     ])
   })
@@ -1102,7 +1137,7 @@ describe("group chats and channels", () => {
 
   test("after a change to every message, each agent gets the next message with no mention", async () => {
     const { base, startedAgents } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const created = await channel(base, {
       agentIds: [reviewer.id, runner.id],
@@ -1112,12 +1147,12 @@ describe("group chats and channels", () => {
     await sendMessage(base, created.id, "The release branch is cut.")
     await untilTurns(base, created.id, 2)
 
-    expect([...startedAgents].sort()).toEqual(["reviewer-bot", "test-runner"])
+    expect([...startedAgents].sort()).toEqual(["code-reviewer", "test-runner"])
   })
 
   test("stop agent stops the processes of that agent in each conversation, and leaves the other agent alone", async () => {
     const { base } = await startServer()
-    const reviewer = await createAgent(base, "reviewer-bot")
+    const reviewer = await createAgent(base, "code-reviewer")
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [reviewer.id, runner.id])
     const dm = (
@@ -1128,7 +1163,7 @@ describe("group chats and channels", () => {
         })
       ).json()) as { conversation: { id: string } }
     ).conversation
-    await sendMessage(base, group.id, "@reviewer-bot @test-runner hello.")
+    await sendMessage(base, group.id, "@code-reviewer @test-runner hello.")
     await sendMessage(base, dm.id, "Run the tests.")
     await untilTurns(base, group.id, 2)
     await untilTurns(base, dm.id, 1)

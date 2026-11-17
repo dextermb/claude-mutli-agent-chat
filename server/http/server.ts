@@ -1,3 +1,4 @@
+import { shownName, type Named } from "../agent-names.ts"
 import { rm } from "node:fs/promises"
 import {
   createServer as createHttpServer,
@@ -489,7 +490,10 @@ export function createServer({
     if (before?.kind === "group") {
       store.updateConversation(conversationId, {
         name: agentIdsOf(conversationId)
-          .flatMap((agentId) => store.getAgent(agentId)?.name ?? [])
+          .flatMap((agentId) => {
+            const agent = store.getAgent(agentId)
+            return agent ? shownName(agent) : []
+          })
           .join(", "),
       })
     }
@@ -699,9 +703,9 @@ export function createServer({
     const conversation = store.getConversation(session.conversationId)
     if (!agent || !conversation) return undefined
     return sessionFacts({
-      agentName: agent.name,
+      agent,
       conversation,
-      memberNames: conversation.members.map(authorName),
+      members: conversation.members.map(memberNamed),
       folder: {
         path: homeShort(session.cwd),
         from: folderSource(session.cwd, conversation),
@@ -804,6 +808,24 @@ export function createServer({
       costUsd: summary.costUsd,
     })
     return summary.text
+  }
+
+  function usernameTaken(name: string, exceptId?: string): boolean {
+    return store
+      .listAgents()
+      .some((agent) => agent.name === name && agent.id !== exceptId)
+  }
+
+  function sendTaken(response: ServerResponse) {
+    const message = "Another agent uses this username."
+    send(response, 409, { error: message, fields: { name: message } })
+  }
+
+  function memberNamed(memberKey: string): Named {
+    const agent = memberKey.startsWith("agent:")
+      ? store.getAgent(memberKey.slice("agent:".length))
+      : undefined
+    return agent ?? { name: authorName(memberKey), displayName: null }
   }
 
   function authorName(authorKey: string): string {
@@ -1206,6 +1228,7 @@ export function createServer({
           fields: checked.fields,
         })
       }
+      if (usernameTaken(checked.data.name)) return sendTaken(response)
       const agent = store.createAgent(checked.data)
       publishTo(appChannel, {
         type: "agent",
@@ -1278,6 +1301,9 @@ export function createServer({
           error: checked.error,
           fields: checked.fields,
         })
+      }
+      if (usernameTaken(checked.data.name, current.id)) {
+        return sendTaken(response)
       }
       const agent = store.updateAgent(params.id, checked.data)
       if (agent) {
@@ -1398,7 +1424,7 @@ export function createServer({
       if (existing) return send(response, 200, { conversation: existing })
       const conversation = store.createConversation({
         kind: "dm",
-        name: agent.name,
+        name: shownName(agent),
         topic: null,
         private: true,
         replyMode: "every",
@@ -1430,7 +1456,7 @@ export function createServer({
       }
       conversation = store.createConversation({
         kind: "group",
-        name: agents.map((agent) => agent.name).join(", "),
+        name: agents.map(shownName).join(", "),
         topic: null,
         private: true,
         replyMode: "mention",

@@ -17,12 +17,13 @@ card (`docs/web-app/session-panel.md`). The attach and Send buttons are round.
 
 The message box of a channel is "Message #<name>".
 
-After `@`, the message box shows the agents of the conversation whose names
-start with the typed text, in a list named "Members". Each option shows the
-avatar of the agent, its name and its status Badge, and a screen reader hears
-"test-runner Idle". The hint under the box shows a `Kbd`: "Enter to send", or
+After `@`, the message box shows the agents of the conversation whose
+username or display name starts with the typed text, in a list named
+"Members". Each option shows the avatar of the agent, its display name, its
+`@username` if it has a display name, and its status Badge. A screen reader
+hears "test-runner Idle", or "Test Runner @test-runner Idle". The hint under the box shows a `Kbd`: "Enter to send", or
 "Tab to pick" while the list is open. Down and Up move the active name, and wrap at
 the ends. Tab or Enter picks the active name, and a click picks any one.
-Escape closes the list until the text changes. The pick puts `@<name> ` in
+Escape closes the list until the text changes. The pick puts `@<username> ` in
 the place of the typed text. The message box names the active option with
 `aria-activedescendant`.

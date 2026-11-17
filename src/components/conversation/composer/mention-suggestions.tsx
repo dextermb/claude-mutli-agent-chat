@@ -9,8 +9,12 @@ import type { PathOption } from "@/components/conversation/composer/path-option"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import type { AgentWithState } from "@/lib/agent-api"
+import { shownName } from "../../../../server/agent-names.ts"
 
-type Member = Pick<AgentWithState, "id" | "name" | "colour" | "state">
+type Member = Pick<
+  AgentWithState,
+  "id" | "name" | "displayName" | "colour" | "state"
+>
 
 export function MentionSuggestions({
   listId,
@@ -59,11 +63,21 @@ export function MentionSuggestions({
                 >
                   <Avatar size="sm" aria-hidden="true">
                     <AvatarFallback className={AVATAR_COLOURS[member.colour]}>
-                      {initialsOf(member.name)}
+                      {initialsOf(shownName(member))}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="flex-1 truncate font-medium text-foreground-strong">
-                    {member.name}
+                  <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                    <span className="truncate font-medium text-foreground-strong">
+                      {shownName(member)}
+                    </span>
+                    {member.displayName && (
+                      <>
+                        {" "}
+                        <span className="truncate font-mono text-xs text-muted-foreground">
+                          @{member.name}
+                        </span>
+                      </>
+                    )}
                   </span>{" "}
                   <Badge variant="outline" className={status.text}>
                     {status.label}

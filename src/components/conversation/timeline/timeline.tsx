@@ -14,6 +14,7 @@ import {
   turnsOfCompactions,
   type Answer,
 } from "@/lib/timeline"
+import { shownName } from "../../../../server/agent-names.ts"
 
 type TimelineProps = {
   entries: TimelineEntry[]
@@ -55,14 +56,16 @@ export function Timeline({
             {group.entries[0].item.kind === "session_start" ? (
               <SessionDivider
                 createdAt={createdAt}
-                agentName={agents.length > 1 ? agent?.name : undefined}
+                agentName={
+                  agents.length > 1 && agent ? shownName(agent) : undefined
+                }
               />
             ) : group.entries[0].item.kind === "compaction" ? (
               <CompactionDivider
                 item={group.entries[0].item}
                 turn={compactionTurns.get(group.entries[0].id)}
                 createdAt={createdAt}
-                agentName={agent?.name ?? "The agent"}
+                agentName={agent ? shownName(agent) : "The agent"}
               />
             ) : (
               <AuthorGroup

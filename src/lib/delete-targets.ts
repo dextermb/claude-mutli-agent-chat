@@ -1,4 +1,5 @@
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import { shownName } from "../../server/agent-names.ts"
 
 export type DeleteTarget = {
   title: string
@@ -16,7 +17,7 @@ export function conversationTarget(
   const name = channel ? `#${conversation.name}` : conversation.name
   const members = agents
     .filter((agent) => conversation.members.includes(`agent:${agent.id}`))
-    .map((agent) => agent.name)
+    .map(shownName)
   return {
     title: channel ? `Delete ${name}?` : "Delete this group chat?",
     action: channel ? "Delete channel" : "Delete group chat",
@@ -54,25 +55,24 @@ export function agentTarget(
   const nameOf = (item: Conversation) =>
     item.kind === "channel" ? `#${item.name}` : item.name
   const groups = gone.filter((item) => item.kind === "group")
+  const name = shownName(agent)
   return {
-    title: `Delete ${agent.name}?`,
+    title: `Delete ${name}?`,
     action: "Delete agent",
     url: `/api/agents/${agent.id}`,
     conversationIds: gone.map((item) => item.id),
     points: [
-      ...(working
-        ? [`${agent.name} is working. The turn that runs now stops.`]
-        : []),
+      ...(working ? [`${name} is working. The turn that runs now stops.`] : []),
       ...(left.length > 0
         ? [
-            `${agent.name} leaves ${listOf(left.map(nameOf))}. Its messages there stay, with the label "Deleted agent".`,
+            `${name} leaves ${listOf(left.map(nameOf))}. Its messages there stay, with the label "Deleted agent".`,
           ]
         : []),
       ...groups.map(
         (item) =>
-          `The group chat ${item.name} is deleted, because ${agent.name} is its last agent.`
+          `The group chat ${item.name} is deleted, because ${name} is its last agent.`
       ),
-      `The DM with ${agent.name} and its sessions are deleted.`,
+      `The DM with ${name} and its sessions are deleted.`,
       ...(agent.cwd ? [`The files in ${agent.cwd} stay.`] : []),
     ],
   }

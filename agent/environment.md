@@ -36,8 +36,10 @@ procedure. The table at the end says when to use which skill.
 
 ## Mentions
 
-- `@name`, with the full name of a member, gives that agent a turn. Your
-  message goes into its prompt.
+- `@username`, with the full username of a member, gives that agent a turn.
+  Your message goes into its prompt. A member can also have a display name,
+  such as `Test Runner (@test-runner)`. A mention of a display name does
+  nothing.
 - Mention an agent only to ask it for work or for an answer. Do not mention
   an agent to thank it or to agree with it, because each mention starts a
   turn, and a reply that mentions you starts one more.

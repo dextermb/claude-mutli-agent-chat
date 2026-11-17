@@ -72,16 +72,17 @@ export function openStore(location: string) {
   function createAgent(agent: NewAgent): Agent {
     const created: Agent = {
       ...agent,
+      displayName: agent.displayName ?? null,
       sleepAfterMinutes: agent.sleepAfterMinutes ?? null,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
       deletedAt: null,
     }
     db.prepare(
-      `INSERT INTO agents (id, name, colour, model, permission_mode, cwd,
+      `INSERT INTO agents (id, name, display_name, colour, model, permission_mode, cwd,
          autostart, allowed_tools, disallowed_tools, system_prompt, description,
          max_turns, sleep_after_minutes, created_at)
-       VALUES (:id, :name, :colour, :model, :permissionMode, :cwd,
+       VALUES (:id, :name, :displayName, :colour, :model, :permissionMode, :cwd,
          :autostart, :allowedTools, :disallowedTools, :systemPrompt, :description,
          :maxTurns, :sleepAfterMinutes, :createdAt)`
     ).run({
@@ -94,7 +95,8 @@ export function openStore(location: string) {
 
   function updateAgent(id: string, agent: NewAgent): Agent | undefined {
     db.prepare(
-      `UPDATE agents SET name = :name, colour = :colour, model = :model,
+      `UPDATE agents SET name = :name, display_name = :displayName,
+         colour = :colour, model = :model,
          permission_mode = :permissionMode, cwd = :cwd, autostart = :autostart,
          allowed_tools = :allowedTools, disallowed_tools = :disallowedTools,
          system_prompt = :systemPrompt, description = :description,
@@ -106,7 +108,10 @@ export function openStore(location: string) {
 
   function listAgents(): Agent[] {
     return db
-      .prepare("SELECT * FROM agents WHERE deleted_at IS NULL ORDER BY name")
+      .prepare(
+        `SELECT * FROM agents WHERE deleted_at IS NULL
+         ORDER BY COALESCE(display_name, name) COLLATE NOCASE`
+      )
       .all()
       .map((row) => toAgent(row as Row))
   }
@@ -664,6 +669,7 @@ export function openStore(location: string) {
       try {
         inTransaction(db, () => {
           db.exec(migration.sql)
+          migration.run?.(db)
           if (migration.rebuild) {
             for (const row of db
               .prepare("SELECT id FROM agent_sessions")
@@ -881,6 +887,7 @@ function toConversation(row: Row, members: string[]): Conversation {
 function agentColumns(agent: NewAgent) {
   return {
     name: agent.name,
+    displayName: agent.displayName ?? null,
     colour: agent.colour,
     model: agent.model,
     permissionMode: agent.permissionMode,
@@ -899,6 +906,7 @@ function toAgent(row: Row): Agent {
   return {
     id: String(row.id),
     name: String(row.name),
+    displayName: row.display_name === null ? null : String(row.display_name),
     colour: String(row.colour),
     model: String(row.model),
     permissionMode: String(row.permission_mode),

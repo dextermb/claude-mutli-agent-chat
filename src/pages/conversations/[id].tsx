@@ -62,6 +62,7 @@ import type {
   TimelineEntry,
 } from "@/lib/agent-api"
 import { conversationTarget, type DeleteTarget } from "@/lib/delete-targets"
+import { shownName } from "../../../server/agent-names.ts"
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>()
@@ -179,7 +180,7 @@ export default function ConversationPage() {
     agentId: panelAgent.id,
     card,
     working: panelAgent.state === "busy" || panelAgent.state === "waiting",
-    agentName: panelAgent.name,
+    agentName: shownName(panelAgent),
     onStopTurn: () => conversation.stopAgent(panelAgent.id),
     onNewSession: () => conversation.newSession(panelAgent.id),
     onRemove: isDirect
@@ -226,7 +227,7 @@ export default function ConversationPage() {
           {isDirect && agent && (
             <Avatar size="sm">
               <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-                {initialsOf(agent.name)}
+                {initialsOf(shownName(agent))}
               </AvatarFallback>
               {status && <AvatarBadge className={status.dot} />}
             </Avatar>
@@ -234,7 +235,9 @@ export default function ConversationPage() {
           <div className="flex items-center gap-1.5 text-foreground-strong">
             {!isDirect && <KindIcon conversation={conversation.conversation} />}
             <h1 className="m-0 text-base font-semibold">
-              {conversation.conversation.name}
+              {isDirect && agent
+                ? shownName(agent)
+                : conversation.conversation.name}
             </h1>
           </div>
           {isDirect && status && (
@@ -289,7 +292,7 @@ export default function ConversationPage() {
                 {conversation.agents.slice(0, 3).map((member) => (
                   <Avatar key={member.id} size="sm">
                     <AvatarFallback className={AVATAR_COLOURS[member.colour]}>
-                      {initialsOf(member.name)}
+                      {initialsOf(shownName(member))}
                     </AvatarFallback>
                   </Avatar>
                 ))}
@@ -379,7 +382,7 @@ export default function ConversationPage() {
             <FilesTab
               entries={conversation.entries}
               cwd={agent.sessionCwd}
-              agentName={agent.name}
+              agentName={shownName(agent)}
               onOpen={(entryId) => {
                 focusEntry.current = entryId
                 navigate(`/conversations/${params.id}`, { replace: true })
@@ -409,13 +412,13 @@ export default function ConversationPage() {
                   <div className="flex flex-col items-start gap-2 px-5 pt-4 pb-2">
                     <Avatar size="lg">
                       <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-                        {initialsOf(agent.name)}
+                        {initialsOf(shownName(agent))}
                       </AvatarFallback>
                     </Avatar>
                     <p className="m-0 max-w-[520px] leading-[22px] text-muted-foreground">
                       This is your DM with{" "}
                       <strong className="text-foreground-strong">
-                        {agent.name}
+                        {shownName(agent)}
                       </strong>
                       . In a DM, the agent replies to every message. It runs
                       Claude Code in{" "}
@@ -484,7 +487,11 @@ export default function ConversationPage() {
               members={conversation.agents}
               label={`Message ${
                 conversation.conversation.kind === "channel" ? "#" : ""
-              }${conversation.conversation.name}`}
+              }${
+                isDirect && agent
+                  ? shownName(agent)
+                  : conversation.conversation.name
+              }`}
               attachments={attachments}
               searchPaths={searchPaths}
               tools={
@@ -607,14 +614,14 @@ function statusLine(
   entries: TimelineEntry[]
 ): string | null {
   const next = "Your next message waits until this turn ends."
-  if (member.state === "busy") return `${member.name} is working. ${next}`
+  if (member.state === "busy") return `${shownName(member)} is working. ${next}`
   if (member.state === "failed") {
-    return `${member.name} stopped. Your next message starts it again and resumes the session.`
+    return `${shownName(member)} stopped. Your next message starts it again and resumes the session.`
   }
   if (member.state !== "waiting") return null
   return asksQuestion(member, entries)
-    ? `${member.name} waits for your answer. ${next}`
-    : `${member.name} needs your approval. ${next}`
+    ? `${shownName(member)} waits for your answer. ${next}`
+    : `${shownName(member)} needs your approval. ${next}`
 }
 
 function asksQuestion(agent: AgentWithState, entries: TimelineEntry[]) {

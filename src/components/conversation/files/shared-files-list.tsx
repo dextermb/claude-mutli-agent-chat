@@ -27,6 +27,7 @@ import type {
 } from "@/lib/agent-api"
 import { fileNote } from "@/lib/files"
 import { clockTime } from "@/lib/time"
+import { shownName } from "../../../../server/agent-names.ts"
 
 export function SharedFilesList({
   files,
@@ -41,9 +42,10 @@ export function SharedFilesList({
 }) {
   const [asking, setAsking] = useState<SharedFileView | null>(null)
   const listed = files.filter((file) => file.removedAt === null)
-  const nameOf = (authorKey: string) =>
-    agents.find((agent) => `agent:${agent.id}` === authorKey)?.name ??
-    "an agent"
+  const nameOf = (authorKey: string) => {
+    const agent = agents.find((item) => `agent:${item.id}` === authorKey)
+    return agent ? shownName(agent) : "an agent"
+  }
   if (listed.length === 0) {
     return (
       <Empty className="border">

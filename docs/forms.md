@@ -84,11 +84,15 @@ get `400` from the route. It keeps its values in state, and shows a refusal
 of the server in an alert.
 
 A rule that needs the database stays in the route. A channel name that is
-taken gives `409`, and the dialog shows it in its alert only.
+taken gives `409`, and the dialog shows it in its alert only. A username that
+is taken gives `409` with a field message, and the agent page shows it under
+Username (`agent-names.md`).
 
 | Field                   | Rule                                 | Message                                                                              |
 | ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
-| agent `name`            | not empty after a trim               | Give the agent a name.                                                               |
+| agent `name`            | not empty after a trim               | Give the agent a username.                                                           |
+| agent `name`            | `^[a-z0-9-]*$`                       | Use only lowercase letters, numbers and hyphens in a username.                       |
+| agent `name`            | no other live agent has it (`409`)   | Another agent uses this username.                                                    |
 | agent `model`           | not empty                            | Pick a model.                                                                        |
 | agent `permissionMode`  | not empty                            | Pick a permission mode.                                                              |
 | agent `maxTurns`        | a whole number, 1 or more, or `null` | Give a whole number of 1 or more, or leave it empty.                                 |
@@ -103,8 +107,9 @@ The model and the permission mode are free strings, because new models and
 modes come out. A stored mode that the form does not list, such as `default`,
 stays valid (`docs/agents.md`). The schema gives a default to the fields that
 an older client can leave out (the colour, the lists, `autostart`, `private`,
-`replyMode`), and turns an empty system prompt, description, topic, `cwd` or
-`rules` into `null`. An agent and a channel can both have no folder
+`replyMode`), and turns an empty system prompt, description, display name,
+topic, `cwd` or `rules` into `null`. The username regex lets an empty value
+pass, so an empty username shows only "Give the agent a username.". An agent and a channel can both have no folder
 (`docs/agents.md`). The route checks that the folder of a channel exists,
 because the browser cannot.
 

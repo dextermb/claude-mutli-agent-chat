@@ -50,6 +50,10 @@ separate text block, before the text of the messages:
 - You work in ~/code/release, the folder of this channel. Each agent of this channel works in the same folder.
 ```
 
+An agent with a display name learns both names: `You are the agent "Test
+Runner" (@test-runner).`, and the member `Test Runner (@test-runner)`. See
+`agent-names.md`.
+
 | Kind and reply mode | The line about turns                                                                                                                                                               |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DM                  | You get each message of the user. A mention does nothing here.                                                                                                                     |

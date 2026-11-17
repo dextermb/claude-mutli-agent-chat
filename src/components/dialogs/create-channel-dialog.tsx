@@ -51,6 +51,7 @@ import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
 import { invalid, shown } from "@/lib/form-errors"
 import { channelSchema, type ChannelDraft } from "../../../server/schemas.ts"
+import { shownName } from "../../../server/agent-names.ts"
 
 const EMPTY: ChannelDraft = {
   name: "",
@@ -182,12 +183,12 @@ export function CreateChannelDialog({
                         <AvatarFallback
                           className={AVATAR_COLOURS[agent.colour]}
                         >
-                          {initialsOf(agent.name)}
+                          {initialsOf(shownName(agent))}
                         </AvatarFallback>
                       </Avatar>
                     </ItemMedia>
                     <ItemContent>
-                      <ItemTitle>{agent.name}</ItemTitle>
+                      <ItemTitle>{shownName(agent)}</ItemTitle>
                       <ItemDescription>
                         {agent.model} · {agent.permissionMode}
                       </ItemDescription>
@@ -198,7 +199,7 @@ export function CreateChannelDialog({
                           const picked = field.state.value ?? []
                           return (
                             <Checkbox
-                              aria-label={`Invite ${agent.name}`}
+                              aria-label={`Invite ${shownName(agent)}`}
                               checked={picked.includes(agent.id)}
                               onCheckedChange={(on) =>
                                 field.handleChange(

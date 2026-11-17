@@ -6,10 +6,40 @@ import {
   sessionFacts,
 } from "./environment-prompt.ts"
 
+const user = { name: "User", displayName: null }
+
+function named(name: string, displayName: string | null = null) {
+  return { name, displayName }
+}
+
 describe("sessionFacts", () => {
+  test("an agent with a display name learns both names, and so do its members", () => {
+    const facts = sessionFacts({
+      agent: named("test-runner", "Test Runner"),
+      conversation: {
+        id: "c-frontend",
+        kind: "channel",
+        name: "frontend",
+        topic: null,
+        replyMode: "mention",
+      },
+      members: [
+        user,
+        named("reviewer-bot"),
+        named("test-runner", "Test Runner"),
+      ],
+      folder: { path: "~/code/web-app", from: "agent" },
+    })
+
+    expect(facts[0]).toBe('- You are the agent "Test Runner" (@test-runner).')
+    expect(facts[3]).toBe(
+      "- The members: User, reviewer-bot, Test Runner (@test-runner) (you)."
+    )
+  })
+
   test("an agent in a DM learns its name, its conversation and that it gets each message", () => {
     const facts = sessionFacts({
-      agentName: "reviewer-bot",
+      agent: named("reviewer-bot"),
       conversation: {
         id: "c-dm",
         kind: "dm",
@@ -17,7 +47,7 @@ describe("sessionFacts", () => {
         topic: null,
         replyMode: "every",
       },
-      memberNames: ["User", "reviewer-bot"],
+      members: [user, named("reviewer-bot")],
       folder: { path: "~/code/web-app", from: "agent" },
     })
 
@@ -32,7 +62,7 @@ describe("sessionFacts", () => {
 
   test("an agent in a channel learns the topic, and that a mention or its own question gives it a turn", () => {
     const facts = sessionFacts({
-      agentName: "test-runner",
+      agent: named("test-runner"),
       conversation: {
         id: "c-frontend",
         kind: "channel",
@@ -40,7 +70,7 @@ describe("sessionFacts", () => {
         topic: "The web app",
         replyMode: "mention",
       },
-      memberNames: ["User", "reviewer-bot", "test-runner"],
+      members: [user, named("reviewer-bot"), named("test-runner")],
       folder: { path: "~/code/web-app", from: "agent" },
     })
 
@@ -55,7 +85,7 @@ describe("sessionFacts", () => {
 
   test("an agent in a group chat learns the name of the group chat", () => {
     const facts = sessionFacts({
-      agentName: "reviewer-bot",
+      agent: named("reviewer-bot"),
       conversation: {
         id: "c-group",
         kind: "group",
@@ -63,7 +93,7 @@ describe("sessionFacts", () => {
         topic: null,
         replyMode: "mention",
       },
-      memberNames: ["User", "reviewer-bot", "test-runner"],
+      members: [user, named("reviewer-bot"), named("test-runner")],
       folder: { path: "~/code/web-app", from: "agent" },
     })
 
@@ -74,7 +104,7 @@ describe("sessionFacts", () => {
 
   test("an agent in a channel that answers every message learns that it gets each message of the user", () => {
     const facts = sessionFacts({
-      agentName: "test-runner",
+      agent: named("test-runner"),
       conversation: {
         id: "c-standup",
         kind: "channel",
@@ -82,7 +112,7 @@ describe("sessionFacts", () => {
         topic: null,
         replyMode: "every",
       },
-      memberNames: ["User", "test-runner"],
+      members: [user, named("test-runner")],
       folder: { path: "~/code/web-app", from: "agent" },
     })
 
@@ -93,7 +123,7 @@ describe("sessionFacts", () => {
 
   test("an agent in a channel with a folder learns that it works in the folder of the channel, with the other agents", () => {
     const facts = sessionFacts({
-      agentName: "test-runner",
+      agent: named("test-runner"),
       conversation: {
         id: "c-billing",
         kind: "channel",
@@ -101,7 +131,7 @@ describe("sessionFacts", () => {
         topic: null,
         replyMode: "mention",
       },
-      memberNames: ["User", "reviewer-bot", "test-runner"],
+      members: [user, named("reviewer-bot"), named("test-runner")],
       folder: { path: "~/code/billing-api", from: "channel" },
     })
 
@@ -112,7 +142,7 @@ describe("sessionFacts", () => {
 
   test("an agent with no folder learns that it works in an empty scratch folder with no project", () => {
     const facts = sessionFacts({
-      agentName: "reviewer-bot",
+      agent: named("reviewer-bot"),
       conversation: {
         id: "c-dm",
         kind: "dm",
@@ -120,7 +150,7 @@ describe("sessionFacts", () => {
         topic: null,
         replyMode: "every",
       },
-      memberNames: ["User", "reviewer-bot"],
+      members: [user, named("reviewer-bot")],
       folder: {
         path: "~/.local/share/agent-chat/scratch/c-dm",
         from: "scratch",
@@ -154,7 +184,11 @@ describe("ENVIRONMENT_RULE", () => {
 describe("rulesNote", () => {
   test("the first prompt in a channel with rules gives the rules in full", () => {
     expect(
-      rulesNote(undefined, "Do not edit files.\nWrite findings only.", "channel")
+      rulesNote(
+        undefined,
+        "Do not edit files.\nWrite findings only.",
+        "channel"
+      )
     ).toBe(
       "[Chat app] The rules of this channel, from the user:\nDo not edit files.\nWrite findings only."
     )
@@ -167,9 +201,7 @@ describe("rulesNote", () => {
   })
 
   test("a change of the rules in a group chat gives the new rules in full", () => {
-    expect(
-      rulesNote("Write findings only.", "Reply in French.", "group")
-    ).toBe(
+    expect(rulesNote("Write findings only.", "Reply in French.", "group")).toBe(
       "[Chat app] The user changed the rules of this group chat. The rules now:\nReply in French."
     )
   })

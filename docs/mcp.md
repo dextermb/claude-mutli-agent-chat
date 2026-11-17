@@ -82,9 +82,9 @@ no `conversationId`, a tool uses the conversation of the session.
 
 | Tool                 | Input                                               | Result                                                                                                         | Card |
 | -------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---- |
-| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, folder, rules, members (`state`, `you`)                                         | No   |
+| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, folder, rules, members (`displayName`, `state`, `you`)                          | No   |
 | `list_conversations` |                                                     | ID, kind, name, topic and `thisConversation` of each of its conversations                                      | No   |
-| `list_agents`        |                                                     | Name, state over all conversations, own folder or `null`, and `you`                                            | No   |
+| `list_agents`        |                                                     | Username (`name`), `displayName`, state over all conversations, own folder or `null`, and `you`                | No   |
 | `read_messages`      | `conversationId?`, `before?`, `limit` (1 to 50, 20) | `messages` (`seq`, author, `at`, text, `files` if any), oldest first, and `more`                               | No   |
 | `list_files`         | `conversationId?`                                   | `files`: `id`, `name`, absolute `path`, `kind`, `size`, `sharedBy`, `sharedAt`, `exists`. Not the removed ones | No   |
 | `send_message`       | `conversationId?`, `text`                           | `{ seq }`                                                                                                      | Yes  |

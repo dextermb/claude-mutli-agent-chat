@@ -7,10 +7,12 @@ import { decodeLine } from "../protocol/decode.ts"
 import { readFixture } from "../test/fixtures.ts"
 import { SCHEMA_V1 } from "../test/schema-v1.ts"
 import { emptyTimeline, reduceTimeline } from "../timeline/reduce.ts"
+import { MIGRATIONS } from "./schema.ts"
 import { openStore, type NewAgent, type Store } from "./store.ts"
 
 const reviewer: NewAgent = {
   name: "reviewer-bot",
+  displayName: "Reviewer Bot",
   colour: "aqua",
   model: "claude-haiku-5-5",
   permissionMode: "default",
@@ -66,6 +68,15 @@ function versionOneFile() {
        '9a966a23-de85-473e-b54f-ea449c292221', 'exited',
        '2026-11-15T10:00:00.000Z');`
   )
+  return { file, db }
+}
+
+function versionTwelveFile() {
+  const { file, db } = versionOneFile()
+  for (const migration of MIGRATIONS) {
+    if (migration.version <= 12) db.exec(migration.sql)
+  }
+  db.exec("PRAGMA user_version = 12")
   return { file, db }
 }
 
@@ -131,6 +142,7 @@ describe("Store", () => {
       id: created.id,
       createdAt: created.createdAt,
       name: "reviewer-bot",
+      displayName: "Reviewer Bot",
       colour: "aqua",
       model: "claude-haiku-5-5",
       permissionMode: "default",
@@ -399,6 +411,61 @@ describe("Store", () => {
         .listTimeline(conversation.id)
         .map(({ item }) => ({ kind: item.kind, status: item.status }))
     ).toEqual([{ kind: "question", status: "expired" }])
+  })
+
+  test("two live agents cannot share a username, but a deleted agent frees its username", () => {
+    const store = memoryStore()
+    const first = store.createAgent(reviewer)
+
+    expect(() => store.createAgent(reviewer)).toThrow()
+    store.deleteAgent(first.id)
+    expect(store.createAgent(reviewer).name).toBe("reviewer-bot")
+  })
+
+  test("the agents list in the order of the name that people see", () => {
+    const store = memoryStore()
+    store.createAgent({ ...reviewer, name: "beta-bot", displayName: null })
+    store.createAgent({ ...reviewer, name: "zed-bot", displayName: "Alpha" })
+
+    expect(store.listAgents().map((agent) => agent.name)).toEqual([
+      "zed-bot",
+      "beta-bot",
+    ])
+  })
+
+  test("an older database gets a username for each agent, and keeps an old name as the display name", () => {
+    const { file, db } = versionTwelveFile()
+    const insert = db.prepare(
+      `INSERT INTO agents (id, name, colour, model, permission_mode, cwd,
+         autostart, allowed_tools, disallowed_tools, created_at, deleted_at)
+       VALUES (?, ?, 'aqua', 'claude-haiku-5-5', 'default', NULL, 0, '[]',
+         '[]', ?, ?)`
+    )
+    insert.run("a2", "Test Runner", "2026-11-15T10:01:00.000Z", null)
+    insert.run("a3", "test-runner", "2026-11-15T10:02:00.000Z", null)
+    insert.run("a4", "Ops_Bot 2", "2026-11-15T10:03:00.000Z", null)
+    insert.run(
+      "a5",
+      "Old Bot",
+      "2026-11-15T10:04:00.000Z",
+      "2026-11-16T09:00:00.000Z"
+    )
+    db.close()
+
+    const store = openFile(file)
+
+    expect(
+      ["a1", "a2", "a3", "a4", "a5"].map((id) => {
+        const agent = store.getAgent(id)!
+        return [agent.name, agent.displayName]
+      })
+    ).toEqual([
+      ["reviewer-bot", null],
+      ["test-runner-2", "Test Runner"],
+      ["test-runner", null],
+      ["ops-bot-2", "Ops_Bot 2"],
+      ["Old Bot", null],
+    ])
   })
 
   test("an agent of an older database has no description, and a description can be saved", () => {

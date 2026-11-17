@@ -20,6 +20,7 @@ gives the parts of the app, the main decisions, and the risks.
 | `conversations.md`     | Who gets a turn, mentions, and the shape of a prompt                          |
 | `sleep.md`             | Sleep and wake: the timer, the compaction, the wake prompt, the summary       |
 | `delete.md`            | Delete a channel, a group chat or an agent: the routes, the dialog, the label |
+| `agent-names.md`       | The username and the display name of an agent, and where each one shows       |
 
 ## The web app
 

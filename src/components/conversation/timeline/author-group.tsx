@@ -13,6 +13,7 @@ import type {
 } from "@/lib/agent-api"
 import { clockTime } from "@/lib/time"
 import { runsOfCalls, type Answer, type Group } from "@/lib/timeline"
+import { shownName } from "../../../../server/agent-names.ts"
 
 export function AuthorGroup({
   group,
@@ -63,17 +64,17 @@ export function AuthorGroup({
   }
   return (
     <article
-      aria-label={`${agent.name}, ${clockTime(createdAt)}`}
+      aria-label={`${shownName(agent)}, ${clockTime(createdAt)}`}
       className="flex flex-col gap-2 px-5 py-2"
     >
       <div className="flex items-center gap-2">
         <Avatar size="sm" className="flex-none">
           <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-            {initialsOf(agent.name)}
+            {initialsOf(shownName(agent))}
           </AvatarFallback>
         </Avatar>
         <span className="font-semibold text-foreground-strong">
-          {agent.name}
+          {shownName(agent)}
         </span>
         {agent.deletedAt ? (
           <Badge variant="outline">Deleted agent</Badge>

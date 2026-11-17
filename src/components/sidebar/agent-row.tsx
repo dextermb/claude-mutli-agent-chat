@@ -5,6 +5,7 @@ import { ROW_CLASS } from "@/components/sidebar/row-class"
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
+import { shownName } from "../../../server/agent-names.ts"
 
 export function AgentRow({
   agent,
@@ -30,7 +31,8 @@ export function AgentRow({
         aria-hidden="true"
         className={cn("mx-1 size-2 flex-none rounded-full", status.dot)}
       />
-      <span>{agent.name}</span> <span className="sr-only">{status.label}</span>
+      <span>{shownName(agent)}</span>{" "}
+      <span className="sr-only">{status.label}</span>
     </>
   )
   if (directMessage) {

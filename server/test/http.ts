@@ -109,6 +109,7 @@ export async function startServer(
 export function directMessage(store: Store): Members {
   const agent = store.createAgent({
     name: "reviewer-bot",
+    displayName: null,
     colour: "aqua",
     model: "claude-haiku-5-5",
     permissionMode: "default",
@@ -253,6 +254,7 @@ export async function postJson(base: string, route: string, body: unknown) {
 
 export const testRunner = {
   name: "test-runner",
+  displayName: null,
   colour: "aqua",
   model: "claude-sonnet-5-5",
   permissionMode: "acceptEdits",

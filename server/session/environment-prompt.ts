@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs"
+import type { Named } from "../agent-names.ts"
 import type { Conversation } from "../api-types.ts"
 
 export type EnvironmentContext = {
-  agentName: string
+  agent: Named
   conversation: Pick<
     Conversation,
     "id" | "kind" | "name" | "topic" | "replyMode"
   >
-  memberNames: string[]
+  members: Named[]
   folder: { path: string; from: "channel" | "agent" | "scratch" }
 }
 
@@ -17,19 +18,22 @@ export const ENVIRONMENT_RULE = readFileSync(
 ).trim()
 
 export function sessionFacts({
-  agentName,
+  agent,
   conversation,
-  memberNames,
+  members,
   folder,
 }: EnvironmentContext): string[] {
-  const members = memberNames.map((name) =>
-    name === agentName ? `${name} (you)` : name
+  const labels = members.map((member) =>
+    member.name === agent.name ? `${label(member)} (you)` : label(member)
   )
+  const you = agent.displayName
+    ? `"${agent.displayName}" (@${agent.name})`
+    : `"${agent.name}"`
   return [
-    `- You are the agent "${agentName}".`,
+    `- You are the agent ${you}.`,
     `- This conversation is ${place(conversation)} (ID "${conversation.id}").${topic(conversation)}`,
     turns(conversation),
-    `- The members: ${members.join(", ")}.`,
+    `- The members: ${labels.join(", ")}.`,
     workFolder(folder),
   ]
 }
@@ -42,6 +46,10 @@ export function factsNote(
   const changed = now.filter((line, index) => line !== sent[index])
   if (changed.length === 0) return undefined
   return ["[Chat app] This session changed:", ...changed].join("\n")
+}
+
+function label({ name, displayName }: Named): string {
+  return displayName ? `${displayName} (@${name})` : name
 }
 
 export function rulesNote(

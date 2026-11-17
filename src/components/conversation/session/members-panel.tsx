@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sheet"
 import type { AgentWithState } from "@/lib/agent-api"
 import { cn } from "@/lib/utils"
+import { shownName } from "../../../../server/agent-names.ts"
 
 export function MembersPanel({
   asSheet,
@@ -67,19 +68,19 @@ export function MembersPanel({
               <button
                 type="button"
                 aria-expanded={isOpen}
-                aria-label={`${agent.name} ${status.label}`}
+                aria-label={`${shownName(agent)} ${status.label}`}
                 className="flex w-full items-center gap-2.5 rounded-[10px] p-2 text-left hover:bg-muted"
                 onClick={() => onPick(isOpen ? null : agent.id)}
               >
                 <Avatar size="sm" aria-hidden="true">
                   <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-                    {initialsOf(agent.name)}
+                    {initialsOf(shownName(agent))}
                   </AvatarFallback>
                   <AvatarBadge className={status.dot} />
                 </Avatar>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-medium text-foreground-strong">
-                    {agent.name}
+                    {shownName(agent)}
                   </span>
                   <span className="truncate font-mono text-xs text-foreground-faint">
                     {agent.model}

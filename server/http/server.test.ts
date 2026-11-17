@@ -279,7 +279,9 @@ describe("createServer", () => {
 
     await sendMessage(base, conversation.id, "Remember kiwi.")
 
-    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    await vi.waitFor(() =>
+      expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    )
     expect(factsTo(sentTo, "reviewer-bot")[0].split("\n").slice(0, 2)).toEqual([
       "[Chat app] You were asleep for 3 h 12 min.",
       "[Chat app] This session:",
@@ -301,7 +303,9 @@ describe("createServer", () => {
 
     await sendMessage(base, conversation.id, "Remember kiwi.")
 
-    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    await vi.waitFor(() =>
+      expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    )
     expect(factsTo(sentTo, "reviewer-bot")[0]).toMatch(
       /^\[Chat app\] This session:/
     )
@@ -331,7 +335,11 @@ describe("createServer", () => {
     ])
     store.updateSession(earlier.id, { state: "exited", endReason: "sleep" })
 
-    await sendMessage(base, conversation.id, "Which word did I ask you to remember?")
+    await sendMessage(
+      base,
+      conversation.id,
+      "Which word did I ask you to remember?"
+    )
 
     await vi.waitFor(async () => {
       const { items } = await timeline(base, conversation.id)
@@ -454,6 +462,7 @@ describe("createServer", () => {
     const { store, server, startedAgents, sentTo } = await startServer()
     const runner = store.createAgent({
       name: "test-runner",
+      displayName: null,
       colour: "aqua",
       model: "claude-haiku-5-5",
       permissionMode: "default",
@@ -677,7 +686,7 @@ describe("createServer", () => {
 
     const response = await postJson(base, "/api/agents", {
       ...testRunner,
-      name: "reviewer-bot",
+      name: "code-reviewer",
     })
     const { agent } = (await response.json()) as { agent: { id: string } }
 
@@ -935,7 +944,7 @@ describe("createServer", () => {
     )
   })
 
-  test("an agent with no name or model is refused", async () => {
+  test("an agent with no username or model is refused", async () => {
     const { base } = await startServer()
 
     const response = await postJson(base, "/api/agents", {
@@ -946,12 +955,59 @@ describe("createServer", () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: "Give the agent a name. Pick a model.",
+      error: "Give the agent a username. Pick a model.",
       fields: {
-        name: "Give the agent a name.",
+        name: "Give the agent a username.",
         model: "Pick a model.",
       },
     })
+  })
+
+  test("a username that another agent uses is refused, on a create and on a save", async () => {
+    const { base } = await startServer()
+    const created = await postJson(base, "/api/agents", testRunner)
+    const other = await postJson(base, "/api/agents", {
+      ...testRunner,
+      name: "lint-runner",
+    })
+    const { agent } = (await other.json()) as { agent: { id: string } }
+
+    const again = await postJson(base, "/api/agents", testRunner)
+    const saved = await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "test-runner" }),
+    })
+
+    expect(created.status).toBe(201)
+    for (const response of [again, saved]) {
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({
+        error: "Another agent uses this username.",
+        fields: { name: "Another agent uses this username." },
+      })
+    }
+  })
+
+  test("an agent can keep its own username, and take the username of a deleted agent", async () => {
+    const { base } = await startServer()
+    const first = (await (
+      await postJson(base, "/api/agents", testRunner)
+    ).json()) as { agent: { id: string } }
+
+    const kept = await fetch(`${base}/api/agents/${first.agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Test Runner" }),
+    })
+    await fetch(`${base}/api/agents/${first.agent.id}`, { method: "DELETE" })
+    const again = await postJson(base, "/api/agents", testRunner)
+
+    expect(kept.status).toBe(200)
+    expect(await kept.json()).toMatchObject({
+      agent: { name: "test-runner", displayName: "Test Runner" },
+    })
+    expect(again.status).toBe(201)
   })
 
   test("an agent keeps its sleep time, a time above 55 minutes is refused, and no time is null", async () => {
@@ -965,7 +1021,10 @@ describe("createServer", () => {
       ...testRunner,
       sleepAfterMinutes: 56,
     })
-    const none = await postJson(base, "/api/agents", testRunner)
+    const none = await postJson(base, "/api/agents", {
+      ...testRunner,
+      name: "lint-runner",
+    })
 
     expect(await kept.json()).toMatchObject({
       agent: { sleepAfterMinutes: 20 },
@@ -973,7 +1032,8 @@ describe("createServer", () => {
     expect(tooLong.status).toBe(400)
     expect(await tooLong.json()).toMatchObject({
       fields: {
-        sleepAfterMinutes: "Give a whole number from 0 to 55, or leave it empty.",
+        sleepAfterMinutes:
+          "Give a whole number from 0 to 55, or leave it empty.",
       },
     })
     expect(await none.json()).toMatchObject({

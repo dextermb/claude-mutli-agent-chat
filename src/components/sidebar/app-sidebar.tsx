@@ -33,6 +33,7 @@ import {
   conversationTarget,
   type DeleteTarget,
 } from "@/lib/delete-targets"
+import { shownName } from "../../../server/agent-names.ts"
 
 export function AppSidebar({
   currentId,
@@ -173,7 +174,7 @@ export function AppSidebar({
                       onNavigate={() => onOpenChange(false)}
                       onOpenDirectMessage={() => void openDirectMessage(agent)}
                       deletion={{
-                        label: `Delete agent ${agent.name}`,
+                        label: `Delete agent ${shownName(agent)}`,
                         hint: "Delete agent",
                         onClick: () =>
                           setDeleting(agentTarget(agent, conversations)),

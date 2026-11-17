@@ -16,6 +16,7 @@ import type {
 import { clockTime, dayKey, longDay } from "@/lib/time"
 import { entryAnchor, type Answer } from "@/lib/timeline"
 import { cn } from "@/lib/utils"
+import { shownName } from "../../../../server/agent-names.ts"
 
 export function EntryBody({
   entry,
@@ -39,7 +40,7 @@ export function EntryBody({
         call={item}
         cwd={agent?.sessionCwd ?? ""}
         request={requests.get(item.toolUseId)}
-        agentName={agent?.name ?? "the agent"}
+        agentName={agent ? shownName(agent) : "the agent"}
         onAnswer={onAnswer}
         subagentCalls={subagentCalls.get(item.toolUseId)}
         requests={requests}
@@ -65,7 +66,7 @@ export function EntryBody({
   if (item.kind === "notice" && item.reason === "failed") {
     return (
       <FailedNotice
-        agentName={agent?.name ?? "The agent"}
+        agentName={agent ? shownName(agent) : "The agent"}
         exitCode={item.exitCode}
         stderr={item.stderr}
       />

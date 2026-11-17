@@ -157,3 +157,25 @@ describe("delete from the sidebar", () => {
     ])
   })
 })
+
+describe("the names of agents in the sidebar", () => {
+  test("an agent with a display name shows it in its row and in its delete confirm", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents", {
+      agents: [reviewerBot, { ...testRunner, displayName: "Test Runner" }],
+    })
+    render(<App />)
+
+    const nav = within(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    )
+    expect(await nav.findByText("Test Runner")).toBeInTheDocument()
+    expect(nav.queryByText("test-runner")).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole("button", { name: "Delete agent Test Runner" })
+    )
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete Test Runner?" })
+    ).toBeInTheDocument()
+  })
+})
