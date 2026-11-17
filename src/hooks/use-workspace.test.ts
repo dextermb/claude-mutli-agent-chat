@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, test } from "vitest"
 
+import { WorkspaceProvider } from "@/components/workspace/workspace-provider"
 import { useWorkspace } from "@/hooks/use-workspace"
 import {
   directMessage,
@@ -24,7 +25,9 @@ beforeEach(() => {
 
 describe("useWorkspace", () => {
   test("loads the conversations and the agents, then follows the state of each agent", async () => {
-    const { result } = renderHook(() => useWorkspace())
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    })
     await waitFor(() =>
       expect(result.current.agents).toEqual([reviewerBot, testRunner])
     )
@@ -46,7 +49,9 @@ describe("useWorkspace", () => {
   })
 
   test("a new conversation on the stream joins the list", async () => {
-    const { result } = renderHook(() => useWorkspace())
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    })
     await waitFor(() => expect(result.current.agents).toHaveLength(2))
 
     act(() =>
@@ -63,7 +68,9 @@ describe("useWorkspace", () => {
   })
 
   test("a reset loads the lists again and opens a new stream", async () => {
-    const { result } = renderHook(() => useWorkspace())
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    })
     await waitFor(() => expect(result.current.agents).toHaveLength(2))
     const first = network.stream("/api/events")
     network.on("GET", "/api/agents", { agents: [testRunner] })
@@ -76,7 +83,9 @@ describe("useWorkspace", () => {
   })
 
   test("the unread count of each conversation follows the stream, and the count 0 clears it", async () => {
-    const { result } = renderHook(() => useWorkspace())
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    })
     await waitFor(() =>
       expect(result.current.unread).toEqual({ [releaseChannel.id]: 2 })
     )
@@ -101,7 +110,9 @@ describe("useWorkspace", () => {
   })
 
   test("a deleted conversation and a deleted agent leave the lists", async () => {
-    const { result } = renderHook(() => useWorkspace())
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    })
     await waitFor(() => expect(result.current.agents).toHaveLength(2))
     const stream = network.stream("/api/events")
 

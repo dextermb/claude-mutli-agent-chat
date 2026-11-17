@@ -29,6 +29,7 @@ directory gives the same information.
 | `fields/channel`              | One field of the channel forms in each file. The Rules field is also in Group chat settings                        |
 | `sidebar`                     | The sidebar, its rows and their ×, its sections, the workspace rail and the work footer                            |
 | `theme`                       | The theme provider, its context and `useTheme`                                                                     |
+| `workspace`                   | `WorkspaceProvider`, the one app stream and its lists, and its context. `useWorkspace` reads it                    |
 | `conversation`                | The parts of a conversation page: the working line and the Rules badge. See `docs/web-app/conversation.md`         |
 | `conversation/cards`          | The approval card and the question card                                                                            |
 | `conversation/composer`       | The message box, its mention list, its attachment chip, the model and the context                                  |

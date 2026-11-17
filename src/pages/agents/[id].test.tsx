@@ -10,7 +10,7 @@ import {
   squadGroup,
   testRunner,
 } from "@/test/conversation-data"
-import { FakeEventSource, fakeNetwork } from "@/test/fake-network"
+import { fakeNetwork } from "@/test/fake-network"
 
 let network: ReturnType<typeof fakeNetwork>
 
@@ -116,15 +116,11 @@ describe("the agent configuration page", () => {
     await user.type(await screen.findByLabelText("Username"), "lint-fixer")
     await user.click(screen.getByRole("button", { name: "Create agent" }))
     await waitFor(() => expect(window.location.pathname).toBe("/agents/a3"))
-    act(() => {
-      for (const source of FakeEventSource.opened) {
-        if (source.url !== "/api/events") continue
-        source.emit(1, {
-          type: "agent",
-          agent: { ...lintFixer, state: "exited" },
-        })
-      }
-    })
+    act(() =>
+      network
+        .stream("/api/events")
+        .emit(1, { type: "agent", agent: { ...lintFixer, state: "exited" } })
+    )
 
     const sidebar = screen.getByRole("navigation", { name: "Conversations" })
     expect(

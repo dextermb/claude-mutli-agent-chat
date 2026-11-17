@@ -47,8 +47,13 @@ the conversation page when the address changes to another conversation, so
 the sheet must close itself.
 
 The sidebar gets its lists from `useWorkspace()` (`src/hooks/use-workspace.ts`).
-The hook opens the app stream (`/api/events`), then loads
-`GET /api/conversations` and `GET /api/agents`. An `agent_state` event
+The hook reads `WorkspaceProvider`
+(`src/components/workspace/workspace-provider.tsx`), which `App` puts around
+the router. So the app opens one app stream (`/api/events`) for all the
+pages, and the stream stays open when the user goes to another page. The
+provider opens the stream, then loads `GET /api/conversations` and
+`GET /api/agents`. An `agent` event adds the agent, or replaces it if the list
+holds it. An `agent_state` event
 changes the state of that agent. A `conversation` event adds the
 conversation, or replaces it if the list holds it. An `unread` event sets the
 unread count of the conversation. The count 0 removes it. A
