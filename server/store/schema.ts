@@ -203,6 +203,12 @@ export const MIGRATIONS: {
   {
     version: 13,
     sql: `
+      ALTER TABLE conversations ADD COLUMN rules TEXT;
+    `,
+  },
+  {
+    version: 14,
+    sql: `
       ALTER TABLE agents ADD COLUMN display_name TEXT;
     `,
     run: giveUsernames,

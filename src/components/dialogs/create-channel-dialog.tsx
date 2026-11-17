@@ -9,6 +9,7 @@ import {
 import { FolderField } from "@/components/fields/channel/folder-field"
 import { PrivateField } from "@/components/fields/channel/private-field"
 import { ReplyModeField } from "@/components/fields/channel/reply-mode-field"
+import { RulesField } from "@/components/fields/channel/rules-field"
 import { TopicField } from "@/components/fields/channel/topic-field"
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -58,6 +59,7 @@ const EMPTY: ChannelDraft = {
   private: false,
   replyMode: "mention",
   cwd: "",
+  rules: "",
   agentIds: [],
 }
 
@@ -220,6 +222,17 @@ export function CreateChannelDialog({
                 <ReplyModeField
                   value={field.state.value ?? "mention"}
                   onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
+            <form.Field name="rules">
+              {(field) => (
+                <RulesField
+                  place="channel"
+                  value={field.state.value ?? ""}
+                  errors={shown(field.state.meta)}
+                  onChange={field.handleChange}
+                  onBlur={field.handleBlur}
                 />
               )}
             </form.Field>

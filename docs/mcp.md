@@ -82,7 +82,7 @@ no `conversationId`, a tool uses the conversation of the session.
 
 | Tool                 | Input                                               | Result                                                                                                         | Card |
 | -------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---- |
-| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, folder, members (`displayName`, `state`, `you`)                                 | No   |
+| `get_conversation`   | `conversationId?`                                   | Kind, name, topic, reply mode, folder, rules, members (`displayName`, `state`, `you`)                          | No   |
 | `list_conversations` |                                                     | ID, kind, name, topic and `thisConversation` of each of its conversations                                      | No   |
 | `list_agents`        |                                                     | Username (`name`), `displayName`, state over all conversations, own folder or `null`, and `you`                | No   |
 | `read_messages`      | `conversationId?`, `before?`, `limit` (1 to 50, 20) | `messages` (`seq`, author, `at`, text, `files` if any), oldest first, and `more`                               | No   |
@@ -93,6 +93,8 @@ no `conversationId`, a tool uses the conversation of the session.
 
 - `get_conversation` gives the folder of a channel with `~`, or `null`. The
   folder of a process can differ from it after a change (`docs/agents.md`).
+- `get_conversation` gives the rules of the conversation, or `null`
+  (`docs/conversations.md`). No tool changes them.
 - `list_agents` gives the own folder of each agent. A generic agent has
   `null`, because it works in the folder of each channel.
 - `read_messages` gives only complete messages, with no tool calls.

@@ -128,7 +128,10 @@ export default function AgentPage() {
   const [browsing, setBrowsing] = useState(false)
   const isMobile = useIsMobile()
   const { agents, conversations } = useWorkspace()
-  const [saved, setSaved] = useState<Draft | null>(null)
+  const [loaded, setLoaded] = useState<{ id: string; draft: Draft } | null>(
+    null
+  )
+  const saved = !isNew && loaded?.id === id ? loaded.draft : null
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const listed = agents.find((agent) => agent.id === id)
 
@@ -146,18 +149,24 @@ export default function AgentPage() {
   })
 
   useEffect(() => {
-    if (isNew) return
+    if (isNew) {
+      form.reset(EMPTY)
+      return
+    }
     let current = true
     fetch(`/api/agents/${id}`)
       .then((response) => response.json() as Promise<{ agent: Agent }>)
       .then(({ agent }) => {
-        if (current) setSaved(draftOf(agent))
+        if (!current) return
+        const draft = draftOf(agent)
+        setLoaded({ id, draft })
+        form.reset(draft)
       })
       .catch(() => undefined)
     return () => {
       current = false
     }
-  }, [id, isNew])
+  }, [form, id, isNew])
 
   async function save(draft: Draft) {
     const response = await fetch(isNew ? "/api/agents" : `/api/agents/${id}`, {
@@ -187,7 +196,7 @@ export default function AgentPage() {
     }
     toastDone(`${shownName(body.agent)} is ${isNew ? "created" : "saved"}.`)
     if (isNew) navigate(`/agents/${body.agent.id}`)
-    else setSaved(draft)
+    else setLoaded({ id, draft })
   }
 
   const values = useStore(form.store, (state) => state.values)

@@ -148,7 +148,7 @@ result                           → a turn, as for each prompt
 - The summary (F42) is the text that the agent keeps in place of the old
   context.
 - The browser shows a compaction item as a divider
-  (`docs/web-app/conversation.md`), and the session card shows the last one
+  (`docs/web-app/conversation/timeline.md`), and the session card shows the last one
   with the status `done` (`docs/server.md`). A failed compaction shows
   nothing.
 - A compaction item is not unread (`docs/store.md`).

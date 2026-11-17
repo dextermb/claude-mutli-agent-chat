@@ -5,6 +5,7 @@ import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderField } from "@/components/fields/channel/folder-field"
 import { PrivateField } from "@/components/fields/channel/private-field"
 import { ReplyModeField } from "@/components/fields/channel/reply-mode-field"
+import { RulesField } from "@/components/fields/channel/rules-field"
 import { SleepField } from "@/components/fields/channel/sleep-field"
 import { TopicField } from "@/components/fields/channel/topic-field"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ export function SettingsForm({
       ? ""
       : String(conversation.sleepAfterMinutes)
   )
+  const [rules, setRules] = useState(conversation.rules ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,6 +53,7 @@ export function SettingsForm({
     if (sleepAfterMinutes !== conversation.sleepAfterMinutes) {
       changes.sleepAfterMinutes = sleepAfterMinutes
     }
+    if (rules.trim() !== (conversation.rules ?? "")) changes.rules = rules
     if (Object.keys(changes).length === 0) {
       onSaved()
       return
@@ -90,6 +93,7 @@ export function SettingsForm({
         <FolderField value={cwd} onChange={setCwd} />
         <ReplyModeField value={replyMode} onChange={setReplyMode} />
         <SleepField value={sleep} onChange={setSleep} />
+        <RulesField place="channel" value={rules} onChange={setRules} />
       </FieldGroup>
       <DeleteSection
         action="Delete channel"

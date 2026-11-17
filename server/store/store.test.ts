@@ -181,6 +181,7 @@ describe("Store", () => {
       replyMode: "every",
       cwd: null,
       sleepAfterMinutes: null,
+      rules: null,
       members: ["user:me", `agent:${agent.id}`],
     })
   })
@@ -207,6 +208,19 @@ describe("Store", () => {
     })
     store.updateConversation(channel.id, { cwd: null })
     expect(store.getConversation(channel.id)).toMatchObject({ cwd: null })
+  })
+
+  test("a conversation of an older database has no rules, and rules can be saved", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+
+    expect(store.getConversation("c1")).toMatchObject({ rules: null })
+    store.updateConversation("c1", { rules: "Write findings only." })
+    expect(store.getConversation("c1")).toMatchObject({
+      name: "reviewer-bot",
+      rules: "Write findings only.",
+    })
   })
 
   test("a member that joins goes to the end of the list, and keeps the place of the timeline where it joined", () => {
@@ -430,7 +444,12 @@ describe("Store", () => {
     insert.run("a2", "Test Runner", "2026-11-15T10:01:00.000Z", null)
     insert.run("a3", "test-runner", "2026-11-15T10:02:00.000Z", null)
     insert.run("a4", "Ops_Bot 2", "2026-11-15T10:03:00.000Z", null)
-    insert.run("a5", "Old Bot", "2026-11-15T10:04:00.000Z", "2026-11-16T09:00:00.000Z")
+    insert.run(
+      "a5",
+      "Old Bot",
+      "2026-11-15T10:04:00.000Z",
+      "2026-11-16T09:00:00.000Z"
+    )
     db.close()
 
     const store = openFile(file)

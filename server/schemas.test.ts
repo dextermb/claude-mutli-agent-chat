@@ -31,7 +31,10 @@ describe("agentSchema", () => {
       displayName: "  Foo Bar ",
     })
 
-    expect(checked).toMatchObject({ ok: true, data: { displayName: "Foo Bar" } })
+    expect(checked).toMatchObject({
+      ok: true,
+      data: { displayName: "Foo Bar" },
+    })
   })
 
   test("an empty or missing display name becomes null", () => {

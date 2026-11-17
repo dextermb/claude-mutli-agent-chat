@@ -43,6 +43,7 @@ export type StreamMessage =
   | { type: "conversation"; conversation: Conversation }
   | { type: "unread"; conversationId: string; count: number }
   | { type: "conversation_deleted"; conversationId: string }
+  | { type: "agent"; agent: AgentWithState }
   | { type: "agent_deleted"; agentId: string }
   | { type: "reset" }
   | { type: "line"; agentId: string; line: LogLine }

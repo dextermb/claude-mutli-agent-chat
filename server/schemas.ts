@@ -76,6 +76,12 @@ export const channelSchema = z.object({
     .default("mention"),
   cwd: trimmedOrNull(),
   sleepAfterMinutes: sleepTime(),
+  rules: z
+    .string()
+    .trim()
+    .max(4000, "Keep the rules to 4,000 characters or fewer.")
+    .nullish()
+    .transform((value) => (value ? value : null)),
   agentIds: z.array(z.string()).default([]),
 })
 
@@ -85,7 +91,10 @@ export const channelSettingsSchema = channelSchema.pick({
   replyMode: true,
   cwd: true,
   sleepAfterMinutes: true,
+  rules: true,
 })
+
+export const groupSettingsSchema = channelSchema.pick({ rules: true })
 
 export type AgentDraft = z.input<typeof agentSchema>
 

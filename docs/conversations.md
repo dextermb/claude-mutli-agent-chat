@@ -15,22 +15,43 @@ turn for a message, and what prompt that agent gets. The routes are in
 
 A group chat is private. A channel is public unless `private: true`.
 
-## Channel settings
+## Settings
 
-`PATCH /api/conversations/:id` changes the topic, the privacy, the reply mode
-and the folder (`cwd`) of a channel. The server merges the body onto the stored values and
-checks the result with `channelSettingsSchema` (`docs/forms.md`). A DM or a
-group chat answers `400` "Only a channel has settings.", because a group chat
-is always private and always `mention`. The name does not change.
+`PATCH /api/conversations/:id` changes the topic, the privacy, the reply mode,
+the folder (`cwd`), the sleep time and the rules of a channel. The server
+merges the body onto the stored values and checks the result with
+`channelSettingsSchema` (`docs/forms.md`). The name does not change.
+
+| Kind       | What can change  | Else                                               |
+| ---------- | ---------------- | -------------------------------------------------- |
+| Channel    | Each field above | `400` with `fields` for a bad value                |
+| Group chat | `rules` only     | `400` "Only the rules of a group chat can change." |
+| DM         | Nothing          | `400` "A DM has no settings."                      |
+
+A group chat is always private and always `mention`. A DM has no rules,
+because the system prompt of its one agent does the same work.
 
 - The server reads the reply mode at each message. So a change applies to the
   next message of the user, with no restart.
-- The rule of a process that runs keeps the topic and the reply mode of its
-  start (`docs/agent-environment.md`). The agent can read the new values with
-  `get_conversation` (`docs/mcp.md`).
+- A change of the topic or the reply mode reaches each agent with its next
+  prompt, as a changed fact (`docs/agent-environment.md`). The agent can also
+  read the new values with `get_conversation` (`docs/mcp.md`).
 - A process that runs keeps its folder. The next process of each agent starts
   in the new folder, and resumes its Claude session (`docs/agents.md`). A
   folder that does not exist gets `400`.
+
+## Rules
+
+The rules of a channel or a group chat are free text from the user, up to
+4,000 characters. Each agent of that conversation follows them, also when
+they disagree with its own system prompt. The rule of the chat app wins over
+both. So one agent can behave differently in each conversation.
+
+- The user writes them in Create a channel, Channel settings and Group chat
+  settings (`docs/web-app/conversation/header.md`). Empty text is `null`.
+- The rules reach each agent in a `[Chat app]` block of its prompt, not in
+  its system prompt (`docs/agent-environment.md`).
+- An agent reads them with `get_conversation`, but cannot change them.
 
 A channel name has lowercase letters, numbers and hyphens only, else the
 server answers `400`. Two channels cannot have the same name: the second one
@@ -90,7 +111,7 @@ mention (`agent-names.md`):
 
 `mentionPattern(name)` holds this rule. The timeline of the web app uses it
 too, to show each mention in the colour of its agent
-(`docs/web-app/conversation.md`).
+(`docs/web-app/messages.md`).
 
 ## The prompt
 

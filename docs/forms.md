@@ -41,6 +41,24 @@ The `<Toaster>` of `src/components/ui/toast.tsx` is around the app in
 `src/App.tsx`. Today the agent page and its Stop agent and Restart session
 use them. The dialogs still show a refusal in an alert in the dialog.
 
+## After a success
+
+A form clears its values after a success, and the app shows the change at
+once, because each write route sends an event on the app stream
+(`docs/server.md`):
+
+| Form                        | After a success                                       | The event                           |
+| --------------------------- | ----------------------------------------------------- | ----------------------------------- |
+| The agent page, new agent   | goes to `/agents/<id>`. New agent opens an empty form | `agent`                             |
+| The agent page, saved agent | stays. Discard goes back to the saved values          | `agent`                             |
+| Create a channel            | `form.reset()`, goes to the channel                   | `conversation`                      |
+| Start a chat                | clears the picked agents and the search, goes there   | `conversation`, for a new chat only |
+| Channel settings            | closes. The form mounts again on each open            | `conversation`                      |
+| Add members                 | clears the picked agents, closes                      | `conversation`                      |
+
+The sidebar, Create a channel and Start a chat take their agents from
+`useWorkspace()`. Add members reads `GET /api/agents` each time it opens.
+
 ## One schema
 
 `server/schemas.ts` holds `agentSchema` and `channelSchema`. It imports only
@@ -50,16 +68,18 @@ use them. The dialogs still show a refusal in an alert in the dialog.
   `POST /api/agents`, `PATCH /api/agents/:id` (on the stored agent with the
   body merged in), `POST /api/conversations` for a channel, and
   `PATCH /api/conversations/:id` with `channelSettingsSchema`, the topic,
-  `private`, `replyMode`, `cwd` and `sleepAfterMinutes` of `channelSchema`
-  (on the stored channel with the body merged in).
+  `private`, `replyMode`, `cwd`, `sleepAfterMinutes` and `rules` of
+  `channelSchema` (on the stored channel with the body merged in). For a
+  group chat, the route uses `groupSettingsSchema`, the `rules` of
+  `channelSchema` only.
 - The browser gives the same schema to `useForm()` as its `onBlur` and
   `onSubmit` validator.
 - `NewAgent` in `server/api-types.ts` is the output type of `agentSchema`.
 
 The Channel settings dialog
 (`src/components/dialogs/channel-settings/channel-settings-dialog.tsx`) is not a TanStack Form. Its
-fields are a text, a folder, a switch, a radio and a number. Only a sleep
-time out of range fails the schema. That, and a folder that does not exist,
+fields are a text, a folder, a switch, a radio, a number and the rules. Only
+a sleep time out of range, or rules over 4,000 characters, fail the schema. That, and a folder that does not exist,
 get `400` from the route. It keeps its values in state, and shows a refusal
 of the server in an alert.
 
@@ -81,14 +101,15 @@ Username (`agent-names.md`).
 | channel `name`          | not empty after a trim               | Give the channel a name.                                                             |
 | channel `name`          | `^[a-z0-9-]+$`                       | Use only lowercase letters, numbers and hyphens in a channel name.                   |
 | channel `replyMode`     | `mention` or `every`                 | Pick a reply mode.                                                                   |
+| `rules`                 | 4,000 characters or fewer, trimmed   | Keep the rules to 4,000 characters or fewer.                                         |
 
 The model and the permission mode are free strings, because new models and
 modes come out. A stored mode that the form does not list, such as `default`,
 stays valid (`docs/agents.md`). The schema gives a default to the fields that
 an older client can leave out (the colour, the lists, `autostart`, `private`,
-`replyMode`), and turns an empty system prompt, description, display name, topic or `cwd`
-into `null`. The username regex lets an empty value pass, so an empty
-username shows only "Give the agent a username.". An agent and a channel can both have no folder
+`replyMode`), and turns an empty system prompt, description, display name,
+topic, `cwd` or `rules` into `null`. The username regex lets an empty value
+pass, so an empty username shows only "Give the agent a username.". An agent and a channel can both have no folder
 (`docs/agents.md`). The route checks that the folder of a channel exists,
 because the browser cannot.
 

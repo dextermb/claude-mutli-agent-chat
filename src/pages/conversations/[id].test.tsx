@@ -2077,6 +2077,62 @@ describe("the DM page", () => {
     ])
   })
 
+  test("in a channel, channel settings sends the rules that the user types", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("PATCH", "/api/conversations/ch1", {
+      conversation: { ...releaseChannel, rules: "Write findings only." },
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    await user.type(
+      dialog.getByRole("textbox", { name: "Rules" }),
+      "Write findings only."
+    )
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([
+      {
+        method: "PATCH",
+        url: "/api/conversations/ch1",
+        body: { rules: "Write findings only." },
+      },
+    ])
+  })
+
+  test("a channel with rules shows a Rules button that opens the rules in channel settings", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage], {
+      ...releaseChannel,
+      rules: "Write findings only.",
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Rules" }))
+
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    expect(dialog.getByRole("textbox", { name: "Rules" })).toHaveValue(
+      "Write findings only."
+    )
+  })
+
+  test("a channel with no rules shows no Rules button", async () => {
+    openChannel([userMessage])
+    const header = within(await screen.findByRole("banner"))
+
+    expect(
+      header.queryByRole("button", { name: "Rules" })
+    ).not.toBeInTheDocument()
+  })
+
   test("in a channel, channel settings can change the working directory", async () => {
     const user = userEvent.setup()
     openChannel([userMessage], {
@@ -3052,6 +3108,53 @@ describe("a deleted conversation", () => {
       url: "/api/conversations/ch1",
       body: undefined,
     })
+  })
+
+  test("in a group chat, group chat settings sends the rules that the user types", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+    network.on("GET", "/api/conversations/g1", {
+      conversation: squadGroup,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    network.on("PATCH", "/api/conversations/g1", {
+      conversation: { ...squadGroup, rules: "Reply in French." },
+    })
+    window.history.pushState({}, "", "/conversations/g1")
+    render(<App />)
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(
+      await header.findByRole("button", { name: "Group chat settings" })
+    )
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Group chat settings" })
+    )
+    await user.type(
+      dialog.getByRole("textbox", { name: "Rules" }),
+      "Reply in French."
+    )
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      network.sent.filter((request) => request.method === "PATCH")
+    ).toEqual([
+      {
+        method: "PATCH",
+        url: "/api/conversations/g1",
+        body: { rules: "Reply in French." },
+      },
+    ])
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
   })
 
   test("delete group chat in group chat settings asks first, then deletes the group chat and goes to the home page", async () => {

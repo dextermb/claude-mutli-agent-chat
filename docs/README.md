@@ -24,19 +24,24 @@ gives the parts of the app, the main decisions, and the risks.
 
 ## The web app
 
-| Page                       | Open it for                                                                  |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| `web-app.md`               | The pages, how to run the app, the shared types, and the design boards       |
-| `web-app/conversation.md`  | `useConversation()`, the parts of the timeline, and the `@` list             |
-| `web-app/messages.md`      | The Markdown of a message, the code blocks, and the mentions                 |
-| `web-app/components.md`    | The directories of `src/components` and the helpers in `src/lib`             |
-| `web-app/session-panel.md` | The session panel, the members of a channel, and the DM tabs                 |
-| `web-app/sidebar.md`       | The sidebar, `useWorkspace()`, and the dialogs of the sidebar                |
-| `web-app/agent-page.md`    | The form for a new or a saved agent                                          |
-| `web-app/files.md`         | Attach, drop and `@` files, and the shared files in the thread and the panel |
-| `web-app/scroll.md`        | How the messages stick to the bottom, and the jump button                    |
-| `forms.md`                 | The two forms, the shared Zod schema, and the shape of a refusal             |
-| `routing.md`               | The file-based router: from a file in `src/pages` to a URL                   |
+| Page                                   | Open it for                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------- |
+| `web-app.md`                           | The pages, how to run the app, the shared types, and the design boards       |
+| `web-app/conversation.md`              | The index of the five pages of a conversation, below                         |
+| `web-app/conversation/data.md`         | `useConversation()`, the read of a conversation, and a refused action        |
+| `web-app/conversation/timeline.md`     | The blocks, the tool calls, the cards, the dividers and the status words     |
+| `web-app/conversation/working-line.md` | The line of each agent that works, and the line over the message box         |
+| `web-app/conversation/header.md`       | The header, the settings dialogs, and the rules of a conversation            |
+| `web-app/conversation/composer.md`     | The message box and the `@` list of agents                                   |
+| `web-app/messages.md`                  | The Markdown of a message, the code blocks, and the mentions                 |
+| `web-app/components.md`                | The directories of `src/components` and the helpers in `src/lib`             |
+| `web-app/session-panel.md`             | The session panel, the members of a channel, and the DM tabs                 |
+| `web-app/sidebar.md`                   | The sidebar, `useWorkspace()`, and the dialogs of the sidebar                |
+| `web-app/agent-page.md`                | The form for a new or a saved agent                                          |
+| `web-app/files.md`                     | Attach, drop and `@` files, and the shared files in the thread and the panel |
+| `web-app/scroll.md`                    | How the messages stick to the bottom, and the jump button                    |
+| `forms.md`                             | The two forms, the shared Zod schema, and the shape of a refusal             |
+| `routing.md`                           | The file-based router: from a file in `src/pages` to a URL                   |
 
 ## The project
 

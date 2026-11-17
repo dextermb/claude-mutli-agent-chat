@@ -64,7 +64,7 @@ new name.
 
 ## The migration
 
-Migration 13 (`store.md`) adds `display_name`. Then its step `giveUsernames`
+Migration 14 (`store.md`) adds `display_name`. Then its step `giveUsernames`
 makes a username from each old name of an agent that is not deleted:
 
 | Old `name`    | `name`          | `display_name` |
