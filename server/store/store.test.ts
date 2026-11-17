@@ -169,6 +169,7 @@ describe("Store", () => {
       replyMode: "every",
       cwd: null,
       sleepAfterMinutes: null,
+      rules: null,
       members: ["user:me", `agent:${agent.id}`],
     })
   })
@@ -195,6 +196,19 @@ describe("Store", () => {
     })
     store.updateConversation(channel.id, { cwd: null })
     expect(store.getConversation(channel.id)).toMatchObject({ cwd: null })
+  })
+
+  test("a conversation of an older database has no rules, and rules can be saved", () => {
+    const { file, db } = versionOneFile()
+    db.close()
+    const store = openFile(file)
+
+    expect(store.getConversation("c1")).toMatchObject({ rules: null })
+    store.updateConversation("c1", { rules: "Write findings only." })
+    expect(store.getConversation("c1")).toMatchObject({
+      name: "reviewer-bot",
+      rules: "Write findings only.",
+    })
   })
 
   test("a member that joins goes to the end of the list, and keeps the place of the timeline where it joined", () => {

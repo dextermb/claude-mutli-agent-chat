@@ -196,4 +196,10 @@ export const MIGRATIONS: {
       ALTER TABLE agents ADD COLUMN deleted_at TEXT;
     `,
   },
+  {
+    version: 13,
+    sql: `
+      ALTER TABLE conversations ADD COLUMN rules TEXT;
+    `,
+  },
 ]

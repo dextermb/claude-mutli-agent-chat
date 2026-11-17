@@ -44,6 +44,27 @@ export function factsNote(
   return ["[Chat app] This session changed:", ...changed].join("\n")
 }
 
+export function rulesNote(
+  sent: string | null | undefined,
+  now: string | null,
+  kind: Conversation["kind"]
+): string | undefined {
+  if (now === sent) return undefined
+  const place = kindName(kind)
+  if (now === null) {
+    return sent ? `[Chat app] The user removed the rules of this ${place}.` : undefined
+  }
+  const heading =
+    typeof sent === "string"
+      ? `[Chat app] The user changed the rules of this ${place}. The rules now:`
+      : `[Chat app] The rules of this ${place}, from the user:`
+  return [heading, now].join("\n")
+}
+
+function kindName(kind: Conversation["kind"]): string {
+  return kind === "group" ? "group chat" : kind
+}
+
 function workFolder({ path, from }: EnvironmentContext["folder"]): string {
   if (from === "channel") {
     return `- You work in ${path}, the folder of this channel. Each agent of this channel works in the same folder.`
