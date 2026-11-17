@@ -185,7 +185,8 @@ function applyMessage(
     message.type === "reset" ||
     message.type === "line" ||
     message.type === "unread" ||
-    message.type === "agent_deleted"
+    message.type === "agent_deleted" ||
+    message.type === "agent"
   ) {
     return view
   }

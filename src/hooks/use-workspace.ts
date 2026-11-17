@@ -97,6 +97,16 @@ function applyMessage(workspace: Workspace, message: StreamMessage): Workspace {
       unread,
     }
   }
+  if (message.type === "agent") {
+    const { agent } = message
+    const known = workspace.agents.some((item) => item.id === agent.id)
+    return {
+      ...workspace,
+      agents: known
+        ? workspace.agents.map((item) => (item.id === agent.id ? agent : item))
+        : [...workspace.agents, agent],
+    }
+  }
   if (message.type === "agent_deleted") {
     return {
       ...workspace,

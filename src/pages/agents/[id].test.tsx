@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, test } from "vitest"
 
@@ -10,7 +10,7 @@ import {
   squadGroup,
   testRunner,
 } from "@/test/conversation-data"
-import { fakeNetwork } from "@/test/fake-network"
+import { FakeEventSource, fakeNetwork } from "@/test/fake-network"
 
 let network: ReturnType<typeof fakeNetwork>
 
@@ -102,6 +102,71 @@ describe("the agent configuration page", () => {
       },
     })
     expect(window.location.pathname).toBe("/agents/a1")
+  })
+
+  test("a created agent shows in the sidebar, in Create a channel and in Start a chat", async () => {
+    const user = userEvent.setup()
+    const lintFixer = { ...testRunner, id: "a3", name: "lint-fixer" }
+    network.on("POST", "/api/agents", { agent: lintFixer }, 201)
+    network.on("GET", "/api/agents/a3", { agent: lintFixer })
+    openPage("/agents/new")
+
+    await user.type(await screen.findByLabelText("Name"), "lint-fixer")
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+    await waitFor(() => expect(window.location.pathname).toBe("/agents/a3"))
+    act(() => {
+      for (const source of FakeEventSource.opened) {
+        if (source.url !== "/api/events") continue
+        source.emit(1, {
+          type: "agent",
+          agent: { ...lintFixer, state: "exited" },
+        })
+      }
+    })
+
+    const sidebar = screen.getByRole("navigation", { name: "Conversations" })
+    expect(
+      await within(sidebar).findByRole("button", { name: /^lint-fixer/ })
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Create a channel" }))
+    const channel = screen.getByRole("dialog", { name: "Create a channel" })
+    expect(
+      within(channel).getByRole("checkbox", { name: "Invite lint-fixer" })
+    ).toBeInTheDocument()
+    await user.keyboard("{Escape}")
+    await user.click(screen.getByRole("button", { name: "Start a chat" }))
+    const chat = screen.getByRole("dialog", { name: "Start a chat" })
+    expect(
+      within(chat).getByRole("checkbox", { name: "Pick lint-fixer" })
+    ).toBeInTheDocument()
+  })
+
+  test("after a create, New agent opens an empty form", async () => {
+    const user = userEvent.setup()
+    const lintFixer = {
+      ...testRunner,
+      id: "a3",
+      name: "lint-fixer",
+      description: "Fixes the lint errors.",
+    }
+    network.on("POST", "/api/agents", { agent: lintFixer }, 201)
+    network.on("GET", "/api/agents/a3", { agent: lintFixer })
+    openPage("/agents/new")
+
+    await user.type(await screen.findByLabelText("Name"), "lint-fixer")
+    await user.type(
+      screen.getByLabelText("Description"),
+      "Fixes the lint errors."
+    )
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+    await waitFor(() => expect(window.location.pathname).toBe("/agents/a3"))
+    await user.click(screen.getByRole("link", { name: "New agent" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Create agent" })
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Name")).toHaveValue("")
+    expect(screen.getByLabelText("Description")).toHaveValue("")
   })
 
   test("an empty name shows its message after the user leaves the field", async () => {
@@ -421,6 +486,33 @@ describe("the agent configuration page", () => {
     expect(
       await screen.findByText("Fix 1 field: Maximum turns.")
     ).toBeInTheDocument()
+  })
+
+  test("after a save, the form starts again from the saved values", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", {
+      agent: { ...testRunner, description: "Runs and fixes the tests." },
+    })
+    network.on("PATCH", "/api/agents/a1", {
+      agent: { ...testRunner, description: "Runs the tests." },
+    })
+    openPage("/agents/a1")
+    const description = await screen.findByLabelText("Description")
+    await waitFor(() =>
+      expect(description).toHaveValue("Runs and fixes the tests.")
+    )
+
+    await user.clear(description)
+    await user.type(description, "Runs the tests.")
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+    expect(
+      await screen.findByText("All changes are saved.")
+    ).toBeInTheDocument()
+    await user.type(description, " And more.")
+    await user.click(screen.getByRole("button", { name: "Discard" }))
+
+    expect(description).toHaveValue("Runs the tests.")
+    expect(screen.getByText("All changes are saved.")).toBeInTheDocument()
   })
 
   test("a saved agent counts its unsaved changes, and discard brings back the saved values", async () => {
