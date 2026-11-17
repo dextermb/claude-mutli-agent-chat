@@ -50,7 +50,7 @@ describe("the agent configuration page", () => {
       "Runs and fixes the Vitest tests."
     )
     await pick("Model", "claude-sonnet-5-5")
-    await pick("Permission mode", "acceptEdits")
+    await user.click(screen.getByRole("radio", { name: "acceptEdits" }))
     await user.type(
       screen.getByLabelText("Working directory"),
       "/home/user/code/web-app"
@@ -167,15 +167,8 @@ describe("the agent configuration page", () => {
     openPage("/agents/a1")
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("combobox", { name: "Permission mode" })
-      ).toHaveTextContent("manual")
+      expect(screen.getByRole("radio", { name: "manual" })).toBeChecked()
     )
-    expect(
-      screen.getByText(
-        "With manual, each tool outside the allowed list waits for approval in the chat."
-      )
-    ).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Save agent" }))
 
     expect(network.sent.at(-1)).toEqual({
@@ -194,9 +187,7 @@ describe("the agent configuration page", () => {
     openPage("/agents/a1")
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("combobox", { name: "Permission mode" })
-      ).toHaveTextContent("auto")
+      expect(screen.getByRole("radio", { name: "auto" })).toBeChecked()
     )
     await user.click(screen.getByRole("button", { name: "Save agent" }))
 
@@ -364,44 +355,58 @@ describe("the agent configuration page", () => {
     ).toBeInTheDocument()
   })
 
-  test("the description of the permission mode follows the mode", async () => {
+  test("the colour is a row of swatches, and the legend names the picked colour", async () => {
+    const user = userEvent.setup()
     openPage("/agents/new")
-    expect(
-      await screen.findByText(
-        "With manual, each tool outside the allowed list waits for approval in the chat."
-      )
-    ).toBeInTheDocument()
+    const colours = within(
+      await screen.findByRole("radiogroup", { name: "Colour" })
+    )
+    const legend = within(screen.getByRole("group", { name: /^Colour/ }))
 
-    await pick("Permission mode", "acceptEdits")
-    expect(
-      screen.getByText(
-        "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat."
-      )
-    ).toBeInTheDocument()
+    expect(colours.getAllByRole("radio")).toHaveLength(6)
+    expect(colours.getByRole("radio", { name: "green" })).toBeChecked()
+    expect(legend.getByText("green")).toBeInTheDocument()
+    expect(legend.queryByText("aqua")).not.toBeInTheDocument()
 
-    await pick("Permission mode", "auto")
-    expect(
-      screen.getByText(
-        "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card."
-      )
-    ).toBeInTheDocument()
+    await user.click(colours.getByRole("radio", { name: "aqua" }))
 
-    await pick("Permission mode", "dontAsk")
-    expect(
-      screen.getByText(
-        "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run."
-      )
-    ).toBeInTheDocument()
+    expect(colours.getByRole("radio", { name: "aqua" })).toBeChecked()
+    expect(legend.getByText("aqua")).toBeInTheDocument()
+    expect(legend.queryByText("green")).not.toBeInTheDocument()
+  })
 
-    await pick("Permission mode", "manual")
+  test("each permission mode is a choice that shows what the mode does", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const modes = within(
+      await screen.findByRole("radiogroup", { name: "Permission mode" })
+    )
+
+    expect(modes.getAllByRole("radio")).toHaveLength(6)
+    const manual = modes.getByRole("radio", { name: "manual" })
+    expect(manual).toBeChecked()
+    expect(manual).toHaveAccessibleDescription(
+      "With manual, each tool outside the allowed list waits for approval in the chat."
+    )
     expect(
-      screen.getByText(
-        "With manual, each tool outside the allowed list waits for approval in the chat."
-      )
-    ).toBeInTheDocument()
+      modes.getByRole("radio", { name: "acceptEdits" })
+    ).toHaveAccessibleDescription(
+      "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat."
+    )
     expect(
-      screen.getByRole("combobox", { name: "Permission mode" })
-    ).toHaveTextContent("manual")
+      modes.getByRole("radio", { name: "auto" })
+    ).toHaveAccessibleDescription(
+      "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card."
+    )
+    const dontAsk = modes.getByRole("radio", { name: "dontAsk" })
+    expect(dontAsk).toHaveAccessibleDescription(
+      "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run."
+    )
+
+    await user.click(dontAsk)
+
+    expect(dontAsk).toBeChecked()
+    expect(manual).not.toBeChecked()
   })
 
   test("the command shows how Claude Code starts the agent, follows the form, and can be copied", async () => {
@@ -442,7 +447,7 @@ describe("the agent configuration page", () => {
     )
 
     await pick("Model", "claude-haiku-5-5")
-    await pick("Permission mode", "auto")
+    await user.click(screen.getByRole("radio", { name: "auto" }))
     await user.type(screen.getByLabelText("System prompt"), "Run the tests.")
 
     expect(command.getByRole("code")).toHaveTextContent(

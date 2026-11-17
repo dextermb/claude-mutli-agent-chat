@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
+import { ColourSwatches } from "@/components/agent-form/colour-swatches"
+import { ModeChoice } from "@/components/agent-form/mode-choice"
 import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
@@ -34,8 +36,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
@@ -44,7 +44,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
   SelectContent,
@@ -63,30 +62,7 @@ import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 
 type Draft = AgentDraft
 
-const COLOURS = ["orange", "yellow", "green", "aqua", "blue", "purple"]
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
-const MODES = [
-  "manual",
-  "acceptEdits",
-  "plan",
-  "auto",
-  "dontAsk",
-  "bypassPermissions",
-]
-
-const MODE_NOTES: Record<string, string> = {
-  manual:
-    "With manual, each tool outside the allowed list waits for approval in the chat.",
-  acceptEdits:
-    "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat.",
-  plan: "plan reads and plans, and changes no file. Other tools outside the allowed list wait for approval in the chat.",
-  auto: "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card.",
-  dontAsk:
-    "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run.",
-  bypassPermissions:
-    "bypassPermissions runs each tool without a prompt. Blocked tools still never run.",
-}
-
 const EMPTY: Draft = {
   name: "",
   colour: "green",
@@ -344,36 +320,10 @@ export default function AgentPage() {
                   </form.Field>
                   <form.Field name="colour">
                     {(field) => (
-                      <FieldSet>
-                        <FieldLegend variant="label">Colour</FieldLegend>
-                        <RadioGroup
-                          value={field.state.value}
-                          onValueChange={(value) =>
-                            field.handleChange(String(value))
-                          }
-                          className="flex flex-wrap gap-x-4 gap-y-2"
-                        >
-                          {COLOURS.map((colour) => (
-                            <Field
-                              key={colour}
-                              orientation="horizontal"
-                              className="w-auto"
-                            >
-                              <RadioGroupItem
-                                value={colour}
-                                id={`colour-${colour}`}
-                              />
-                              <FieldLabel htmlFor={`colour-${colour}`}>
-                                <span
-                                  aria-hidden="true"
-                                  className={`inline-block size-3 rounded-full ${AVATAR_COLOURS[colour]}`}
-                                />
-                                {colour}
-                              </FieldLabel>
-                            </Field>
-                          ))}
-                        </RadioGroup>
-                      </FieldSet>
+                      <ColourSwatches
+                        value={field.state.value ?? "green"}
+                        onChange={(value) => field.handleChange(value)}
+                      />
                     )}
                   </form.Field>
                   <form.Field name="description">
@@ -424,23 +374,11 @@ export default function AgentPage() {
                   </form.Field>
                   <form.Field name="permissionMode">
                     {(field) => (
-                      <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-mode">
-                          Permission mode
-                        </FieldLabel>
-                        <Choice
-                          id="agent-mode"
-                          options={MODES}
-                          value={field.state.value}
-                          invalid={invalid(field.state.meta)}
-                          onBlur={field.handleBlur}
-                          onChange={(value) => field.handleChange(value)}
-                        />
-                        <FieldDescription>
-                          {MODE_NOTES[field.state.value]}
-                        </FieldDescription>
-                        <FieldError errors={shown(field.state.meta)} />
-                      </Field>
+                      <ModeChoice
+                        value={field.state.value}
+                        errors={shown(field.state.meta)}
+                        onChange={(value) => field.handleChange(value)}
+                      />
                     )}
                   </form.Field>
                   <form.Field name="cwd">
