@@ -67,6 +67,10 @@ describe("the Create a channel dialog", () => {
     await user.click(
       within(dialog).getByRole("radio", { name: /Every message/ })
     )
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Rules" }),
+      "Write findings only."
+    )
     expect(
       within(dialog).getByLabelText("Working directory")
     ).toHaveAccessibleDescription(
@@ -88,6 +92,7 @@ describe("the Create a channel dialog", () => {
             private: true,
             replyMode: "every",
             cwd: "/home/user/code/release",
+            rules: "Write findings only.",
             agentIds: ["a1"],
           },
         },
