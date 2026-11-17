@@ -14,10 +14,15 @@ import {
 
 afterEach(runCleanups)
 
-async function createAgent(base: string, name: string) {
+async function createAgent(
+  base: string,
+  name: string,
+  displayName: string | null = null
+) {
   const response = await postJson(base, "/api/agents", {
     ...testRunner,
     name,
+    displayName,
   })
   return ((await response.json()) as { agent: { id: string } }).agent
 }
@@ -158,6 +163,28 @@ describe("group chats and channels", () => {
         replyMode: "mention",
         members: ["user:me", `agent:${reviewer.id}`, `agent:${runner.id}`],
       }),
+    })
+  })
+
+  test("a group chat and a DM take the display names of their agents", async () => {
+    const { base } = await startServer()
+    const reviewer = await createAgent(base, "code-reviewer", "Code Reviewer")
+    const runner = await createAgent(base, "test-runner")
+
+    const group = await postJson(base, "/api/conversations", {
+      kind: "group",
+      agentIds: [reviewer.id, runner.id],
+    })
+    const direct = await postJson(base, "/api/conversations", {
+      kind: "dm",
+      agentId: reviewer.id,
+    })
+
+    expect(await group.json()).toMatchObject({
+      conversation: { name: "Code Reviewer, test-runner" },
+    })
+    expect(await direct.json()).toMatchObject({
+      conversation: { name: "Code Reviewer" },
     })
   })
 

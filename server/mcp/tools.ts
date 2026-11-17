@@ -1,3 +1,4 @@
+import { shownName } from "../agent-names.ts"
 import { z } from "zod"
 import type { SessionState, SharedFileView } from "../api-types.ts"
 import { homeShort } from "../paths.ts"
@@ -55,7 +56,7 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
   return [
     tool(
       "get_conversation",
-      "Read a conversation: its kind, name, topic, reply mode, the folder of a channel, and each member with its state. With no conversationId, read this conversation.",
+      "Read a conversation: its kind, name, topic, reply mode, the folder of a channel, and each member with its state. An agent member has a username (name, for an @mention) and a display name. With no conversationId, read this conversation.",
       z.object({
         conversationId: z
           .string()
@@ -78,8 +79,10 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
               return { name: "User", kind: "user" }
             }
             const agentId = memberKey.slice("agent:".length)
+            const agent = store.getAgent(agentId)
             return {
-              name: store.getAgent(agentId)?.name ?? "agent",
+              name: agent?.name ?? "agent",
+              displayName: agent ? shownName(agent) : "agent",
               kind: "agent",
               state: chat.liveState(agentId, conversation.id),
               you: agentId === caller.agentId,
@@ -108,11 +111,12 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
     ),
     tool(
       "list_agents",
-      "List each agent of the chat app: its name, its state over all its conversations, and its own folder. An agent with no folder works in the folder of each channel.",
+      "List each agent of the chat app: its username (name, for an @mention), its display name, its state over all its conversations, and its own folder. An agent with no folder works in the folder of each channel.",
       z.object({}),
       () =>
         store.listAgents().map((agent) => ({
           name: agent.name,
+          displayName: shownName(agent),
           state: chat.agentState(agent.id),
           folder: agent.cwd === null ? null : homeShort(agent.cwd),
           you: agent.id === caller.agentId,

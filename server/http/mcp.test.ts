@@ -121,9 +121,55 @@ describe("the chat MCP server", () => {
       thisConversation: true,
       members: [
         { name: "User", kind: "user" },
-        { name: agent.name, kind: "agent", state: "idle", you: true },
+        {
+          name: agent.name,
+          displayName: "reviewer-bot",
+          kind: "agent",
+          state: "idle",
+          you: true,
+        },
       ],
     })
+  })
+
+  test("an agent learns the display name and the username of each other agent", async () => {
+    const { args, store, agent } = await startedAgent()
+    const runner = store.createAgent({
+      ...testRunner,
+      displayName: "Test Runner",
+    })
+    const channel = store.createConversation({
+      kind: "channel",
+      name: "frontend",
+      topic: null,
+      private: false,
+      replyMode: "mention",
+      members: ["user:me", `agent:${agent.id}`, `agent:${runner.id}`],
+    })
+
+    const members = await callChat(args, "tools/call", {
+      name: "get_conversation",
+      arguments: { conversationId: channel.id },
+    })
+    const agents = await callChat(args, "tools/call", {
+      name: "list_agents",
+      arguments: {},
+    })
+
+    expect(toolValue(members.body)).toMatchObject({
+      members: expect.arrayContaining([
+        expect.objectContaining({
+          name: "test-runner",
+          displayName: "Test Runner",
+        }),
+      ]),
+    })
+    expect(toolValue(agents.body)).toContainEqual(
+      expect.objectContaining({
+        name: "test-runner",
+        displayName: "Test Runner",
+      })
+    )
   })
 
   test("an agent reads the folder of a channel, with the home folder as ~", async () => {
@@ -160,6 +206,7 @@ describe("the chat MCP server", () => {
 
     expect(toolValue(body)).toContainEqual({
       name: "test-runner",
+      displayName: "test-runner",
       state: "exited",
       folder: null,
       you: false,
@@ -252,12 +299,14 @@ describe("the chat MCP server", () => {
     expect(toolValue(body)).toEqual([
       {
         name: "reviewer-bot",
+        displayName: "reviewer-bot",
         state: "idle",
         folder: expect.any(String),
         you: true,
       },
       {
         name: "test-runner",
+        displayName: "test-runner",
         state: "exited",
         folder: "~/code/web-app",
         you: false,
