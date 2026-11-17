@@ -124,7 +124,7 @@ uses the new configuration.
 Maximum turns is a number input in Folder and limits. An empty field sends
 `null`, which means no limit. The limit applies to each message (F36 in
 `docs/protocol.md`), and the turn that reaches it ends with "Stopped at the
-turn limit" in the thread (`docs/web-app/conversation.md`). The design shows
+turn limit" in the thread (`docs/web-app/conversation/timeline.md`). The design shows
 30 for a saved agent. A new agent starts with no limit, as before.
 
 "Sleep after (minutes)" is a number input beside Maximum turns. Empty sends

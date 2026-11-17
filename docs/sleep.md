@@ -168,7 +168,7 @@ first line. Its memory is then the prompt and `read_messages`.
   row when its `end_reason` is `sleep` and no process of it runs
   (`docs/server.md`).
 - A compaction shows as a divider in the thread
-  (`docs/web-app/conversation.md`).
+  (`docs/web-app/conversation/timeline.md`).
 - A new session after a lost transcript shows as the divider "New session".
 
 ## Tests

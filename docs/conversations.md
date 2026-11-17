@@ -48,7 +48,7 @@ they disagree with its own system prompt. The rule of the chat app wins over
 both. So one agent can behave differently in each conversation.
 
 - The user writes them in Create a channel, Channel settings and Group chat
-  settings (`docs/web-app/conversation.md`). Empty text is `null`.
+  settings (`docs/web-app/conversation/header.md`). Empty text is `null`.
 - The rules reach each agent in a `[Chat app]` block of its prompt, not in
   its system prompt (`docs/agent-environment.md`).
 - An agent reads them with `get_conversation`, but cannot change them.
@@ -110,7 +110,7 @@ mention is `@` and the full name of a member:
 
 `mentionPattern(name)` holds this rule. The timeline of the web app uses it
 too, to show each mention in the colour of its agent
-(`docs/web-app/conversation.md`).
+(`docs/web-app/messages.md`).
 
 ## The prompt
 
