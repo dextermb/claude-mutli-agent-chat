@@ -23,7 +23,7 @@ const SLEEP_TIME = "Give a whole number from 0 to 55, or leave it empty."
 
 export const agentSchema = z.object({
   name: filled("Give the agent a username.").regex(
-    /^[a-z0-9-]+$/,
+    /^[a-z0-9-]*$/,
     "Use only lowercase letters, numbers and hyphens in a username."
   ),
   displayName: trimmedOrNull(),

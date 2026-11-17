@@ -62,6 +62,7 @@ import { changedFields, unsavedText } from "@/lib/changed-fields"
 import { toastDone, toastRefusal } from "@/lib/toasts"
 import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
 import { fixText, invalid, shown } from "@/lib/form-errors"
+import { shownName } from "../../../server/agent-names.ts"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 
 type Draft = AgentDraft
@@ -72,7 +73,7 @@ const SECTIONS: (PageSection & { fields: (keyof Draft)[] })[] = [
   {
     id: "identity",
     title: "Identity",
-    fields: ["name", "colour", "description"],
+    fields: ["displayName", "name", "colour", "description"],
   },
   {
     id: "model",
@@ -89,7 +90,8 @@ const SECTIONS: (PageSection & { fields: (keyof Draft)[] })[] = [
   { id: "command", title: "Command", fields: [] },
 ]
 const LABELS: Record<keyof Draft, string> = {
-  name: "Name",
+  displayName: "Display name",
+  name: "Username",
   colour: "Colour",
   description: "Description",
   model: "Model",
@@ -103,6 +105,7 @@ const LABELS: Record<keyof Draft, string> = {
   systemPrompt: "System prompt",
 }
 const EMPTY: Draft = {
+  displayName: "",
   name: "",
   colour: "green",
   model: "claude-sonnet-5-5",
@@ -182,7 +185,7 @@ export default function AgentPage() {
       }
       return
     }
-    toastDone(`${body.agent.name} is ${isNew ? "created" : "saved"}.`)
+    toastDone(`${shownName(body.agent)} is ${isNew ? "created" : "saved"}.`)
     if (isNew) navigate(`/agents/${body.agent.id}`)
     else setSaved(draft)
   }
@@ -248,7 +251,7 @@ export default function AgentPage() {
                   {isNew ? (
                     "New agent"
                   ) : (
-                    <form.Subscribe selector={(state) => state.values.name}>
+                    <form.Subscribe selector={shownDraftName}>
                       {(name) => name}
                     </form.Subscribe>
                   )}
@@ -269,7 +272,7 @@ export default function AgentPage() {
                         <AvatarFallback
                           className={AVATAR_COLOURS[values.colour ?? ""]}
                         >
-                          {initialsOf(values.name)}
+                          {initialsOf(shownDraftName({ values }))}
                         </AvatarFallback>
                         {agent && (
                           <AvatarBadge className={statusOf(agent.state).dot} />
@@ -284,11 +287,20 @@ export default function AgentPage() {
                       {isNew ? (
                         "New agent"
                       ) : (
-                        <form.Subscribe selector={(state) => state.values.name}>
+                        <form.Subscribe selector={shownDraftName}>
                           {(name) => name}
                         </form.Subscribe>
                       )}
                     </h1>
+                    {!isNew && (
+                      <form.Subscribe selector={(state) => state.values.name}>
+                        {(name) => (
+                          <span className="font-mono text-muted-foreground">
+                            @{name}
+                          </span>
+                        )}
+                      </form.Subscribe>
+                    )}
                     {agent && (
                       <Badge
                         variant="outline"
@@ -300,12 +312,15 @@ export default function AgentPage() {
                   </div>
                   <p className="m-0 text-muted-foreground">
                     {isNew
-                      ? "A headless Claude Code agent. Only the name is necessary."
+                      ? "A headless Claude Code agent. Only the username is necessary."
                       : placesOf(id, conversations)}
                   </p>
                 </div>
                 {agent && agent.state !== "exited" && (
-                  <AgentActions agentId={agent.id} agentName={agent.name} />
+                  <AgentActions
+                    agentId={agent.id}
+                    agentName={shownName(agent)}
+                  />
                 )}
               </header>
               <SettingsSection
@@ -315,10 +330,31 @@ export default function AgentPage() {
                 description="How people see and mention the agent."
               >
                 <FieldGroup>
+                  <form.Field name="displayName">
+                    {(field) => (
+                      <Field>
+                        <FieldLabel htmlFor="agent-display-name">
+                          Display name
+                        </FieldLabel>
+                        <Input
+                          id="agent-display-name"
+                          placeholder="Test Runner"
+                          value={field.state.value ?? ""}
+                          onChange={(event) =>
+                            field.handleChange(event.currentTarget.value)
+                          }
+                        />
+                        <FieldDescription>
+                          Optional. The name that people see. If it is empty,
+                          people see the username.
+                        </FieldDescription>
+                      </Field>
+                    )}
+                  </form.Field>
                   <form.Field name="name">
                     {(field) => (
                       <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-name">Name</FieldLabel>
+                        <FieldLabel htmlFor="agent-name">Username</FieldLabel>
                         <InputGroup>
                           <InputGroupAddon>
                             <InputGroupText
@@ -347,8 +383,8 @@ export default function AgentPage() {
                         </InputGroup>
                         {!invalid(field.state.meta) && (
                           <FieldDescription id="agent-name-description">
-                            People type @{field.state.value || "name"} to call
-                            it.
+                            Lowercase letters, numbers and hyphens. People type
+                            @{field.state.value || "username"} to call it.
                           </FieldDescription>
                         )}
                         <FieldError
@@ -682,7 +718,7 @@ export default function AgentPage() {
               {!isNew && listed && (
                 <DeleteSection
                   action="Delete agent"
-                  text={`${listed.name} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
+                  text={`${shownName(listed)} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
                   onDelete={() =>
                     setDeleting(agentTarget(listed, conversations))
                   }
@@ -764,8 +800,13 @@ export default function AgentPage() {
   )
 }
 
+function shownDraftName({ values }: { values: Draft }): string {
+  return values.displayName?.trim() || values.name
+}
+
 function draftOf(agent: Agent): Draft {
   return {
+    displayName: agent.displayName ?? "",
     name: agent.name,
     colour: agent.colour,
     model: agent.model,

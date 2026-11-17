@@ -43,7 +43,8 @@ describe("the agent configuration page", () => {
     network.on("GET", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/new")
 
-    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(await screen.findByLabelText("Display name"), "Test Runner")
+    await user.type(screen.getByLabelText("Username"), "test-runner")
     await user.click(screen.getByRole("radio", { name: "aqua" }))
     await user.type(
       screen.getByLabelText("Description"),
@@ -88,6 +89,7 @@ describe("the agent configuration page", () => {
       url: "/api/agents",
       body: {
         name: "test-runner",
+        displayName: "Test Runner",
         colour: "aqua",
         model: "claude-sonnet-5-5",
         permissionMode: "acceptEdits",
@@ -104,20 +106,20 @@ describe("the agent configuration page", () => {
     expect(window.location.pathname).toBe("/agents/a1")
   })
 
-  test("an empty name shows its message after the user leaves the field", async () => {
+  test("an empty username shows its message after the user leaves the field", async () => {
     const user = userEvent.setup()
     openPage("/agents/new")
-    const name = await screen.findByLabelText("Name")
-    expect(screen.queryByText("Give the agent a name.")).not.toBeInTheDocument()
+    const name = await screen.findByLabelText("Username")
+    expect(screen.queryByText("Give the agent a username.")).not.toBeInTheDocument()
 
     await user.click(name)
     await user.tab()
 
     expect(
-      await screen.findByText("Give the agent a name.")
+      await screen.findByText("Give the agent a username.")
     ).toBeInTheDocument()
     expect(name).toHaveAttribute("aria-invalid", "true")
-    expect(name).toHaveAccessibleDescription("Give the agent a name.")
+    expect(name).toHaveAccessibleDescription("Give the agent a username.")
   })
 
   test("a saved agent loads in the form, and a change goes to the server", async () => {
@@ -207,7 +209,7 @@ describe("the agent configuration page", () => {
       400
     )
     openPage("/agents/new")
-    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(await screen.findByLabelText("Username"), "test-runner")
     await user.type(
       screen.getByLabelText("Working directory"),
       "/home/user/code/web-app"
@@ -223,6 +225,75 @@ describe("the agent configuration page", () => {
     expect(screen.getByRole("button", { name: "Create agent" })).toBeEnabled()
   })
 
+  test("a username that another agent uses shows its message under the username", async () => {
+    const user = userEvent.setup()
+    network.on(
+      "POST",
+      "/api/agents",
+      {
+        error: "Another agent uses this username.",
+        fields: { name: "Another agent uses this username." },
+      },
+      409
+    )
+    openPage("/agents/new")
+    const username = await screen.findByLabelText("Username")
+    await user.type(username, "test-runner")
+
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+
+    await waitFor(() =>
+      expect(username).toHaveAccessibleDescription(
+        "Another agent uses this username."
+      )
+    )
+  })
+
+  test("a username with a capital letter or a space shows its message", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const username = await screen.findByLabelText("Username")
+
+    await user.type(username, "Test Runner")
+    await user.tab()
+
+    expect(username).toHaveAccessibleDescription(
+      "Use only lowercase letters, numbers and hyphens in a username."
+    )
+  })
+
+  test("a saved agent with a display name shows it, with its username", async () => {
+    const user = userEvent.setup()
+    const named = { ...testRunner, displayName: "Test Runner" }
+    network.on("GET", "/api/agents", {
+      agents: [reviewerBot, { ...named, state: "busy" }],
+    })
+    network.on("GET", "/api/agents/a1", { agent: named })
+    network.on("PATCH", "/api/agents/a1", { agent: named })
+    openPage("/agents/a1")
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Test Runner" })
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("banner")).getByText("@test-runner")
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText(
+        "Test Runner"
+      )
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByLabelText("Display name")).toHaveValue("Test Runner")
+    )
+
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    expect(
+      await screen.findByRole("dialog", { name: "Test Runner is saved." })
+    ).toBeInTheDocument()
+  })
+
   test("a message of the server for a field shows under that field", async () => {
     const user = userEvent.setup()
     network.on(
@@ -235,7 +306,7 @@ describe("the agent configuration page", () => {
       400
     )
     openPage("/agents/new")
-    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(await screen.findByLabelText("Username"), "test-runner")
     const folder = screen.getByLabelText("Working directory")
     await user.type(folder, "/home/user/code/web-app")
 
@@ -256,7 +327,7 @@ describe("the agent configuration page", () => {
       400
     )
     openPage("/agents/new")
-    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(await screen.findByLabelText("Username"), "test-runner")
     const folder = screen.getByLabelText("Working directory")
     await user.type(folder, "/home/user/code/web-app")
     await user.click(screen.getByRole("button", { name: "Create agent" }))
@@ -274,7 +345,7 @@ describe("the agent configuration page", () => {
     expect(screen.queryByText("Use another folder.")).not.toBeInTheDocument()
   })
 
-  test("a save with no name sends nothing, and the name shows its message", async () => {
+  test("a save with no username sends nothing, and the username shows its message", async () => {
     const user = userEvent.setup()
     openPage("/agents/new")
 
@@ -283,7 +354,7 @@ describe("the agent configuration page", () => {
     )
 
     expect(
-      await screen.findByText("Give the agent a name.")
+      await screen.findByText("Give the agent a username.")
     ).toBeInTheDocument()
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
       []
@@ -297,7 +368,7 @@ describe("the agent configuration page", () => {
     network.on("GET", "/api/agents/a1", { agent: generic })
     openPage("/agents/new")
 
-    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(await screen.findByLabelText("Username"), "test-runner")
     await user.click(screen.getByRole("button", { name: "Create agent" }))
 
     expect(
@@ -414,9 +485,9 @@ describe("the agent configuration page", () => {
     await user.click(screen.getByRole("button", { name: "Create agent" }))
 
     expect(
-      await screen.findByText("Fix 2 fields: Name, Maximum turns.")
+      await screen.findByText("Fix 2 fields: Username, Maximum turns.")
     ).toBeInTheDocument()
-    await user.type(screen.getByLabelText("Name"), "test-runner")
+    await user.type(screen.getByLabelText("Username"), "test-runner")
     await user.tab()
     expect(
       await screen.findByText("Fix 1 field: Maximum turns.")
@@ -468,7 +539,7 @@ describe("the agent configuration page", () => {
     network.on("POST", "/api/agents", { agent: testRunner }, 201)
     network.on("GET", "/api/agents/a1", { agent: testRunner })
     openPage("/agents/new")
-    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    await user.type(await screen.findByLabelText("Username"), "test-runner")
     const allowed = within(screen.getByRole("group", { name: "Allowed tools" }))
 
     await user.click(allowed.getByRole("button", { name: "Allow Read" }))
