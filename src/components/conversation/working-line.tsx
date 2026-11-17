@@ -10,6 +10,7 @@ import { useNow } from "@/hooks/use-now"
 import type { ConversationAgent, TimelineEntry } from "@/lib/agent-api"
 import { elapsed } from "@/lib/time"
 import { activityOf, turnStartOf } from "@/lib/working"
+import { shownName } from "../../../server/agent-names.ts"
 
 export function WorkingLines({
   agents,
@@ -32,7 +33,7 @@ export function WorkingLines({
               <Spinner />
             </TraceIcon>
             <TraceTitle>
-              {agent.name} {activityOf(agent, entries)}
+              {shownName(agent)} {activityOf(agent, entries)}
             </TraceTitle>{" "}
             {seconds >= 3 && (
               <TraceDescription aria-hidden="true">

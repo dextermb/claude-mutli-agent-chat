@@ -26,7 +26,10 @@ import { blockingHint } from "@/lib/attachment-hint"
 
 const MENTION_AT_CARET = /(?:^|\s)@([\w./-]*)$/
 
-type Member = Pick<AgentWithState, "id" | "name" | "colour" | "state">
+type Member = Pick<
+  AgentWithState,
+  "id" | "name" | "displayName" | "colour" | "state"
+>
 
 export function Composer({
   label,
@@ -64,7 +67,9 @@ export function Composer({
   const suggestions =
     typed && typed[1] !== dismissed
       ? members.filter((member) =>
-          member.name.toLowerCase().startsWith(typed[1].toLowerCase())
+          [member.name, member.displayName ?? ""].some((name) =>
+            name.toLowerCase().startsWith(typed[1].toLowerCase())
+          )
         )
       : []
   const query = typed && typed[1] !== dismissed ? typed[1] : null

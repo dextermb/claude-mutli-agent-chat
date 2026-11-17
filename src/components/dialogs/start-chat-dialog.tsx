@@ -37,6 +37,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
+import { shownName } from "../../../server/agent-names.ts"
 
 export function StartChatDialog({
   open,
@@ -55,7 +56,9 @@ export function StartChatDialog({
   const headingId = useId()
 
   const shown = agents.filter((agent) =>
-    agent.name.toLowerCase().includes(search.trim().toLowerCase())
+    [agent.name, shownName(agent)].some((name) =>
+      name.toLowerCase().includes(search.trim().toLowerCase())
+    )
   )
   const pickedAgents = agents.filter((agent) => picked.includes(agent.id))
   const isGroup = picked.length > 1
@@ -127,10 +130,10 @@ export function StartChatDialog({
                 {pickedAgents.map((agent) => (
                   <li key={agent.id}>
                     <Badge variant="secondary">
-                      {agent.name}
+                      {shownName(agent)}
                       <button
                         type="button"
-                        aria-label={`Remove ${agent.name}`}
+                        aria-label={`Remove ${shownName(agent)}`}
                         onClick={() => toggle(agent.id, false)}
                       >
                         <XIcon className="size-3" />
@@ -154,20 +157,20 @@ export function StartChatDialog({
                 <ItemMedia>
                   <Avatar>
                     <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
-                      {initialsOf(agent.name)}
+                      {initialsOf(shownName(agent))}
                     </AvatarFallback>
                     <AvatarBadge className={statusOf(agent.state).dot} />
                   </Avatar>
                 </ItemMedia>
                 <ItemContent>
-                  <ItemTitle>{agent.name}</ItemTitle>
+                  <ItemTitle>{shownName(agent)}</ItemTitle>
                   <ItemDescription>
                     {agent.model} · {statusOf(agent.state).label}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Checkbox
-                    aria-label={`Pick ${agent.name}`}
+                    aria-label={`Pick ${shownName(agent)}`}
                     checked={picked.includes(agent.id)}
                     onCheckedChange={(on) => toggle(agent.id, on)}
                   />

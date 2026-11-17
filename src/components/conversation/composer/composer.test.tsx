@@ -96,4 +96,30 @@ describe("the mention list of the composer", () => {
     ])
     expect(screen.getByRole("listbox", { name: "Members" })).toBeInTheDocument()
   })
+
+  test("the user finds an agent by its display name, and the pick puts its username in the message", async () => {
+    const user = userEvent.setup()
+    render(
+      <Composer
+        label="Message #release-train"
+        members={[
+          reviewerBot,
+          { ...releaseBot, displayName: "Ship Captain" },
+          testRunner,
+        ]}
+        onSend={() => undefined}
+      />
+    )
+    const box = screen.getByRole("textbox", { name: "Message #release-train" })
+
+    await user.type(box, "ask @ship")
+    expect(screen.getAllByRole("option")).toEqual([
+      screen.getByRole("option", {
+        name: "Ship Captain @release-bot Working",
+      }),
+    ])
+    await user.keyboard("{Enter}")
+
+    expect(box).toHaveValue("ask @release-bot ")
+  })
 })

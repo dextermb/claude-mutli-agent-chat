@@ -279,7 +279,9 @@ describe("createServer", () => {
 
     await sendMessage(base, conversation.id, "Remember kiwi.")
 
-    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    await vi.waitFor(() =>
+      expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    )
     expect(factsTo(sentTo, "reviewer-bot")[0].split("\n").slice(0, 2)).toEqual([
       "[Chat app] You were asleep for 3 h 12 min.",
       "[Chat app] This session:",
@@ -301,7 +303,9 @@ describe("createServer", () => {
 
     await sendMessage(base, conversation.id, "Remember kiwi.")
 
-    await vi.waitFor(() => expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1))
+    await vi.waitFor(() =>
+      expect(factsTo(sentTo, "reviewer-bot")).toHaveLength(1)
+    )
     expect(factsTo(sentTo, "reviewer-bot")[0]).toMatch(
       /^\[Chat app\] This session:/
     )
@@ -331,7 +335,11 @@ describe("createServer", () => {
     ])
     store.updateSession(earlier.id, { state: "exited", endReason: "sleep" })
 
-    await sendMessage(base, conversation.id, "Which word did I ask you to remember?")
+    await sendMessage(
+      base,
+      conversation.id,
+      "Which word did I ask you to remember?"
+    )
 
     await vi.waitFor(async () => {
       const { items } = await timeline(base, conversation.id)
@@ -454,6 +462,7 @@ describe("createServer", () => {
     const { store, server, startedAgents, sentTo } = await startServer()
     const runner = store.createAgent({
       name: "test-runner",
+      displayName: null,
       colour: "aqua",
       model: "claude-haiku-5-5",
       permissionMode: "default",
@@ -983,7 +992,8 @@ describe("createServer", () => {
     expect(tooLong.status).toBe(400)
     expect(await tooLong.json()).toMatchObject({
       fields: {
-        sleepAfterMinutes: "Give a whole number from 0 to 55, or leave it empty.",
+        sleepAfterMinutes:
+          "Give a whole number from 0 to 55, or leave it empty.",
       },
     })
     expect(await none.json()).toMatchObject({

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/item"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { refusalOf } from "@/lib/refusal"
+import { shownName } from "../../../server/agent-names.ts"
 
 export function AddMembersDialog({
   open,
@@ -124,19 +125,19 @@ export function AddMembersDialog({
                         <AvatarFallback
                           className={AVATAR_COLOURS[agent.colour]}
                         >
-                          {initialsOf(agent.name)}
+                          {initialsOf(shownName(agent))}
                         </AvatarFallback>
                       </Avatar>
                     </ItemMedia>
                     <ItemContent>
-                      <ItemTitle>{agent.name}</ItemTitle>
+                      <ItemTitle>{shownName(agent)}</ItemTitle>
                       <ItemDescription className="font-mono text-xs">
                         {agent.model} · {agent.permissionMode}
                       </ItemDescription>
                     </ItemContent>
                     <ItemActions>
                       <Checkbox
-                        aria-label={`${submitLabel} ${agent.name}`}
+                        aria-label={`${submitLabel} ${shownName(agent)}`}
                         checked={picked.includes(agent.id)}
                         onCheckedChange={(on) =>
                           setPicked((current) =>

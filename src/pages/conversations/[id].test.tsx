@@ -3126,3 +3126,62 @@ describe("a deleted conversation", () => {
     ).toBeInTheDocument()
   })
 })
+
+describe("the display name of an agent", () => {
+  const named = { ...testRunner, displayName: "Test Runner" }
+
+  test("a channel shows the display name as the author of a message and in the members panel", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, named] })
+    network.on("GET", "/api/conversations/ch1", {
+      conversation: releaseChannel,
+      agents: [{ ...named, state: "busy" }, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/ch1/timeline", {
+      items: [userMessage, agentMessage],
+      lastEventId: 0,
+    })
+    window.history.pushState({}, "", "/conversations/ch1")
+    render(<App />)
+
+    const messages = await screen.findAllByRole("article")
+    expect(within(messages[1]).getByText("Test Runner")).toBeInTheDocument()
+    const members = await openMembers(user)
+    await user.click(
+      members.getByRole("button", { name: "Test Runner Working" })
+    )
+    expect(
+      await members.findByRole("region", { name: "Session of Test Runner" })
+    ).toBeInTheDocument()
+  })
+
+  test("a DM shows the display name in its header", async () => {
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, named] })
+    network.on("GET", "/api/conversations/c1", {
+      conversation: directMessage,
+      agents: [named],
+    })
+    network.on("GET", "/api/conversations/c1/timeline", {
+      items: [userMessage],
+      lastEventId: 0,
+    })
+    network.on("GET", "/api/conversations/c1/agents/a1/session", {
+      session: testRunnerSession,
+    })
+    window.history.pushState({}, "", "/conversations/c1")
+    render(<App />)
+
+    expect(
+      await screen.findByRole("heading", { name: "Test Runner" })
+    ).toBeInTheDocument()
+    expect(await screen.findByText(/This is your DM with/)).toHaveTextContent(
+      "This is your DM with Test Runner."
+    )
+  })
+})

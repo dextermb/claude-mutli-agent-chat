@@ -35,6 +35,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
+import { shownName } from "../../server/agent-names.ts"
 
 export default function AgentsPage() {
   const { agents, loaded } = useWorkspace()
@@ -57,7 +58,9 @@ export default function AgentsPage() {
   }
 
   const shown = agents.filter((agent) =>
-    agent.name.toLowerCase().includes(search.trim().toLowerCase())
+    [agent.name, shownName(agent)].some((name) =>
+      name.toLowerCase().includes(search.trim().toLowerCase())
+    )
   )
 
   return (
@@ -120,7 +123,7 @@ export default function AgentsPage() {
                     <Item
                       key={agent.id}
                       role="listitem"
-                      aria-label={agent.name}
+                      aria-label={shownName(agent)}
                       variant="outline"
                     >
                       <ItemMedia>
@@ -128,7 +131,7 @@ export default function AgentsPage() {
                           <AvatarFallback
                             className={AVATAR_COLOURS[agent.colour]}
                           >
-                            {initialsOf(agent.name)}
+                            {initialsOf(shownName(agent))}
                           </AvatarFallback>
                           <AvatarBadge className={status.dot} />
                         </Avatar>
@@ -136,7 +139,7 @@ export default function AgentsPage() {
                       <ItemContent className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <ItemTitle className="text-foreground-strong">
-                            {agent.name}
+                            {shownName(agent)}
                           </ItemTitle>
                           <Badge variant="outline" className={status.text}>
                             {status.label}

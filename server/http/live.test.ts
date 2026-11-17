@@ -30,6 +30,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     try {
       const agent = store.createAgent({
         name: "live-check",
+        displayName: null,
         colour: "aqua",
         model: "claude-haiku-5-5",
         permissionMode: "default",
@@ -106,6 +107,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     }
     const agent = store.createAgent({
       name: "live-check",
+      displayName: null,
       colour: "aqua",
       model: "claude-haiku-5-5",
       permissionMode: "default",
@@ -206,6 +208,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     try {
       const agent = store.createAgent({
         name: "live-check",
+        displayName: null,
         colour: "aqua",
         model: "claude-haiku-5-5",
         permissionMode: "default",
@@ -281,6 +284,7 @@ describe.skipIf(process.env.CLAUDE_LIVE !== "1")("live check", () => {
     try {
       const agent = store.createAgent({
         name: "live-check",
+        displayName: null,
         colour: "aqua",
         model: "claude-haiku-5-5",
         permissionMode: "default",
