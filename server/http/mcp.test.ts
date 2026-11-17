@@ -118,6 +118,7 @@ describe("the chat MCP server", () => {
       topic: null,
       replyMode: "every",
       folder: null,
+      rules: null,
       thisConversation: true,
       members: [
         { name: "User", kind: "user" },
@@ -146,6 +147,29 @@ describe("the chat MCP server", () => {
     expect(toolValue(body)).toMatchObject({
       name: "billing-api",
       folder: "~/code/billing-api",
+    })
+  })
+
+  test("an agent reads the rules of a channel", async () => {
+    const { args, store, agent } = await startedAgent()
+    const channel = store.createConversation({
+      kind: "channel",
+      name: "review",
+      topic: null,
+      private: false,
+      replyMode: "mention",
+      rules: "Write findings only.",
+      members: ["user:me", `agent:${agent.id}`],
+    })
+
+    const { body } = await callChat(args, "tools/call", {
+      name: "get_conversation",
+      arguments: { conversationId: channel.id },
+    })
+
+    expect(toolValue(body)).toMatchObject({
+      name: "review",
+      rules: "Write findings only.",
     })
   })
 
