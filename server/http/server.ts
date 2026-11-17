@@ -14,6 +14,7 @@ import {
   agentSchema,
   channelSchema,
   channelSettingsSchema,
+  groupSettingsSchema,
   checkBody,
 } from "../schemas.ts"
 import { defaultScratchRoot, homeShort } from "../paths.ts"
@@ -1280,25 +1281,35 @@ export function createServer({
       if (!current) {
         return send(response, 404, { error: "no such conversation" })
       }
-      if (current.kind !== "channel") {
-        return send(response, 400, { error: "Only a channel has settings." })
+      if (current.kind === "dm") {
+        return send(response, 400, { error: "A DM has no settings." })
       }
-      const checked = checkBody(channelSettingsSchema, {
-        ...current,
-        ...(await readJson(request)),
-      })
+      const body = await readJson(request)
+      if (
+        current.kind === "group" &&
+        Object.keys(body).some((field) => field !== "rules")
+      ) {
+        return send(response, 400, {
+          error: "Only the rules of a group chat can change.",
+        })
+      }
+      const checked =
+        current.kind === "group"
+          ? checkBody(groupSettingsSchema, { ...current, ...body })
+          : checkBody(channelSettingsSchema, { ...current, ...body })
       if (!checked.ok) {
         return send(response, 400, {
           error: checked.error,
           fields: checked.fields,
         })
       }
-      const { cwd } = checked.data
+      const settings: Partial<Conversation> = checked.data
+      const cwd = settings.cwd
       const refused = cwd && cwd !== current.cwd ? await folderError(cwd) : null
       if (refused) {
         return send(response, 400, { error: refused, fields: { cwd: refused } })
       }
-      const conversation = store.updateConversation(params.id, checked.data)
+      const conversation = store.updateConversation(params.id, settings)
       if (conversation) announce(conversation)
       return send(response, 200, { conversation })
     }
@@ -1404,7 +1415,7 @@ export function createServer({
           body: { error: checked.error, fields: checked.fields },
         }
       }
-      const { name, topic, replyMode, cwd } = checked.data
+      const { name, topic, replyMode, cwd, rules } = checked.data
       const taken = store
         .listConversations()
         .some((item) => item.kind === "channel" && item.name === name)
@@ -1422,6 +1433,7 @@ export function createServer({
         private: checked.data.private,
         replyMode,
         cwd,
+        rules,
         members,
       })
     }

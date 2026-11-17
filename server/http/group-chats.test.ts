@@ -1052,7 +1052,7 @@ describe("group chats and channels", () => {
     })
   })
 
-  test("a DM and a group chat refuse a change to the settings", async () => {
+  test("a DM refuses each setting, and a group chat refuses each setting but its rules", async () => {
     const { base } = await startServer()
     const runner = await createAgent(base, "test-runner")
     const group = await groupChat(base, [runner.id])
@@ -1067,12 +1067,14 @@ describe("group chats and channels", () => {
     const toGroup = await changeSettings(base, group.id, { replyMode: "every" })
     const toDirect = await changeSettings(base, direct.id, { topic: "Tests" })
 
-    for (const response of [toGroup, toDirect]) {
-      expect(response.status).toBe(400)
-      expect(await response.json()).toEqual({
-        error: "Only a channel has settings.",
-      })
-    }
+    expect(toGroup.status).toBe(400)
+    expect(await toGroup.json()).toEqual({
+      error: "Only the rules of a group chat can change.",
+    })
+    expect(toDirect.status).toBe(400)
+    expect(await toDirect.json()).toEqual({
+      error: "A DM has no settings.",
+    })
     expect(
       await (await fetch(`${base}/api/conversations/${group.id}`)).json()
     ).toMatchObject({
