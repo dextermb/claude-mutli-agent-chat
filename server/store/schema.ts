@@ -1,3 +1,6 @@
+import type { DatabaseSync } from "node:sqlite"
+import { slugOf } from "../agent-names.ts"
+
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
@@ -71,6 +74,7 @@ export const MIGRATIONS: {
   sql: string
   rebuild?: true
   foreignKeysOff?: true
+  run?: (db: DatabaseSync) => void
 }[] = [
   {
     version: 2,
@@ -196,4 +200,43 @@ export const MIGRATIONS: {
       ALTER TABLE agents ADD COLUMN deleted_at TEXT;
     `,
   },
+  {
+    version: 13,
+    sql: `
+      ALTER TABLE agents ADD COLUMN display_name TEXT;
+    `,
+    run: giveUsernames,
+  },
 ]
+
+function giveUsernames(db: DatabaseSync) {
+  const live = db
+    .prepare(
+      `SELECT id, name FROM agents WHERE deleted_at IS NULL
+       ORDER BY created_at, id`
+    )
+    .all()
+    .map((row) => ({ id: String(row.id), name: String(row.name) }))
+  const fits = (name: string) => /^[a-z0-9-]+$/.test(name)
+  const rename = db.prepare(
+    "UPDATE agents SET name = ?, display_name = ? WHERE id = ?"
+  )
+  const taken = new Set<string>()
+  for (const agent of [
+    ...live.filter((agent) => fits(agent.name)),
+    ...live.filter((agent) => !fits(agent.name)),
+  ]) {
+    const slug = slugOf(agent.name)
+    let username = slug
+    for (let suffix = 2; taken.has(username); suffix++) {
+      username = `${slug}-${suffix}`
+    }
+    taken.add(username)
+    if (username === agent.name) continue
+    rename.run(username, slug === agent.name ? null : agent.name, agent.id)
+  }
+  db.exec(
+    `CREATE UNIQUE INDEX agents_live_name ON agents (name)
+     WHERE deleted_at IS NULL`
+  )
+}

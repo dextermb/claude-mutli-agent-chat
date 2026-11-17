@@ -895,7 +895,7 @@ describe("createServer", () => {
     )
   })
 
-  test("an agent with no name or model is refused", async () => {
+  test("an agent with no username or model is refused", async () => {
     const { base } = await startServer()
 
     const response = await postJson(base, "/api/agents", {
@@ -906,12 +906,59 @@ describe("createServer", () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: "Give the agent a name. Pick a model.",
+      error: "Give the agent a username. Pick a model.",
       fields: {
-        name: "Give the agent a name.",
+        name: "Give the agent a username.",
         model: "Pick a model.",
       },
     })
+  })
+
+  test("a username that another agent uses is refused, on a create and on a save", async () => {
+    const { base } = await startServer()
+    const created = await postJson(base, "/api/agents", testRunner)
+    const other = await postJson(base, "/api/agents", {
+      ...testRunner,
+      name: "lint-runner",
+    })
+    const { agent } = (await other.json()) as { agent: { id: string } }
+
+    const again = await postJson(base, "/api/agents", testRunner)
+    const saved = await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "test-runner" }),
+    })
+
+    expect(created.status).toBe(201)
+    for (const response of [again, saved]) {
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({
+        error: "Another agent uses this username.",
+        fields: { name: "Another agent uses this username." },
+      })
+    }
+  })
+
+  test("an agent can keep its own username, and take the username of a deleted agent", async () => {
+    const { base } = await startServer()
+    const first = (await (
+      await postJson(base, "/api/agents", testRunner)
+    ).json()) as { agent: { id: string } }
+
+    const kept = await fetch(`${base}/api/agents/${first.agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Test Runner" }),
+    })
+    await fetch(`${base}/api/agents/${first.agent.id}`, { method: "DELETE" })
+    const again = await postJson(base, "/api/agents", testRunner)
+
+    expect(kept.status).toBe(200)
+    expect(await kept.json()).toMatchObject({
+      agent: { name: "test-runner", displayName: "Test Runner" },
+    })
+    expect(again.status).toBe(201)
   })
 
   test("an agent keeps its sleep time, a time above 55 minutes is refused, and no time is null", async () => {
@@ -925,7 +972,10 @@ describe("createServer", () => {
       ...testRunner,
       sleepAfterMinutes: 56,
     })
-    const none = await postJson(base, "/api/agents", testRunner)
+    const none = await postJson(base, "/api/agents", {
+      ...testRunner,
+      name: "lint-runner",
+    })
 
     expect(await kept.json()).toMatchObject({
       agent: { sleepAfterMinutes: 20 },

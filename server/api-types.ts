@@ -8,6 +8,7 @@ export type SessionState =
 export type Agent = {
   id: string
   name: string
+  displayName: string | null
   colour: string
   model: string
   permissionMode: string

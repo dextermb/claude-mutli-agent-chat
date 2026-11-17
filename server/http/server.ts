@@ -785,6 +785,17 @@ export function createServer({
     return summary.text
   }
 
+  function usernameTaken(name: string, exceptId?: string): boolean {
+    return store
+      .listAgents()
+      .some((agent) => agent.name === name && agent.id !== exceptId)
+  }
+
+  function sendTaken(response: ServerResponse) {
+    const message = "Another agent uses this username."
+    send(response, 409, { error: message, fields: { name: message } })
+  }
+
   function authorName(authorKey: string): string {
     if (!authorKey.startsWith("agent:")) return "User"
     return store.getAgent(authorKey.slice("agent:".length))?.name ?? "agent"
@@ -1185,6 +1196,7 @@ export function createServer({
           fields: checked.fields,
         })
       }
+      if (usernameTaken(checked.data.name)) return sendTaken(response)
       return send(response, 201, { agent: store.createAgent(checked.data) })
     }
 
@@ -1252,6 +1264,9 @@ export function createServer({
           error: checked.error,
           fields: checked.fields,
         })
+      }
+      if (usernameTaken(checked.data.name, current.id)) {
+        return sendTaken(response)
       }
       return send(response, 200, {
         agent: store.updateAgent(params.id, checked.data),

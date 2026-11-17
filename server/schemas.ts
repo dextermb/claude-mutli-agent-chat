@@ -11,7 +11,7 @@ function emptyAsNull() {
     .transform((value) => (value ? value : null))
 }
 
-function optionalFolder() {
+function trimmedOrNull() {
   return z
     .string()
     .trim()
@@ -22,11 +22,15 @@ function optionalFolder() {
 const SLEEP_TIME = "Give a whole number from 0 to 55, or leave it empty."
 
 export const agentSchema = z.object({
-  name: filled("Give the agent a name."),
+  name: filled("Give the agent a username.").regex(
+    /^[a-z0-9-]+$/,
+    "Use only lowercase letters, numbers and hyphens in a username."
+  ),
+  displayName: trimmedOrNull(),
   colour: z.string().default(""),
   model: filled("Pick a model."),
   permissionMode: filled("Pick a permission mode."),
-  cwd: optionalFolder(),
+  cwd: trimmedOrNull(),
   autostart: z.boolean().default(false),
   allowedTools: z.array(z.string()).default([]),
   disallowedTools: z
@@ -70,7 +74,7 @@ export const channelSchema = z.object({
   replyMode: z
     .enum(["mention", "every"], { error: "Pick a reply mode." })
     .default("mention"),
-  cwd: optionalFolder(),
+  cwd: trimmedOrNull(),
   sleepAfterMinutes: sleepTime(),
   agentIds: z.array(z.string()).default([]),
 })
