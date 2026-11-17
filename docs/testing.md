@@ -63,6 +63,7 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
 | `POST /mcp`, the chat tools       | `server/http/mcp.test.ts`                                |
 | `useConversation()`, fake network | `src/hooks/use-conversation.test.ts`                     |
 | `useWorkspace()`, fake network    | `src/hooks/use-workspace.test.ts`                        |
+| One app stream for all pages      | `src/App.test.tsx`                                       |
 | `filesOf()`, the Files tab rows   | `src/lib/files.test.ts`                                  |
 | The DM page, fake network         | `src/pages/conversations/[id].test.tsx`                  |
 | `Composer`, the mention list      | `src/components/conversation/composer/composer.test.tsx` |
