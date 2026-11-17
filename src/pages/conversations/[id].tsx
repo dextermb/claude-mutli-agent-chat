@@ -28,11 +28,12 @@ import {
 } from "@/components/conversation/agent-look"
 import { AddMembersDialog } from "@/components/dialogs/add-members-dialog"
 import { DeleteDialog } from "@/components/dialogs/delete-dialog"
-import { GroupChatSettingsDialog } from "@/components/dialogs/group-chat-settings-dialog"
+import { GroupChatSettingsDialog } from "@/components/dialogs/group-chat-settings/group-chat-settings-dialog"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { ChannelSettingsDialog } from "@/components/dialogs/channel-settings/channel-settings-dialog"
 import { Composer } from "@/components/conversation/composer/composer"
 import { ContextFigure } from "@/components/conversation/composer/context-figure"
+import { RulesBadge } from "@/components/conversation/rules-badge"
 import { ModelLink } from "@/components/conversation/composer/model-link"
 import { FilesPanel } from "@/components/conversation/files/files-panel"
 import { SharedFilesList } from "@/components/conversation/files/shared-files-list"
@@ -253,6 +254,12 @@ export default function ConversationPage() {
                   : "Agents reply when you @mention them."}
               </span>
             </span>
+          )}
+          {!isDirect && conversation.conversation.rules && (
+            <RulesBadge
+              rules={conversation.conversation.rules}
+              onOpen={() => setConfiguring(true)}
+            />
           )}
           <div className="min-w-4 flex-1" />
           {working.length > 0 && (

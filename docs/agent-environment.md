@@ -23,6 +23,7 @@ not know these facts:
 | `agent/compact.md`                       | The instructions of `/compact` before a sleep (`docs/sleep.md`) |
 | `sessionFacts()`                         | The facts of the session: one line for each fact                |
 | `factsNote(sent, now)`                   | The block of facts that goes before the next prompt             |
+| `rulesNote(sent, now, kind, earlier)`    | The block of the rules of the conversation, after the facts     |
 | `agent/.claude-plugin/plugin.json`       | The `chat` plugin, which `--plugin-dir` loads                   |
 | `buildArgs(agent, session, environment)` | The rule, then the system prompt of the agent                   |
 
@@ -97,6 +98,43 @@ before the next prompt:
   that the prompt leaves out, and the note of a new session after a lost
   transcript (`docs/sleep.md`).
 
+## The rules of the conversation
+
+A channel or a group chat can have rules from the user
+(`docs/conversations.md`). They go in the prompt, after the facts, as a
+separate `[Chat app]` block. They do not go in the system prompt, for the
+same reason as the facts: a resume keeps the system prompt of the first
+process (F40). So the system prompt of an agent also stays the same in each
+conversation, and the prompt cache can share it (F51).
+
+`factsNote()` compares one line at a time. The rules are free text with many
+lines, so `rulesNote()` compares the whole text:
+
+| Sent to this process   | The rules now | The block                                                                               |
+| ---------------------- | ------------- | --------------------------------------------------------------------------------------- |
+| Nothing yet            | Text          | `[Chat app] The rules of this channel, from the user:`, then the text                   |
+| Nothing yet, `earlier` | None          | `[Chat app] This channel has no rules now. Do not follow rules from an earlier prompt.` |
+| Nothing yet            | None          | No block                                                                                |
+| The same text          | The same text | No block                                                                                |
+| Text                   | Other text    | `[Chat app] The user changed the rules of this channel. The rules now:`, then the text  |
+| Text                   | None          | `[Chat app] The user removed the rules of this channel.`                                |
+
+A group chat says "this group chat". The server keeps the text that it sent
+in memory, for each process, as for the facts.
+
+`earlier` is true when the transcript can hold rules that the server did not
+send to this process:
+
+- **A resume.** The process resumes a Claude session (`claudeSessionNew` is
+  false). An earlier process can have sent rules that the user removed since.
+- **A compaction.** When a `compaction` item is `done`, the server forgets
+  the rules that it sent, because the summary can lose their exact text. The
+  next prompt gives them in full again.
+
+The rule in `agent/environment.md` tells the agent to follow the latest
+rules in that conversation only. The rules of the conversation win over the
+system prompt of the agent, and the rule of the chat app wins over both.
+
 ## The data flow
 
 ```
@@ -109,6 +147,7 @@ start(row)                                   server/http/server.ts
 deliverNext(session)                         when the process is idle
   -> sessionFacts({ agentName, conversation, memberNames, folder })
   -> factsNote(the facts sent last, the facts of now)
+  -> rulesNote(the rules sent last, the rules of now, kind, earlier)
   -> handle.prompt(text, note)               two text blocks: note, text
 ```
 

@@ -14,6 +14,7 @@ import {
   agentSchema,
   channelSchema,
   channelSettingsSchema,
+  groupSettingsSchema,
   checkBody,
 } from "../schemas.ts"
 import { defaultScratchRoot, homeShort } from "../paths.ts"
@@ -23,6 +24,7 @@ import type { Summarize } from "../summary/summarizer.ts"
 import {
   ENVIRONMENT_RULE,
   factsNote,
+  rulesNote,
   sessionFacts,
 } from "../session/environment-prompt.ts"
 import { answerRpc } from "../mcp/rpc.ts"
@@ -87,6 +89,8 @@ type LiveSession = {
   queue: QueuedPrompt[]
   cwd: string
   facts: string[] | null
+  rules: string | null | undefined
+  rulesEarlier: boolean
   sleepTimer: ReturnType<typeof setTimeout> | null
   compactingForSleep: boolean
   contextTokens: number
@@ -262,6 +266,8 @@ export function createServer({
       queue: [],
       cwd,
       facts: null,
+      rules: undefined,
+      rulesEarlier: row.claudeSessionId !== null && !row.claudeSessionNew,
       sleepTimer: null,
       compactingForSleep: false,
       contextTokens: 0,
@@ -330,6 +336,10 @@ export function createServer({
         }
       }
       for (const item of event.items) {
+        if (item.kind === "compaction" && item.status === "done") {
+          session.rules = undefined
+          session.rulesEarlier = true
+        }
         if (item.kind === "tool_call" && item.job) {
           if (item.job.status === "running") session.runningJobs.add(item.id)
           else session.runningJobs.delete(item.id)
@@ -658,13 +668,24 @@ export function createServer({
     const queued = session.queue.shift()
     if (queued === undefined) return
     const facts = factsOf(session)
+    const conversation = store.getConversation(session.conversationId)
+    const rules = conversation?.rules ?? null
     const notes = [
       gapNote(session.asleepForMs),
       session.restartNote,
       facts ? factsNote(session.facts, facts) : undefined,
+      conversation
+        ? rulesNote(
+            session.rules,
+            rules,
+            conversation.kind,
+            session.rulesEarlier
+          )
+        : undefined,
       queued.note,
     ].filter((note) => note !== undefined && note !== null)
     if (facts) session.facts = facts
+    session.rules = rules
     session.asleepForMs = null
     session.restartNote = null
     session.handle?.prompt(
@@ -1280,25 +1301,35 @@ export function createServer({
       if (!current) {
         return send(response, 404, { error: "no such conversation" })
       }
-      if (current.kind !== "channel") {
-        return send(response, 400, { error: "Only a channel has settings." })
+      if (current.kind === "dm") {
+        return send(response, 400, { error: "A DM has no settings." })
       }
-      const checked = checkBody(channelSettingsSchema, {
-        ...current,
-        ...(await readJson(request)),
-      })
+      const body = await readJson(request)
+      if (
+        current.kind === "group" &&
+        Object.keys(body).some((field) => field !== "rules")
+      ) {
+        return send(response, 400, {
+          error: "Only the rules of a group chat can change.",
+        })
+      }
+      const checked =
+        current.kind === "group"
+          ? checkBody(groupSettingsSchema, { ...current, ...body })
+          : checkBody(channelSettingsSchema, { ...current, ...body })
       if (!checked.ok) {
         return send(response, 400, {
           error: checked.error,
           fields: checked.fields,
         })
       }
-      const { cwd } = checked.data
+      const settings: Partial<Conversation> = checked.data
+      const cwd = settings.cwd
       const refused = cwd && cwd !== current.cwd ? await folderError(cwd) : null
       if (refused) {
         return send(response, 400, { error: refused, fields: { cwd: refused } })
       }
-      const conversation = store.updateConversation(params.id, checked.data)
+      const conversation = store.updateConversation(params.id, settings)
       if (conversation) announce(conversation)
       return send(response, 200, { conversation })
     }
@@ -1404,7 +1435,7 @@ export function createServer({
           body: { error: checked.error, fields: checked.fields },
         }
       }
-      const { name, topic, replyMode, cwd } = checked.data
+      const { name, topic, replyMode, cwd, rules } = checked.data
       const taken = store
         .listConversations()
         .some((item) => item.kind === "channel" && item.name === name)
@@ -1422,6 +1453,7 @@ export function createServer({
         private: checked.data.private,
         replyMode,
         cwd,
+        rules,
         members,
       })
     }

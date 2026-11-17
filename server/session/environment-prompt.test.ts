@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs"
 import { describe, expect, test } from "vitest"
-import { ENVIRONMENT_RULE, sessionFacts } from "./environment-prompt.ts"
+import {
+  ENVIRONMENT_RULE,
+  rulesNote,
+  sessionFacts,
+} from "./environment-prompt.ts"
 
 describe("sessionFacts", () => {
   test("an agent in a DM learns its name, its conversation and that it gets each message", () => {
@@ -144,5 +148,45 @@ describe("ENVIRONMENT_RULE", () => {
         `chat:${name}`
       ).toBe(true)
     }
+  })
+})
+
+describe("rulesNote", () => {
+  test("the first prompt in a channel with rules gives the rules in full", () => {
+    expect(
+      rulesNote(undefined, "Do not edit files.\nWrite findings only.", "channel")
+    ).toBe(
+      "[Chat app] The rules of this channel, from the user:\nDo not edit files.\nWrite findings only."
+    )
+  })
+
+  test("a later prompt with the same rules gives no block", () => {
+    expect(
+      rulesNote("Write findings only.", "Write findings only.", "channel")
+    ).toBeUndefined()
+  })
+
+  test("a change of the rules in a group chat gives the new rules in full", () => {
+    expect(
+      rulesNote("Write findings only.", "Reply in French.", "group")
+    ).toBe(
+      "[Chat app] The user changed the rules of this group chat. The rules now:\nReply in French."
+    )
+  })
+
+  test("a removal of the rules tells the agent that no rules apply now", () => {
+    expect(rulesNote("Write findings only.", null, "channel")).toBe(
+      "[Chat app] The user removed the rules of this channel."
+    )
+  })
+
+  test("a conversation with no rules gives no block", () => {
+    expect(rulesNote(undefined, null, "group")).toBeUndefined()
+  })
+
+  test("a resumed session with no rules now learns that rules from an earlier prompt do not apply", () => {
+    expect(rulesNote(undefined, null, "channel", true)).toBe(
+      "[Chat app] This channel has no rules now. Do not follow rules from an earlier prompt."
+    )
   })
 })

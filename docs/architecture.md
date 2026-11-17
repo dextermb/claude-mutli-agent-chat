@@ -128,6 +128,15 @@ facts, and a later prompt holds the facts that changed. Then the system
 prompt of an agent is the same in each conversation, and the prompt cache can
 share it.
 
+**The rules of a conversation go in the prompt too.** The user writes rules
+for a channel or a group chat, and they win over the system prompt of each
+agent in that conversation. They are a separate `[Chat app]` block after the
+facts, sent again after a change, a resume or a compaction
+(`docs/agent-environment.md`). Rejected: `--append-system-prompt` with
+`--system-prompt-snapshot off`. A resume then gets the new rules, but a
+process that runs does not, and each conversation writes its own cache of
+the base.
+
 **The agent server hosts the `chat` MCP server.** At `POST /mcp`, so a tool
 calls the store and the conversation code directly, with no second process.
 A token in the header tells which session calls. The JSON-RPC is our own

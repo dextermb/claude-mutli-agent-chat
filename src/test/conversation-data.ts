@@ -34,6 +34,7 @@ export const directMessage: Conversation = {
   replyMode: "every",
   cwd: null,
   sleepAfterMinutes: null,
+  rules: null,
   members: ["user:me", "agent:a1"],
   createdAt: "2026-11-15T10:00:00.000Z",
 }
@@ -243,6 +244,7 @@ export const releaseChannel: Conversation = {
   replyMode: "mention",
   cwd: null,
   sleepAfterMinutes: null,
+  rules: null,
   members: ["user:me", "agent:a1", "agent:a2"],
   createdAt: "2026-11-15T09:00:00.000Z",
 }
@@ -256,6 +258,7 @@ export const squadGroup: Conversation = {
   replyMode: "mention",
   cwd: null,
   sleepAfterMinutes: null,
+  rules: null,
   members: ["user:me", "agent:a2", "agent:a1"],
   createdAt: "2026-11-15T09:30:00.000Z",
 }

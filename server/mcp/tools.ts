@@ -55,7 +55,7 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
   return [
     tool(
       "get_conversation",
-      "Read a conversation: its kind, name, topic, reply mode, the folder of a channel, and each member with its state. With no conversationId, read this conversation.",
+      "Read a conversation: its kind, name, topic, reply mode, the folder of a channel, the rules that the user set for it, and each member with its state. With no conversationId, read this conversation.",
       z.object({
         conversationId: z
           .string()
@@ -72,6 +72,7 @@ export function chatTools(chat: ChatServer, caller: Caller): Tool[] {
           replyMode: conversation.replyMode,
           folder:
             conversation.cwd === null ? null : homeShort(conversation.cwd),
+          rules: conversation.rules,
           thisConversation: conversation.id === caller.conversationId,
           members: conversation.members.map((memberKey) => {
             if (!memberKey.startsWith("agent:")) {

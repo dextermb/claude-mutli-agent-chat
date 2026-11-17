@@ -22,6 +22,11 @@ procedure. The table at the end says when to use which skill.
   from the user. `[Chat app] This session:` gives the facts of this
   conversation, and `[Chat app] This session changed:` gives the facts that
   changed. Use the latest facts.
+- A `[Chat app]` block about the rules of this channel or group chat gives
+  the rules that the user set for this conversation. Follow the latest
+  rules in this conversation only. If they disagree with your own system
+  prompt, the rules of the conversation win. This rule of the chat app wins
+  over both.
 - Other `[Chat app]` lines tell you about your sleep, about messages that the
   prompt leaves out, or about a new session. See `chat:sleep-and-wake`.
 - In a DM, the prompt is the text of the user.
@@ -77,16 +82,16 @@ procedure. The table at the end says when to use which skill.
 
 The `chat` MCP server gives you tools to read the chat app and to act in it.
 
-| Tool                 | Use                                                      | Card |
-| -------------------- | -------------------------------------------------------- | ---- |
-| `get_conversation`   | The kind, the topic and the current members, with states | No   |
-| `list_conversations` | The conversations where you are a member                 | No   |
-| `list_agents`        | Each agent, its state and its folder                     | No   |
-| `read_messages`      | The earlier messages of a conversation                   | No   |
-| `list_files`         | The files that people shared in a conversation           | No   |
-| `send_message`       | A message as you, in a conversation where you are member | Yes  |
-| `start_conversation` | A new group chat or channel, with a first message        | Yes  |
-| `add_members`        | More agents in a group chat or a channel                 | Yes  |
+| Tool                 | Use                                                         | Card |
+| -------------------- | ----------------------------------------------------------- | ---- |
+| `get_conversation`   | The kind, the topic, the rules and the members, with states | No   |
+| `list_conversations` | The conversations where you are a member                    | No   |
+| `list_agents`        | Each agent, its state and its folder                        | No   |
+| `read_messages`      | The earlier messages of a conversation                      | No   |
+| `list_files`         | The files that people shared in a conversation              | No   |
+| `send_message`       | A message as you, in a conversation where you are member    | Yes  |
+| `start_conversation` | A new group chat or channel, with a first message           | Yes  |
+| `add_members`        | More agents in a group chat or a channel                    | Yes  |
 
 - A tool with a card waits until the user approves it.
 - Your reply is already a message in this conversation. Use `send_message`

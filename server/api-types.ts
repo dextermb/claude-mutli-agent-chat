@@ -72,16 +72,18 @@ export type Conversation = {
   replyMode: "mention" | "every"
   cwd: string | null
   sleepAfterMinutes: number | null
+  rules: string | null
   members: string[]
   createdAt: string
 }
 
 export type NewConversation = Omit<
   Conversation,
-  "id" | "createdAt" | "cwd" | "sleepAfterMinutes"
+  "id" | "createdAt" | "cwd" | "sleepAfterMinutes" | "rules"
 > & {
   cwd?: string | null
   sleepAfterMinutes?: number | null
+  rules?: string | null
 }
 
 export type TimelineEntry = {
