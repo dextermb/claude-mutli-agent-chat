@@ -16,7 +16,9 @@ The project uses [Vitest](https://vitest.dev) with jsdom and
   - `server`: the files `server/**/*.test.ts`, in Node.
 - Run one project with `pnpm test --project server`.
 - `src/test/setup.ts` loads the `jest-dom` matchers. Before each test, it
-  sets a screen 1280 px wide and a window without the focus. After each
+  empties `localStorage`, sets a screen 1280 px wide and a window without
+  the focus. The empty `localStorage` matters for the sidebar, which keeps
+  its state there (`docs/web-app/sidebar.md`). After each
   test, it removes the rendered DOM, then the stubbed globals and the spies.
   So a test file does not call `vi.unstubAllGlobals()` or
   `vi.restoreAllMocks()` itself.

@@ -48,6 +48,10 @@ at once.
 - A pressed `Button` gets smaller, to `scale: 0.96`, with `ease-out`. It
   does not change when reduced motion is on.
 - The sidebar moves on `cubic-bezier(0.2, 0, 0, 1)`, not on a linear curve.
+- The floating sidebar of the peek (`docs/web-app/sidebar.md`) comes in with
+  `animate-in fade-in slide-in-from-left-2` over 150 ms. Under reduced
+  motion, the `prefers-reduced-motion` block of `src/index.css` takes the
+  move away, and the fade stays.
 - A change of theme turns off all transitions for one frame, through
   `disableTransitionsTemporarily()` in `src/lib/theme.ts`.
 

@@ -9,6 +9,7 @@ fakeScrollTo()
 configure({ asyncUtilTimeout: 3000 })
 
 beforeEach(() => {
+  localStorage.clear()
   screenWidth(1280)
   windowFocus(false)
 })
