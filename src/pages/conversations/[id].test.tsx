@@ -389,6 +389,65 @@ describe("the DM page", () => {
     ).not.toBeInTheDocument()
   })
 
+  test("stop turn shows that it runs, and a toast says when the turn is stopped", async () => {
+    const user = userEvent.setup()
+    const release = network.hold(
+      "POST",
+      "/api/conversations/c1/agents/a1/stop",
+      {},
+      202
+    )
+    openConversation([userMessage], "busy")
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(
+      await within(panel).findByRole("button", { name: "Stop turn" })
+    )
+
+    expect(
+      await within(panel).findByRole("button", { name: "Stopping…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", {
+        name: "The turn of test-runner is stopped.",
+      })
+    ).toBeInTheDocument()
+  })
+
+  test("new session shows that it runs, and a toast says when the session is started", async () => {
+    const user = userEvent.setup()
+    const release = network.hold(
+      "POST",
+      "/api/conversations/c1/agents/a1/sessions",
+      { session: { ...testRunnerSession, turns: 0 } },
+      201
+    )
+    openConversation([userMessage])
+    const panel = await screen.findByRole("complementary", { name: "Session" })
+
+    await user.click(within(panel).getByRole("button", { name: "New session" }))
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Start a new session?",
+    })
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start new session" })
+    )
+
+    expect(
+      await within(dialog).findByRole("button", { name: "Starting…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", {
+        name: "A new session of test-runner is started.",
+      })
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
+  })
+
   test("new session asks first, and then starts a new session for the agent", async () => {
     const user = userEvent.setup()
     network.on(
@@ -1980,8 +2039,40 @@ describe("the DM page", () => {
       ]
     )
     await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("dialog", { name: "Invite agents" })
+      ).not.toBeInTheDocument()
     )
+  })
+
+  test("invite agents shows that the agents are added, and a toast says when they are added", async () => {
+    const user = userEvent.setup()
+    const docsWriter = { ...reviewerBot, id: "a3", name: "docs-writer" }
+    openChannel([userMessage])
+    network.on("GET", "/api/agents", {
+      agents: [docsWriter, reviewerBot, testRunner],
+    })
+    const release = network.hold("POST", "/api/conversations/ch1/members", {
+      conversation: releaseChannel,
+    })
+    const members = await openMembers(user)
+    await user.click(members.getByRole("button", { name: "Invite agents" }))
+    const dialog = await screen.findByRole("dialog", { name: "Invite agents" })
+
+    await user.click(
+      await within(dialog).findByRole("checkbox", {
+        name: "Invite docs-writer",
+      })
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Invite" }))
+
+    expect(
+      await within(dialog).findByRole("button", { name: "Adding…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "docs-writer is added." })
+    ).toBeInTheDocument()
   })
 
   test("in a channel, the panel of an agent can remove that agent from the channel", async () => {
@@ -2038,7 +2129,9 @@ describe("the DM page", () => {
       },
     ])
     await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("dialog", { name: "Channel settings" })
+      ).not.toBeInTheDocument()
     )
     act(() =>
       network
@@ -2046,6 +2139,32 @@ describe("the DM page", () => {
         .emit(1, { type: "conversation", conversation: changed })
     )
     expect(header.getByText("Ship v2.5 on Monday.")).toBeInTheDocument()
+  })
+
+  test("in a channel, the Save button shows that it runs, and a toast says when the channel is saved", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    const release = network.hold("PATCH", "/api/conversations/ch1", {
+      conversation: { ...releaseChannel, topic: "Ship v2.5 on Monday." },
+    })
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(header.getByRole("button", { name: "Channel settings" }))
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Channel settings" })
+    )
+    const topic = dialog.getByRole("textbox", { name: "Topic" })
+    await user.clear(topic)
+    await user.type(topic, "Ship v2.5 on Monday.")
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      await dialog.findByRole("button", { name: "Saving…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "#release-train is saved." })
+    ).toBeInTheDocument()
   })
 
   test("in a channel, channel settings sends the sleep time of the channel", async () => {
@@ -2408,7 +2527,34 @@ describe("a refused action", () => {
     return render(<App />)
   }
 
-  test("remove of the last agent of a group chat shows the reason of the server, and the panel stays", async () => {
+  test("remove shows that it runs, and a toast says when the agent is removed", async () => {
+    const user = userEvent.setup()
+    openChannel([userMessage])
+    network.on("GET", "/api/conversations/ch1/agents/a1/session", {
+      session: testRunnerSession,
+    })
+    network.on("GET", "/api/conversations/ch1/agents/a2/session", {
+      session: testRunnerSession,
+    })
+    const release = network.hold(
+      "DELETE",
+      "/api/conversations/ch1/members/a2",
+      { conversation: releaseChannel }
+    )
+    const session = await openMember(user, "reviewer-bot Idle")
+
+    await user.click(session.getByRole("button", { name: "Remove" }))
+
+    expect(
+      await session.findByRole("button", { name: "Removing…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "reviewer-bot is removed." })
+    ).toBeInTheDocument()
+  })
+
+  test("remove of the last agent of a group chat shows the reason of the server in a toast, and the panel stays", async () => {
     const user = userEvent.setup()
     network.on(
       "DELETE",
@@ -2421,11 +2567,14 @@ describe("a refused action", () => {
 
     await user.click(session.getByRole("button", { name: "Remove" }))
 
-    const alert = await session.findByRole("alert")
-    expect(alert).toHaveTextContent("Remove did not work.")
-    expect(alert).toHaveTextContent("A group chat needs one agent or more.")
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Remove did not work."
+    )
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "A group chat needs one agent or more."
+    )
   })
-  test("a refused stop turn shows the reason of the server in the session panel", async () => {
+  test("a refused stop turn shows the reason of the server in a toast", async () => {
     const user = userEvent.setup()
     network.on(
       "POST",
@@ -2440,12 +2589,15 @@ describe("a refused action", () => {
       await within(panel).findByRole("button", { name: "Stop turn" })
     )
 
-    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Stop turn did not work."
+    )
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "no such agent in this conversation"
     )
   })
 
-  test("new session shows that the server did not answer when no answer comes", async () => {
+  test("new session shows in a toast that the server did not answer when no answer comes", async () => {
     const user = userEvent.setup()
     network.fail("POST", "/api/conversations/c1/agents/a1/sessions")
     openConversation([userMessage])
@@ -2458,70 +2610,12 @@ describe("a refused action", () => {
       ).getByRole("button", { name: "Start new session" })
     )
 
-    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "New session did not work."
+    )
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "The server did not answer."
     )
-  })
-
-  test("the user can close the reason of a refused action", async () => {
-    const user = userEvent.setup()
-    network.fail("POST", "/api/conversations/c1/agents/a1/stop")
-    openConversation([userMessage], "busy")
-    const panel = await screen.findByRole("complementary", { name: "Session" })
-    await user.click(
-      await within(panel).findByRole("button", { name: "Stop turn" })
-    )
-    const alert = await within(panel).findByRole("alert")
-
-    await user.click(
-      within(alert).getByRole("button", { name: "Close the alert" })
-    )
-
-    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
-  })
-
-  test("the reason of a refused action closes when the next action works", async () => {
-    const user = userEvent.setup()
-    network.fail("POST", "/api/conversations/c1/agents/a1/stop")
-    openConversation([userMessage], "busy")
-    const panel = await screen.findByRole("complementary", { name: "Session" })
-    const stopTurn = await within(panel).findByRole("button", {
-      name: "Stop turn",
-    })
-    await user.click(stopTurn)
-    await within(panel).findByRole("alert")
-
-    network.on("POST", "/api/conversations/c1/agents/a1/stop", {}, 202)
-    await user.click(stopTurn)
-
-    await waitFor(() =>
-      expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
-    )
-  })
-
-  test("the reason of a refused action stays with its agent", async () => {
-    const user = userEvent.setup()
-    openChannel([userMessage])
-    network.on("GET", "/api/conversations/ch1/agents/a1/session", {
-      session: testRunnerSession,
-    })
-    network.on("GET", "/api/conversations/ch1/agents/a2/session", {
-      session: testRunnerSession,
-    })
-    network.fail("DELETE", "/api/conversations/ch1/members/a2")
-    const session = await openMember(user, "reviewer-bot Idle")
-    await user.click(session.getByRole("button", { name: "Remove" }))
-    await session.findByRole("alert")
-
-    await user.click(
-      screen.getByRole("button", { name: "test-runner Working" })
-    )
-
-    expect(
-      within(
-        await screen.findByRole("region", { name: "Session of test-runner" })
-      ).queryByRole("alert")
-    ).not.toBeInTheDocument()
   })
 
   test("a refused stop shows the reason of the server over the message box", async () => {
@@ -3153,8 +3247,54 @@ describe("a deleted conversation", () => {
       },
     ])
     await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("dialog", { name: "Group chat settings" })
+      ).not.toBeInTheDocument()
     )
+  })
+
+  test("in a group chat, the Save button shows that it runs, and a toast says when the settings are saved", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+    })
+    network.on("GET", "/api/agents", { agents: [reviewerBot, testRunner] })
+    network.on("GET", "/api/conversations/g1", {
+      conversation: squadGroup,
+      agents: [testRunner, reviewerBot],
+    })
+    network.on("GET", "/api/conversations/g1/timeline", {
+      items: [],
+      lastEventId: 0,
+    })
+    const release = network.hold("PATCH", "/api/conversations/g1", {
+      conversation: { ...squadGroup, rules: "Reply in French." },
+    })
+    window.history.pushState({}, "", "/conversations/g1")
+    render(<App />)
+    const header = within(await screen.findByRole("banner"))
+
+    await user.click(
+      await header.findByRole("button", { name: "Group chat settings" })
+    )
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Group chat settings" })
+    )
+    await user.type(
+      dialog.getByRole("textbox", { name: "Rules" }),
+      "Reply in French."
+    )
+    await user.click(dialog.getByRole("button", { name: "Save" }))
+
+    expect(
+      await dialog.findByRole("button", { name: "Saving…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Group chat settings are saved.",
+      })
+    ).toBeInTheDocument()
   })
 
   test("delete group chat in group chat settings asks first, then deletes the group chat and goes to the home page", async () => {

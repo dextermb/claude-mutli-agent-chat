@@ -1,13 +1,8 @@
-import { useState } from "react"
 import { Link } from "wouter"
 
 import { AllowedTools } from "@/components/conversation/session/allowed-tools"
-import { RefusalOf } from "@/components/conversation/session/refusal-of"
 import { SessionActions } from "@/components/conversation/session/session-actions"
-import type {
-  Refusal,
-  SessionDetailsProps,
-} from "@/components/conversation/session/session-details"
+import type { SessionDetailsProps } from "@/components/conversation/session/session-details"
 import { SessionFacts } from "@/components/conversation/session/session-facts"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -41,7 +36,6 @@ export function SessionSheet({
   onOpenChange: (open: boolean) => void
   views?: SheetViews
 }) {
-  const [refusal, setRefusal] = useState<Refusal>(null)
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -53,9 +47,8 @@ export function SessionSheet({
           <SheetDescription>One headless Claude Code process.</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 px-4 pb-4">
-          <RefusalOf refusal={refusal} onClose={() => setRefusal(null)} />
           <SessionFacts card={details.card} withModel />
-          <SessionActions {...details} onRefusal={setRefusal} />
+          <SessionActions {...details} />
           {details.card && (
             <>
               <Separator />

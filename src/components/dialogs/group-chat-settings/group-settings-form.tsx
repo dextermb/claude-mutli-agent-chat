@@ -12,8 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { FieldGroup } from "@/components/ui/field"
+import { Spinner } from "@/components/ui/spinner"
 import type { Conversation } from "@/lib/agent-api"
 import { refusalOf } from "@/lib/refusal"
+import { toastDone } from "@/lib/toasts"
 
 export function GroupSettingsForm({
   conversation,
@@ -46,6 +48,7 @@ export function GroupSettingsForm({
       setError(refusal)
       return
     }
+    toastDone("Group chat settings are saved.")
     onSaved()
   }
 
@@ -81,7 +84,8 @@ export function GroupSettingsForm({
           Cancel
         </DialogClose>
         <Button type="submit" disabled={saving}>
-          Save
+          {saving && <Spinner aria-hidden="true" />}
+          {saving ? "Saving…" : "Save"}
         </Button>
       </DialogFooter>
     </form>

@@ -77,7 +77,32 @@ describe("the Start a chat dialog", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe("/conversations/c1")
     )
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("dialog", { name: "Start a chat" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("the button shows that the chat starts, and a toast says when the DM is started", async () => {
+    const user = userEvent.setup()
+    const release = network.hold("POST", "/api/conversations", {
+      conversation: directMessage,
+    })
+    const dialog = await openDialog(user)
+
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: "Pick test-runner" })
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Open DM" }))
+
+    expect(
+      await within(dialog).findByRole("button", { name: "Starting…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", {
+        name: "The DM with test-runner is started.",
+      })
+    ).toBeInTheDocument()
   })
 
   test("the dialog shows the reason when the server refuses the chat, and stays open", async () => {

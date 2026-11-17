@@ -47,9 +47,11 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
+import { Spinner } from "@/components/ui/spinner"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
 import { invalid, shown } from "@/lib/form-errors"
+import { toastDone } from "@/lib/toasts"
 import { channelSchema, type ChannelDraft } from "../../../server/schemas.ts"
 import { shownName } from "../../../server/agent-names.ts"
 
@@ -103,6 +105,7 @@ export function CreateChannelDialog({
     }
     form.reset()
     setError(null)
+    toastDone(`#${body.conversation.name} is created.`)
     onCreated(body.conversation)
   }
 
@@ -242,7 +245,14 @@ export function CreateChannelDialog({
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit">Create channel</Button>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(submitting) => (
+                <Button type="submit" disabled={submitting}>
+                  {submitting && <Spinner aria-hidden="true" />}
+                  {submitting ? "Creating…" : "Create channel"}
+                </Button>
+              )}
+            </form.Subscribe>
           </DialogFooter>
         </form>
       </DialogContent>

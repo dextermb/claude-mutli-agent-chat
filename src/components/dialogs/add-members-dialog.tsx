@@ -26,8 +26,10 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
+import { Spinner } from "@/components/ui/spinner"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { refusalOf } from "@/lib/refusal"
+import { toastDone } from "@/lib/toasts"
 import { shownName } from "../../../server/agent-names.ts"
 
 export function AddMembersDialog({
@@ -47,6 +49,7 @@ export function AddMembersDialog({
   const [picked, setPicked] = useState<string[]>([])
   const headingId = useId()
   const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -69,6 +72,7 @@ export function AddMembersDialog({
   )
 
   async function add() {
+    setAdding(true)
     const refusal = await refusalOf(
       fetch(`/api/conversations/${conversation.id}/members`, {
         method: "POST",
@@ -76,10 +80,16 @@ export function AddMembersDialog({
         body: JSON.stringify({ agentIds: picked }),
       })
     )
+    setAdding(false)
     if (refusal) {
       setError(refusal)
       return
     }
+    toastDone(
+      picked.length === 1
+        ? `${shownName(agents.find((agent) => agent.id === picked[0])!)} is added.`
+        : `${picked.length} agents are added.`
+    )
     setPicked([])
     setError(null)
     onOpenChange(false)
@@ -163,8 +173,12 @@ export function AddMembersDialog({
           <DialogClose render={<Button variant="outline" />}>
             Cancel
           </DialogClose>
-          <Button disabled={picked.length === 0} onClick={() => void add()}>
-            {submitLabel}
+          <Button
+            disabled={picked.length === 0 || adding}
+            onClick={() => void add()}
+          >
+            {adding && <Spinner aria-hidden="true" />}
+            {adding ? "Adding…" : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

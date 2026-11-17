@@ -94,6 +94,25 @@ describe("delete from the sidebar", () => {
     })
   })
 
+  test("a toast says when an agent is deleted", async () => {
+    const user = userEvent.setup()
+    network.on("DELETE", "/api/agents/a1", null, 204)
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete agent test-runner" })
+    )
+    await user.click(
+      within(
+        screen.getByRole("alertdialog", { name: "Delete test-runner?" })
+      ).getByRole("button", { name: "Delete agent" })
+    )
+
+    expect(
+      await screen.findByRole("dialog", { name: "test-runner is deleted." })
+    ).toBeInTheDocument()
+  })
+
   test("a refused delete shows the reason, and the dialog stays open", async () => {
     const user = userEvent.setup()
     network.on(

@@ -15,6 +15,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import type { DeleteTarget } from "@/lib/delete-targets"
 import { refusalOf } from "@/lib/refusal"
+import { toastDone } from "@/lib/toasts"
 
 export function DeleteDialog({
   target,
@@ -28,12 +29,14 @@ export function DeleteDialog({
   const [pending, setPending] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
 
-  async function remove(url: string) {
+  async function remove(deleting: DeleteTarget) {
     setPending(true)
-    const refused = await refusalOf(fetch(url, { method: "DELETE" }))
+    const refused = await refusalOf(fetch(deleting.url, { method: "DELETE" }))
     setPending(false)
     setRefusal(refused)
-    if (!refused) onDeleted()
+    if (refused) return
+    toastDone(deleting.done)
+    onDeleted()
   }
 
   return (
@@ -68,7 +71,7 @@ export function DeleteDialog({
             <AlertDialogAction
               variant="destructive"
               disabled={pending}
-              onClick={() => void remove(target.url)}
+              onClick={() => void remove(target)}
             >
               {pending ? <Spinner /> : <Trash2Icon />}
               {target.action}

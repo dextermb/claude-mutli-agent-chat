@@ -35,8 +35,10 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import { Separator } from "@/components/ui/separator"
+import { Spinner } from "@/components/ui/spinner"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import { NO_ANSWER, replyOf } from "@/lib/refusal"
+import { toastDone } from "@/lib/toasts"
 import { shownName } from "../../../server/agent-names.ts"
 
 export function StartChatDialog({
@@ -53,6 +55,7 @@ export function StartChatDialog({
   const [search, setSearch] = useState("")
   const [picked, setPicked] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
   const headingId = useId()
 
   const shown = agents.filter((agent) =>
@@ -70,6 +73,7 @@ export function StartChatDialog({
   }
 
   async function start() {
+    setStarting(true)
     const reply = await replyOf<{
       conversation?: Conversation
       error?: string
@@ -84,6 +88,7 @@ export function StartChatDialog({
         ),
       })
     )
+    setStarting(false)
     if (!reply) {
       setError(NO_ANSWER)
       return
@@ -93,6 +98,11 @@ export function StartChatDialog({
       setError(body.error ?? "The server did not start the chat.")
       return
     }
+    toastDone(
+      isGroup
+        ? "The group chat is started."
+        : `The DM with ${pickedAgents.map(shownName).join("")} is started.`
+    )
     setPicked([])
     setSearch("")
     setError(null)
@@ -189,8 +199,12 @@ export function StartChatDialog({
           <DialogClose render={<Button variant="outline" />}>
             Cancel
           </DialogClose>
-          <Button disabled={picked.length === 0} onClick={() => void start()}>
-            {isGroup ? "Start group chat" : "Open DM"}
+          <Button
+            disabled={picked.length === 0 || starting}
+            onClick={() => void start()}
+          >
+            {starting && <Spinner aria-hidden="true" />}
+            {starting ? "Starting…" : isGroup ? "Start group chat" : "Open DM"}
           </Button>
         </DialogFooter>
       </DialogContent>

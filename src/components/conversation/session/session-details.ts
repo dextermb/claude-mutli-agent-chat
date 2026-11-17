@@ -1,7 +1,5 @@
 import type { SessionCard } from "@/lib/agent-api"
 
-export type Refusal = { title: string; reason: string } | null
-
 export type SessionDetailsProps = {
   card: SessionCard | null
   agentName: string
