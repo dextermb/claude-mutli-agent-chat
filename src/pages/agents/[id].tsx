@@ -53,12 +53,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { Agent, Conversation } from "@/lib/agent-api"
 import { changedFields, unsavedText } from "@/lib/changed-fields"
+import { toastDone, toastRefusal } from "@/lib/toasts"
 import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
 import { fixText, invalid, shown } from "@/lib/form-errors"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
@@ -120,7 +122,6 @@ export default function AgentPage() {
   const { id } = useParams<{ id: string }>()
   const [, navigate] = useLocation()
   const isNew = id === "new"
-  const [error, setError] = useState<string | null>(null)
   const [actionRefusal, setActionRefusal] = useState<ActionRefusal | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const [browsing, setBrowsing] = useState(false)
@@ -169,7 +170,10 @@ export default function AgentPage() {
       fields?: Record<string, string>
     }
     if (!response.ok || !body.agent) {
-      setError(body.error ?? "The server did not save the agent.")
+      toastRefusal(
+        "The server refused the agent.",
+        body.error ?? "The server did not save the agent."
+      )
       for (const [name, message] of Object.entries(body.fields ?? {})) {
         if (!(name in EMPTY)) continue
         form.setFieldMeta(name as keyof Draft, (meta) => ({
@@ -180,8 +184,9 @@ export default function AgentPage() {
       }
       return
     }
-    setError(null)
+    toastDone(`${body.agent.name} is ${isNew ? "created" : "saved"}.`)
     if (isNew) navigate(`/agents/${body.agent.id}`)
+    else setSaved(draft)
   }
 
   const values = useStore(form.store, (state) => state.values)
@@ -309,12 +314,6 @@ export default function AgentPage() {
                   />
                 )}
               </header>
-              {error && (
-                <RefusalAlert
-                  title="The server refused the agent."
-                  refusal={error}
-                />
-              )}
               {actionRefusal && (
                 <RefusalAlert
                   title={actionRefusal.title}
@@ -733,10 +732,20 @@ export default function AgentPage() {
                 </Button>
               )
             )}
-            <Button type="submit">
-              <CheckIcon />
-              {isNew ? "Create agent" : "Save agent"}
-            </Button>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(submitting) => (
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? <Spinner aria-hidden="true" /> : <CheckIcon />}
+                  {submitting
+                    ? isNew
+                      ? "Creating…"
+                      : "Saving…"
+                    : isNew
+                      ? "Create agent"
+                      : "Save agent"}
+                </Button>
+              )}
+            </form.Subscribe>
           </FormBar>
         </form>
         <DeleteDialog

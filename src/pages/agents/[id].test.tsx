@@ -218,7 +218,9 @@ describe("the agent configuration page", () => {
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("The server refused the agent.")
     expect(alert).toHaveTextContent("The name test-runner is in use.")
+    expect(screen.getByRole("main")).not.toContainElement(alert)
     expect(window.location.pathname).toBe("/agents/new")
+    expect(screen.getByRole("button", { name: "Create agent" })).toBeEnabled()
   })
 
   test("a message of the server for a field shows under that field", async () => {
@@ -376,6 +378,29 @@ describe("the agent configuration page", () => {
         link.textContent ?? ""
       )
     }
+  })
+
+  test("a save shows that it runs, and a toast says when the agent is saved", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    const release = network.hold("PATCH", "/api/agents/a1", {
+      agent: testRunner,
+    })
+    openPage("/agents/a1")
+    await waitFor(() =>
+      expect(screen.getByLabelText("Working directory")).toHaveValue(
+        "/home/user/code/web-app"
+      )
+    )
+
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
+
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "test-runner is saved." })
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Save agent" })).toBeEnabled()
   })
 
   test("after a save with errors, the bar names the fields to fix", async () => {
