@@ -618,7 +618,7 @@ describe("the agent configuration page", () => {
   test("stop agent asks first, and then stops the agent in each conversation", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
-    network.on("POST", "/api/agents/a1/stop", {}, 202)
+    const release = network.hold("POST", "/api/agents/a1/stop", {}, 202)
     openPage("/agents/a1")
 
     await user.click(await screen.findByRole("button", { name: "Stop agent" }))
@@ -636,6 +636,13 @@ describe("the agent configuration page", () => {
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
       [{ method: "POST", url: "/api/agents/a1/stop", body: {} }]
     )
+    expect(
+      within(dialog).getByRole("button", { name: "Stopping…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "test-runner is stopped." })
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     )
@@ -681,6 +688,7 @@ describe("the agent configuration page", () => {
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("Stop agent did not work.")
     expect(alert).toHaveTextContent("no such agent")
+    expect(screen.getByRole("main")).not.toContainElement(alert)
     expect(
       network.sent.filter((request) => request.method === "PATCH")
     ).toEqual([])
@@ -689,7 +697,7 @@ describe("the agent configuration page", () => {
   test("restart session asks first, and then restarts the agent with its memory", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
-    network.on("POST", "/api/agents/a1/restart", {}, 202)
+    const release = network.hold("POST", "/api/agents/a1/restart", {}, 202)
     openPage("/agents/a1")
 
     await user.click(
@@ -708,6 +716,13 @@ describe("the agent configuration page", () => {
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
       [{ method: "POST", url: "/api/agents/a1/restart", body: {} }]
     )
+    expect(
+      within(dialog).getByRole("button", { name: "Restarting…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "test-runner starts again." })
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     )

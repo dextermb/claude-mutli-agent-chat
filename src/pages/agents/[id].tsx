@@ -18,7 +18,6 @@ import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
 import { OnThisPage, type PageSection } from "@/components/forms/on-this-page"
 import { FormBar } from "@/components/forms/form-bar"
 import { SettingsSection } from "@/components/forms/settings-section"
-import type { ActionRefusal } from "@/components/agent-actions/actions"
 import { AgentActions } from "@/components/agent-actions/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
@@ -27,7 +26,6 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -122,7 +120,6 @@ export default function AgentPage() {
   const { id } = useParams<{ id: string }>()
   const [, navigate] = useLocation()
   const isNew = id === "new"
-  const [actionRefusal, setActionRefusal] = useState<ActionRefusal | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const isMobile = useIsMobile()
@@ -307,20 +304,9 @@ export default function AgentPage() {
                   </p>
                 </div>
                 {agent && agent.state !== "exited" && (
-                  <AgentActions
-                    agentId={agent.id}
-                    agentName={agent.name}
-                    onRefusal={setActionRefusal}
-                  />
+                  <AgentActions agentId={agent.id} agentName={agent.name} />
                 )}
               </header>
-              {actionRefusal && (
-                <RefusalAlert
-                  title={actionRefusal.title}
-                  refusal={actionRefusal.reason}
-                  onClose={() => setActionRefusal(null)}
-                />
-              )}
               <SettingsSection
                 id="identity"
                 changed={changedIn("identity")}
