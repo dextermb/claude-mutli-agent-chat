@@ -1,5 +1,5 @@
-import { ArrowUpIcon, FolderIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { ArrowUpIcon, FolderIcon, SearchIcon } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 
 import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import { fuzzyFilter } from "@/lib/fuzzy"
 import type { FolderList } from "@/lib/folder-list"
 import { replyOf, NO_ANSWER } from "@/lib/refusal"
 
@@ -22,6 +28,15 @@ export function FolderPicker({
 }) {
   const [list, setList] = useState<FolderList | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState("")
+  const shown = useMemo(() => {
+    const folders = list?.folders ?? []
+    const names = fuzzyFilter(
+      filter,
+      folders.map((folder) => folder.name)
+    )
+    return names.map((name) => folders.find((folder) => folder.name === name)!)
+  }, [list, filter])
 
   async function show(path: string | null) {
     const reply = await replyOf<FolderList & { error?: string }>(
@@ -40,6 +55,7 @@ export function FolderPicker({
       return false
     }
     setError(null)
+    setFilter("")
     setList(reply.body)
     return true
   }
@@ -74,13 +90,29 @@ export function FolderPicker({
           {list?.path}
         </code>
       </div>
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label="Filter folders"
+          placeholder="Filter folders"
+          value={filter}
+          onChange={(event) => setFilter(event.currentTarget.value)}
+        />
+      </InputGroup>
       <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1">
         {list?.folders.length === 0 && (
           <p className="m-0 p-2 text-[13px] text-foreground-faint">
             No folders in this folder.
           </p>
         )}
-        {list?.folders.map((folder) => (
+        {list && list.folders.length > 0 && shown.length === 0 && (
+          <p className="m-0 p-2 text-[13px] text-foreground-faint">
+            No folders match.
+          </p>
+        )}
+        {shown.map((folder) => (
           <Button
             key={folder.path}
             type="button"
