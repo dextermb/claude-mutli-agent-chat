@@ -670,6 +670,46 @@ describe("createServer", () => {
     )
   })
 
+  test("the app stream sends each new agent, with its state", async () => {
+    const { base } = await startServer()
+    const stream = openAppEvents(base)
+    await stream.ready
+
+    const response = await postJson(base, "/api/agents", {
+      ...testRunner,
+      name: "reviewer-bot",
+    })
+    const { agent } = (await response.json()) as { agent: { id: string } }
+
+    await vi.waitFor(() =>
+      expect(stream.events.map(({ data }) => data)).toEqual([
+        { type: "agent", agent: { ...agent, state: "exited" } },
+      ])
+    )
+  })
+
+  test("the app stream sends each saved agent, with its state", async () => {
+    const { base, agent } = await startServer()
+    const stream = openAppEvents(base)
+    await stream.ready
+
+    const response = await fetch(`${base}/api/agents/${agent.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "reviewer-bot" }),
+    })
+    const { agent: saved } = (await response.json()) as {
+      agent: { name: string }
+    }
+
+    expect(saved.name).toBe("reviewer-bot")
+    await vi.waitFor(() =>
+      expect(stream.events.map(({ data }) => data)).toEqual([
+        { type: "agent", agent: { ...saved, state: "exited" } },
+      ])
+    )
+  })
+
   test("a stream asks for events that the cut log no longer holds, and gets a reset", async () => {
     const { base, conversation } = await startServer(
       "resume-1",
