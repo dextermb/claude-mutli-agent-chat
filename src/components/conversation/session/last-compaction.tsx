@@ -33,11 +33,16 @@ export function LastCompaction({
         {open ? "Hide the summary" : "Show the summary"}
         <ChevronDownIcon
           data-icon="inline-end"
-          className={cn("transition-transform", open && "rotate-180")}
+          className={cn(
+            "transition-transform motion-reduce:transition-none",
+            open && "rotate-180"
+          )}
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className="max-h-64 w-full overflow-y-auto rounded-md bg-muted p-2 text-xs leading-5 whitespace-pre-wrap">
-        {compaction.summary}
+      <CollapsibleContent className="w-full">
+        <div className="max-h-64 overflow-y-auto rounded-md bg-muted p-2 text-xs leading-5 whitespace-pre-wrap">
+          {compaction.summary}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   )

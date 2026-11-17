@@ -12,6 +12,11 @@ import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -61,16 +66,15 @@ export function MembersPanel({
           const status = statusOf(agent.state)
           const isOpen = agent.id === pickedId
           return (
-            <div
+            <Collapsible
               key={agent.id}
+              open={isOpen}
+              onOpenChange={(next) => onPick(next ? agent.id : null)}
               className={cn("rounded-[10px]", isOpen && "bg-card")}
             >
-              <button
-                type="button"
-                aria-expanded={isOpen}
+              <CollapsibleTrigger
                 aria-label={`${shownName(agent)} ${status.label}`}
                 className="flex w-full items-center gap-2.5 rounded-[10px] p-2 text-left hover:bg-muted"
-                onClick={() => onPick(isOpen ? null : agent.id)}
               >
                 <Avatar size="sm" aria-hidden="true">
                   <AvatarFallback className={AVATAR_COLOURS[agent.colour]}>
@@ -92,15 +96,17 @@ export function MembersPanel({
                 <ChevronDownIcon
                   aria-hidden="true"
                   className={cn(
-                    "size-4 text-foreground-faint transition-transform",
+                    "size-4 text-foreground-faint transition-transform motion-reduce:transition-none",
                     isOpen && "rotate-180"
                   )}
                 />
-              </button>
-              {isOpen && details && (
-                <MemberSession key={agent.id} {...details} />
-              )}
-            </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {isOpen && details && (
+                  <MemberSession key={agent.id} {...details} />
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           )
         })}
       </div>

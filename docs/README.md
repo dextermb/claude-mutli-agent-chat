@@ -40,6 +40,7 @@ gives the parts of the app, the main decisions, and the risks.
 | `web-app/agent-page.md`                | The form for a new or a saved agent                                          |
 | `web-app/files.md`                     | Attach, drop and `@` files, and the shared files in the thread and the panel |
 | `web-app/scroll.md`                    | How the messages stick to the bottom, and the jump button                    |
+| `web-app/motion.md`                    | Reduced motion, the disclosures, and the rules for a transition              |
 | `forms.md`                             | The two forms, the shared Zod schema, and the shape of a refusal             |
 | `routing.md`                           | The file-based router: from a file in `src/pages` to a URL                   |
 
