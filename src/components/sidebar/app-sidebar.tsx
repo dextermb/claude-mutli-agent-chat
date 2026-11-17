@@ -5,7 +5,13 @@ import {
   SquarePenIcon,
   UsersIcon,
 } from "lucide-react"
-import { useState } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent as ReactFocusEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 import { Link, useLocation } from "wouter"
 
 import { CreateChannelDialog } from "@/components/dialogs/create-channel-dialog"
@@ -26,6 +32,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useSidebarPanel } from "@/hooks/use-sidebar-panel"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { AgentWithState, Conversation } from "@/lib/agent-api"
 import {
@@ -49,6 +56,46 @@ export function AppSidebar({
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const [location, setLocation] = useLocation()
   const isMobile = useIsMobile()
+  const { open: panelOpen, setOpen } = useSidebarPanel()
+  const showList = isMobile || panelOpen
+  const [peeking, setPeeking] = useState(false)
+  const peekPanel = useRef<HTMLDivElement>(null)
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pointerOnPeek = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      if (peekTimer.current) clearTimeout(peekTimer.current)
+    }
+  }, [])
+
+  function startPeek(event: ReactPointerEvent) {
+    if (event.pointerType === "touch") return
+    pointerOnPeek.current = true
+    if (peekTimer.current) clearTimeout(peekTimer.current)
+    peekTimer.current = null
+    setPeeking(true)
+  }
+
+  function toggleList() {
+    setPeeking(false)
+    setOpen(!panelOpen)
+  }
+
+  function endPeek() {
+    pointerOnPeek.current = false
+    if (peekTimer.current) clearTimeout(peekTimer.current)
+    peekTimer.current = setTimeout(() => {
+      if (peekPanel.current?.contains(document.activeElement)) return
+      setPeeking(false)
+    }, 200)
+  }
+
+  function leavePeek(event: ReactFocusEvent<HTMLDivElement>) {
+    if (pointerOnPeek.current) return
+    if (event.currentTarget.contains(event.relatedTarget)) return
+    setPeeking(false)
+  }
 
   function navigate(to: string) {
     onOpenChange(false)
@@ -89,107 +136,133 @@ export function AppSidebar({
   const groups = conversations.filter((item) => item.kind === "group")
   const directMessages = conversations.filter((item) => item.kind === "dm")
 
+  const list = (
+    <SidebarProvider className="min-h-0 w-auto">
+      <Sidebar collapsible="none" className="w-64">
+        <nav
+          aria-label="Conversations"
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <SidebarHeader>
+            <div className="flex items-center gap-1 py-1 pr-1 pl-2">
+              <Link
+                href="/"
+                onClick={() => onOpenChange(false)}
+                className="text-base font-semibold text-foreground-strong"
+              >
+                Agent Lab
+              </Link>
+              <ChevronDownIcon aria-hidden="true" className="size-3.5" />
+              <div className="flex-1" />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Start a chat"
+                onClick={() => setDialog("chat")}
+              >
+                <SquarePenIcon />
+              </Button>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarSection
+              title="Channels"
+              action={{
+                label: "Create a channel",
+                onClick: () => setDialog("channel"),
+              }}
+            >
+              {channels.map((channel) => (
+                <ConversationRow key={channel.id} {...rowProps(channel)}>
+                  {channel.private ? (
+                    <LockIcon aria-hidden="true" />
+                  ) : (
+                    <HashIcon aria-hidden="true" />
+                  )}
+                  <span>{channel.name}</span>
+                </ConversationRow>
+              ))}
+            </SidebarSection>
+            <SidebarSection
+              title="Group chats"
+              action={{
+                label: "Start a group chat",
+                onClick: () => setDialog("chat"),
+              }}
+            >
+              {groups.map((group) => (
+                <ConversationRow key={group.id} {...rowProps(group)}>
+                  <UsersIcon aria-hidden="true" />
+                  <span>{group.name}</span>
+                </ConversationRow>
+              ))}
+            </SidebarSection>
+            <SidebarSection
+              title="Agents"
+              action={{
+                label: "New agent",
+                href: "/agents/new",
+                onClick: () => onOpenChange(false),
+              }}
+            >
+              {agents.map((agent) => {
+                const dm = directMessages.find((item) =>
+                  item.members.includes(`agent:${agent.id}`)
+                )
+                return (
+                  <AgentRow
+                    key={agent.id}
+                    agent={agent}
+                    directMessage={dm}
+                    current={dm?.id === currentId}
+                    unread={dm ? (unread[dm.id] ?? 0) : 0}
+                    onNavigate={() => onOpenChange(false)}
+                    onOpenDirectMessage={() => void openDirectMessage(agent)}
+                    deletion={{
+                      label: `Delete agent ${shownName(agent)}`,
+                      hint: "Delete agent",
+                      onClick: () =>
+                        setDeleting(agentTarget(agent, conversations)),
+                    }}
+                  />
+                )
+              })}
+            </SidebarSection>
+          </SidebarContent>
+          <SidebarFooter>
+            <WorkFooter agents={agents} />
+          </SidebarFooter>
+        </nav>
+      </Sidebar>
+    </SidebarProvider>
+  )
+
   const sidebar = (
     <div className="flex h-full">
-      <WorkspaceRail onAgents={location.startsWith("/agents")} />
-      <SidebarProvider className="min-h-0 w-auto">
-        <Sidebar collapsible="none" className="w-64">
-          <nav
-            aria-label="Conversations"
-            className="flex min-h-0 flex-1 flex-col"
+      <div
+        className="relative flex"
+        onPointerEnter={startPeek}
+        onPointerLeave={endPeek}
+        onBlur={leavePeek}
+      >
+        <WorkspaceRail
+          onAgents={location.startsWith("/agents")}
+          listHidden={!showList}
+          canCollapse={!isMobile}
+          unread={Object.values(unread).reduce((sum, count) => sum + count, 0)}
+          agents={agents}
+          onToggleList={toggleList}
+        />
+        {!showList && peeking && (
+          <div
+            ref={peekPanel}
+            className="absolute top-0 left-full z-20 flex h-full animate-in border-r bg-sidebar shadow-[0_8px_24px_rgba(0,0,0,0.45)] duration-150 fade-in slide-in-from-left-2"
           >
-            <SidebarHeader>
-              <div className="flex items-center gap-1 py-1 pr-1 pl-2">
-                <Link
-                  href="/"
-                  onClick={() => onOpenChange(false)}
-                  className="text-base font-semibold text-foreground-strong"
-                >
-                  Agent Lab
-                </Link>
-                <ChevronDownIcon aria-hidden="true" className="size-3.5" />
-                <div className="flex-1" />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Start a chat"
-                  onClick={() => setDialog("chat")}
-                >
-                  <SquarePenIcon />
-                </Button>
-              </div>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarSection
-                title="Channels"
-                action={{
-                  label: "Create a channel",
-                  onClick: () => setDialog("channel"),
-                }}
-              >
-                {channels.map((channel) => (
-                  <ConversationRow key={channel.id} {...rowProps(channel)}>
-                    {channel.private ? (
-                      <LockIcon aria-hidden="true" />
-                    ) : (
-                      <HashIcon aria-hidden="true" />
-                    )}
-                    <span>{channel.name}</span>
-                  </ConversationRow>
-                ))}
-              </SidebarSection>
-              <SidebarSection
-                title="Group chats"
-                action={{
-                  label: "Start a group chat",
-                  onClick: () => setDialog("chat"),
-                }}
-              >
-                {groups.map((group) => (
-                  <ConversationRow key={group.id} {...rowProps(group)}>
-                    <UsersIcon aria-hidden="true" />
-                    <span>{group.name}</span>
-                  </ConversationRow>
-                ))}
-              </SidebarSection>
-              <SidebarSection
-                title="Agents"
-                action={{
-                  label: "New agent",
-                  href: "/agents/new",
-                  onClick: () => onOpenChange(false),
-                }}
-              >
-                {agents.map((agent) => {
-                  const dm = directMessages.find((item) =>
-                    item.members.includes(`agent:${agent.id}`)
-                  )
-                  return (
-                    <AgentRow
-                      key={agent.id}
-                      agent={agent}
-                      directMessage={dm}
-                      current={dm?.id === currentId}
-                      unread={dm ? (unread[dm.id] ?? 0) : 0}
-                      onNavigate={() => onOpenChange(false)}
-                      onOpenDirectMessage={() => void openDirectMessage(agent)}
-                      deletion={{
-                        label: `Delete agent ${shownName(agent)}`,
-                        hint: "Delete agent",
-                        onClick: () =>
-                          setDeleting(agentTarget(agent, conversations)),
-                      }}
-                    />
-                  )
-                })}
-              </SidebarSection>
-            </SidebarContent>
-            <SidebarFooter>
-              <WorkFooter agents={agents} />
-            </SidebarFooter>
-          </nav>
-        </Sidebar>
-      </SidebarProvider>
+            {list}
+          </div>
+        )}
+      </div>
+      {showList && list}
       <StartChatDialog
         open={dialog === "chat"}
         agents={agents}

@@ -198,3 +198,150 @@ describe("the names of agents in the sidebar", () => {
     ).toBeInTheDocument()
   })
 })
+
+describe("hiding the sidebar", () => {
+  test("the user can hide the conversations and show them again", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole("navigation", { name: "Conversations" })
+
+    await user.click(screen.getByRole("button", { name: "Hide the sidebar" }))
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+
+    await user.click(screen.getByRole("button", { name: "Show the sidebar" }))
+
+    expect(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    ).toBeInTheDocument()
+  })
+
+  test("Cmd-B hides the conversations, and shows them again", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole("navigation", { name: "Conversations" })
+
+    await user.keyboard("{Meta>}b{/Meta}")
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+
+    await user.keyboard("{Meta>}b{/Meta}")
+
+    expect(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    ).toBeInTheDocument()
+  })
+
+  test("the app opens with the sidebar that the last visit left", async () => {
+    const user = userEvent.setup()
+    const first = render(<App />)
+    await screen.findByRole("navigation", { name: "Conversations" })
+    await user.click(screen.getByRole("button", { name: "Hide the sidebar" }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+    first.unmount()
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole("button", { name: "Show the sidebar" })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("navigation", { name: "Conversations" })
+    ).not.toBeInTheDocument()
+  })
+
+  test("the hidden sidebar leaves the unread count and the work on the rail", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/conversations", {
+      conversations: [releaseChannel, squadGroup, directMessage],
+      unread: { ch1: 2, c1: 1 },
+    })
+    network.on("GET", "/api/agents", {
+      agents: [reviewerBot, { ...testRunner, state: "busy" }],
+    })
+    render(<App />)
+    await screen.findByRole("navigation", { name: "Conversations" })
+
+    await user.click(screen.getByRole("button", { name: "Hide the sidebar" }))
+
+    const rail = within(
+      await screen.findByRole("navigation", { name: "Workspace" })
+    )
+    expect(
+      rail.getByRole("button", { name: "Show the sidebar, 3 unread" })
+    ).toBeInTheDocument()
+    expect(
+      rail.getByRole("link", { name: "Agents, 1 agent working" })
+    ).toBeInTheDocument()
+  })
+
+  test("the pointer on the rail floats the conversations, and leaving the rail hides them", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole("navigation", { name: "Conversations" })
+    await user.click(screen.getByRole("button", { name: "Hide the sidebar" }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+    const rail = screen.getByRole("navigation", { name: "Workspace" })
+    await user.hover(screen.getByRole("heading", { name: "Agents", level: 1 }))
+
+    await user.hover(rail)
+
+    expect(
+      await screen.findByRole("navigation", { name: "Conversations" })
+    ).toBeInTheDocument()
+
+    await user.unhover(rail)
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+  })
+
+  test("the floating conversations stay while the keyboard is in them", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole("navigation", { name: "Conversations" })
+    await user.click(screen.getByRole("button", { name: "Hide the sidebar" }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("navigation", { name: "Conversations" })
+      ).not.toBeInTheDocument()
+    )
+    const rail = screen.getByRole("navigation", { name: "Workspace" })
+    await user.hover(screen.getByRole("heading", { name: "Agents", level: 1 }))
+    await user.hover(rail)
+    const list = await screen.findByRole("navigation", {
+      name: "Conversations",
+    })
+    for (let tabs = 0; tabs < 16; tabs++) {
+      if (list.contains(document.activeElement)) break
+      await user.tab()
+    }
+    expect(list.contains(document.activeElement)).toBe(true)
+
+    await user.unhover(rail)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    expect(
+      screen.getByRole("navigation", { name: "Conversations" })
+    ).toBeInTheDocument()
+  })
+})

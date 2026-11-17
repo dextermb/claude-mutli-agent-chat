@@ -59,7 +59,7 @@ describe("the workspace rail", () => {
       "href",
       "/"
     )
-    expect(rail.queryByRole("button")).not.toBeInTheDocument()
+    expect(rail.getAllByRole("link")).toHaveLength(2)
   })
 })
 

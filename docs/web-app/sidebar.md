@@ -9,7 +9,8 @@ start a conversation or add its members.
 the conversation page. It has two columns:
 
 - **The workspace rail** (64 px, `rail` ground, `nav` "Workspace"). It holds
-  the "AL" tile, Home, Agents, and the avatar of the user with an online dot.
+  the "AL" tile, the panel button that hides the list ("Hide the sidebar"
+  below), Home, Agents, and the avatar of the user with an online dot.
   Home and Agents link to `/`, because the home page is the agents page.
   Agents is the active button on an agent page, and Home on each other page.
   The rail has no Direct messages page, because the sidebar lists each DM. It
@@ -70,6 +71,47 @@ shows a count, because the page reads each new item at once
 
 When an agent works or waits, a footer counts them: "2 agents working · 1
 needs approval". With no such agent, the footer is not there.
+
+## Hide the sidebar
+
+The sidebar has three states on a wide screen:
+
+| State  | What shows                                           |
+| ------ | ---------------------------------------------------- |
+| Open   | The rail of 64 px, the list of 256 px, then the page |
+| Hidden | The rail only. The page gets the 256 px              |
+| Peek   | The rail, and the list floating over the page        |
+
+The panel button at the top of the rail hides the list and shows it again.
+⌘B and Ctrl+B do the same. The name of the button says what it does next:
+"Hide the sidebar", or "Show the sidebar". With the list hidden and
+something unread, the name adds the count ("Show the sidebar, 3 unread"),
+and a yellow badge on the button shows it. The count is the sum of the
+unread items of all conversations, and it stops at "99+".
+
+With the list hidden, the Agents button of the rail gets a status dot, and
+its name gets the work of the agents ("Agents, 2 agents working"). The same
+words are in the footer of the open list, from `workSummary()` in
+`src/components/sidebar/work-summary.ts`.
+
+**The peek.** When the pointer goes on the rail, the list floats over the
+page, and the page does not move. It goes 200 ms after the pointer leaves
+the rail and the floating list. It stays while the floating list holds the
+keyboard focus, so a Tab into it does not lose the focus. A touch pointer
+does nothing, because a narrow screen has the Sheet. The panel button closes
+the peek at once, so the list does not float back after a hide.
+
+**Where the state lives.** `SidebarPanelProvider`
+(`src/components/sidebar/sidebar-panel-provider.tsx`) holds `open`, and
+`App` puts it around the router. The hook is `useSidebarPanel()`
+(`src/hooks/use-sidebar-panel.ts`). The provider keeps the last state in
+`localStorage` under `sidebar-open`, so a reload opens the app the way the
+user left it. It also listens for ⌘B. The peek is state of `AppSidebar`,
+because nothing outside it needs the peek.
+
+Below 768 px nothing of this shows. The rail has no panel button, the Sheet
+holds the rail and the list, and the "Open the sidebar" button of the page
+header opens the Sheet.
 
 ## Start a chat and Create a channel
 
