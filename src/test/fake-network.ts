@@ -2,7 +2,9 @@ import { vi } from "vitest"
 
 export type SentRequest = { method: string; url: string; body: unknown }
 
-type Responder = (body: unknown) => { status: number; body: unknown }
+type Reply = { status: number; body: unknown }
+
+type Responder = (body: unknown) => Reply | Promise<Reply>
 
 export class FakeEventSource {
   static opened: FakeEventSource[] = []
@@ -78,10 +80,11 @@ export function fakeNetwork() {
             total: size,
           })
         )
-        const reply = responder(undefined)
-        this.status = reply.status
-        this.responseText = JSON.stringify(reply.body)
-        this.onload?.()
+        void Promise.resolve(responder(undefined)).then((reply) => {
+          this.status = reply.status
+          this.responseText = JSON.stringify(reply.body)
+          this.onload?.()
+        })
       })
     }
   }
@@ -97,7 +100,7 @@ export function fakeNetwork() {
       sent.push({ method, url: input, body })
       const responder = routes.get(`${method} ${input}`)
       const reply = responder
-        ? responder(body)
+        ? await responder(body)
         : { status: 404, body: { error: "not found" } }
       return new Response(
         reply.status === 204 ? null : JSON.stringify(reply.body),
@@ -113,6 +116,17 @@ export function fakeNetwork() {
     sent,
     on(method: string, url: string, reply: unknown, status = 200) {
       routes.set(`${method} ${url}`, () => ({ status, body: reply }))
+    },
+    hold(method: string, url: string, reply: unknown, status = 200) {
+      let release = () => {}
+      const released = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      routes.set(`${method} ${url}`, async () => {
+        await released
+        return { status, body: reply }
+      })
+      return () => release()
     },
     fail(method: string, url: string) {
       routes.set(`${method} ${url}`, () => {

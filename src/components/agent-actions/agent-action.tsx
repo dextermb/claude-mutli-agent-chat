@@ -1,9 +1,6 @@
 import { useState } from "react"
 
-import {
-  type Action,
-  type ActionRefusal,
-} from "@/components/agent-actions/actions"
+import type { Action } from "@/components/agent-actions/actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,23 +13,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { refusalOf } from "@/lib/refusal"
+import { toastDone, toastRefusal } from "@/lib/toasts"
 
 export function AgentAction({
   action,
   agentId,
   agentName,
-  onRefusal,
 }: {
   action: Action
   agentId: string
   agentName: string
-  onRefusal: (refusal: ActionRefusal | null) => void
 }) {
   const [asking, setAsking] = useState(false)
+  const [pending, setPending] = useState(false)
 
   async function run() {
-    setAsking(false)
+    setPending(true)
     const reason = await refusalOf(
       fetch(`/api/agents/${agentId}/${action.route}`, {
         method: "POST",
@@ -40,11 +38,10 @@ export function AgentAction({
         body: "{}",
       })
     )
-    onRefusal(
-      reason === null
-        ? null
-        : { title: `${action.label} did not work.`, reason }
-    )
+    setPending(false)
+    setAsking(false)
+    if (reason === null) toastDone(action.done(agentName))
+    else toastRefusal(`${action.label} did not work.`, reason)
   }
 
   return (
@@ -68,13 +65,14 @@ export function AgentAction({
           ))}
         </ul>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant={action.variant === "outline" ? "default" : action.variant}
+            disabled={pending}
             onClick={() => void run()}
           >
-            {action.icon}
-            {action.label}
+            {pending ? <Spinner aria-hidden="true" /> : action.icon}
+            {pending ? action.pending : action.label}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

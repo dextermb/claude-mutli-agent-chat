@@ -7,6 +7,40 @@ both check their values with the same Zod schema as the server. The Channel
 settings dialog sends input too, but only the server checks it (see "One
 schema").
 
+## The layout of a form
+
+A form on a page uses one column of sections, as the agent page does. A form
+in a dialog keeps the layout of the dialog. The design is the boards "A: new
+agent" and "A: edit test-runner" on the "Agent form options" page of the Agent
+Chat canvas (`docs/web-app.md`).
+
+- `SettingsSection` (`src/components/forms/settings-section.tsx`): the title
+  and one line at the left, the fields at the right. They stack at a narrow
+  width. A section with an unsaved change shows a "Changed" badge.
+- `OnThisPage` (`src/components/forms/on-this-page.tsx`): a link to each
+  section, with a dot for a changed section. It shows from the `lg` width.
+- `FormBar` (`src/components/forms/form-bar.tsx`): a bar at the foot of the
+  form, with a status and the actions. The status counts the unsaved changes
+  (`src/lib/changed-fields.ts`), or names the fields to fix after a submit
+  (`fixText` in `src/lib/form-errors.ts`).
+- A choice that needs an explanation is a radio group of cards, with the note
+  on each card, as the permission mode.
+
+## Pending buttons and toasts
+
+While its request runs, a button shows a Spinner, says what it does
+("Saving…"), and is disabled. Then a toast gives the result, through
+`src/lib/toasts.ts`:
+
+- `toastDone(title)`: a success toast. It closes after 5 seconds.
+- `toastRefusal(title, reason)`: an error toast with the reason of the
+  server. It stays until the user closes it, because the user must read the
+  reason. A message for a field still shows under its field.
+
+The `<Toaster>` of `src/components/ui/toast.tsx` is around the app in
+`src/App.tsx`. Today the agent page and its Stop agent and Restart session
+use them. The dialogs still show a refusal in an alert in the dialog.
+
 ## One schema
 
 `server/schemas.ts` holds `agentSchema` and `channelSchema`. It imports only

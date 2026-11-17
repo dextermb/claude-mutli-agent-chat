@@ -1,13 +1,23 @@
-import { BotIcon, CheckIcon, FolderIcon, MenuIcon } from "lucide-react"
-import { useForm } from "@tanstack/react-form"
+import {
+  BotIcon,
+  CheckIcon,
+  CircleAlertIcon,
+  FolderIcon,
+  MenuIcon,
+} from "lucide-react"
+import { useForm, useStore } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 
 import { CommandPreview } from "@/components/agent-form/command-preview"
+import { ColourSwatches } from "@/components/agent-form/colour-swatches"
+import { ModeChoice } from "@/components/agent-form/mode-choice"
 import { DeleteDialog } from "@/components/dialogs/delete-dialog"
 import { DeleteSection } from "@/components/dialogs/delete-section"
 import { FolderDialog } from "@/components/dialogs/folder/folder-dialog"
-import type { ActionRefusal } from "@/components/agent-actions/actions"
+import { OnThisPage, type PageSection } from "@/components/forms/on-this-page"
+import { FormBar } from "@/components/forms/form-bar"
+import { SettingsSection } from "@/components/forms/settings-section"
 import { AgentActions } from "@/components/agent-actions/agent-actions"
 import { ToolRules } from "@/components/agent-form/tool-rules"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
@@ -16,17 +26,9 @@ import {
   initialsOf,
   statusOf,
 } from "@/components/conversation/agent-look"
-import { RefusalAlert } from "@/components/alerts/refusal-alert"
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import {
   Field,
   FieldContent,
@@ -34,8 +36,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
@@ -43,8 +43,8 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
+  InputGroupText,
 } from "@/components/ui/input-group"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
   SelectContent,
@@ -52,41 +52,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWorkspace } from "@/hooks/use-workspace"
 import type { Agent, Conversation } from "@/lib/agent-api"
+import { changedFields, unsavedText } from "@/lib/changed-fields"
+import { toastDone, toastRefusal } from "@/lib/toasts"
 import { agentTarget, type DeleteTarget } from "@/lib/delete-targets"
-import { invalid, shown } from "@/lib/form-errors"
+import { fixText, invalid, shown } from "@/lib/form-errors"
 import { agentSchema, type AgentDraft } from "../../../server/schemas.ts"
 
 type Draft = AgentDraft
 
-const COLOURS = ["orange", "yellow", "green", "aqua", "blue", "purple"]
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
-const MODES = [
-  "manual",
-  "acceptEdits",
-  "plan",
-  "auto",
-  "dontAsk",
-  "bypassPermissions",
+const USUAL_TOOLS = ["Read", "Edit", "Write", "Bash(git status)"]
+const SECTIONS: (PageSection & { fields: (keyof Draft)[] })[] = [
+  {
+    id: "identity",
+    title: "Identity",
+    fields: ["name", "colour", "description"],
+  },
+  {
+    id: "model",
+    title: "Model and permissions",
+    fields: ["model", "permissionMode"],
+  },
+  {
+    id: "folder",
+    title: "Folder and limits",
+    fields: ["cwd", "maxTurns", "sleepAfterMinutes", "autostart"],
+  },
+  { id: "tools", title: "Tools", fields: ["allowedTools", "disallowedTools"] },
+  { id: "instructions", title: "Instructions", fields: ["systemPrompt"] },
+  { id: "command", title: "Command", fields: [] },
 ]
-
-const MODE_NOTES: Record<string, string> = {
-  manual:
-    "With manual, each tool outside the allowed list waits for approval in the chat.",
-  acceptEdits:
-    "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat.",
-  plan: "plan reads and plans, and changes no file. Other tools outside the allowed list wait for approval in the chat.",
-  auto: "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card.",
-  dontAsk:
-    "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run.",
-  bypassPermissions:
-    "bypassPermissions runs each tool without a prompt. Blocked tools still never run.",
+const LABELS: Record<keyof Draft, string> = {
+  name: "Name",
+  colour: "Colour",
+  description: "Description",
+  model: "Model",
+  permissionMode: "Permission mode",
+  cwd: "Working directory",
+  maxTurns: "Maximum turns",
+  sleepAfterMinutes: "Sleep after",
+  autostart: "Start when the app opens",
+  allowedTools: "Allowed tools",
+  disallowedTools: "Blocked tools",
+  systemPrompt: "System prompt",
 }
-
 const EMPTY: Draft = {
   name: "",
   colour: "green",
@@ -106,8 +121,6 @@ export default function AgentPage() {
   const { id } = useParams<{ id: string }>()
   const [, navigate] = useLocation()
   const isNew = id === "new"
-  const [error, setError] = useState<string | null>(null)
-  const [actionRefusal, setActionRefusal] = useState<ActionRefusal | null>(null)
   const [showingSidebar, setShowingSidebar] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const isMobile = useIsMobile()
@@ -155,7 +168,10 @@ export default function AgentPage() {
       fields?: Record<string, string>
     }
     if (!response.ok || !body.agent) {
-      setError(body.error ?? "The server did not save the agent.")
+      toastRefusal(
+        "The server refused the agent.",
+        body.error ?? "The server did not save the agent."
+      )
       for (const [name, message] of Object.entries(body.fields ?? {})) {
         if (!(name in EMPTY)) continue
         form.setFieldMeta(name as keyof Draft, (meta) => ({
@@ -166,9 +182,26 @@ export default function AgentPage() {
       }
       return
     }
-    setError(null)
+    toastDone(`${body.agent.name} is ${isNew ? "created" : "saved"}.`)
     if (isNew) navigate(`/agents/${body.agent.id}`)
+    else setSaved(draft)
   }
+
+  const values = useStore(form.store, (state) => state.values)
+  const changed = saved ? changedFields(values, saved) : []
+  const fieldMeta = useStore(form.store, (state) => state.fieldMeta)
+  const toFix = (Object.keys(LABELS) as (keyof Draft)[])
+    .filter((name) => {
+      const meta = fieldMeta[name]
+      return meta !== undefined && invalid(meta)
+    })
+    .map((name) => LABELS[name])
+  const sections = SECTIONS.map((section) => ({
+    ...section,
+    changed: section.fields.some((name) => changed.includes(name)),
+  }))
+  const changedIn = (sectionId: string) =>
+    sections.find((section) => section.id === sectionId)?.changed ?? false
 
   const agent = agents.find((item) => item.id === id)
   const directMessage = conversations.find(
@@ -182,70 +215,36 @@ export default function AgentPage() {
         open={showingSidebar}
         onOpenChange={setShowingSidebar}
       />
-      <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-5 pb-8 sm:px-8">
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <form
           noValidate
           onSubmit={(event) => {
             event.preventDefault()
             void form.handleSubmit()
           }}
-          className="flex flex-col gap-6"
+          className="flex flex-1 flex-col"
         >
-          <nav
-            aria-label="Breadcrumb"
-            className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
-          >
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Open the sidebar"
-                onClick={() => setShowingSidebar(true)}
+          <div className="flex flex-1 items-start justify-center gap-12 px-4 pt-5 pb-10 sm:px-8">
+            <div className="flex w-full max-w-[760px] min-w-0 flex-col gap-7">
+              <nav
+                aria-label="Breadcrumb"
+                className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
               >
-                <MenuIcon />
-              </Button>
-            )}
-            <Link href="/" className="hover:text-foreground-strong">
-              Agents
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span className="text-foreground">
-              {isNew ? (
-                "New agent"
-              ) : (
-                <form.Subscribe selector={(state) => state.values.name}>
-                  {(name) => name}
-                </form.Subscribe>
-              )}
-            </span>
-          </nav>
-          <header className="flex flex-wrap items-center gap-4">
-            {isNew ? (
-              <div
-                aria-hidden="true"
-                className="grid size-12 flex-none place-items-center rounded-full bg-muted text-muted-foreground"
-              >
-                <BotIcon className="size-[22px]" />
-              </div>
-            ) : (
-              <form.Subscribe selector={(state) => state.values}>
-                {(values) => (
-                  <Avatar size="lg">
-                    <AvatarFallback
-                      className={AVATAR_COLOURS[values.colour ?? ""]}
-                    >
-                      {initialsOf(values.name)}
-                    </AvatarFallback>
-                    {agent && (
-                      <AvatarBadge className={statusOf(agent.state).dot} />
-                    )}
-                  </Avatar>
+                {isMobile && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open the sidebar"
+                    onClick={() => setShowingSidebar(true)}
+                  >
+                    <MenuIcon />
+                  </Button>
                 )}
-              </form.Subscribe>
-            )}
-            <div className="flex min-w-60 flex-1 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="m-0 text-xl font-semibold text-foreground-strong">
+                <Link href="/" className="hover:text-foreground-strong">
+                  Agents
+                </Link>
+                <span aria-hidden="true">/</span>
+                <span className="text-foreground">
                   {isNew ? (
                     "New agent"
                   ) : (
@@ -253,82 +252,99 @@ export default function AgentPage() {
                       {(name) => name}
                     </form.Subscribe>
                   )}
-                </h1>
-                {agent && (
-                  <Badge
-                    variant="outline"
-                    className={statusOf(agent.state).text}
+                </span>
+              </nav>
+              <header className="flex flex-wrap items-center gap-4">
+                {isNew ? (
+                  <div
+                    aria-hidden="true"
+                    className="grid size-12 flex-none place-items-center rounded-full bg-muted text-muted-foreground"
                   >
-                    {statusOf(agent.state).label}
-                  </Badge>
+                    <BotIcon className="size-[22px]" />
+                  </div>
+                ) : (
+                  <form.Subscribe selector={(state) => state.values}>
+                    {(values) => (
+                      <Avatar size="lg">
+                        <AvatarFallback
+                          className={AVATAR_COLOURS[values.colour ?? ""]}
+                        >
+                          {initialsOf(values.name)}
+                        </AvatarFallback>
+                        {agent && (
+                          <AvatarBadge className={statusOf(agent.state).dot} />
+                        )}
+                      </Avatar>
+                    )}
+                  </form.Subscribe>
                 )}
-              </div>
-              <p className="m-0 text-muted-foreground">
-                {isNew
-                  ? "The agent starts when it gets its first message."
-                  : placesOf(id, conversations)}
-              </p>
-            </div>
-            {isNew && (
-              <Link href="/" className={buttonVariants({ variant: "ghost" })}>
-                Cancel
-              </Link>
-            )}
-            {agent && agent.state !== "exited" && (
-              <AgentActions
-                agentId={agent.id}
-                agentName={agent.name}
-                onRefusal={setActionRefusal}
-              />
-            )}
-            <Button type="submit">
-              <CheckIcon />
-              {isNew ? "Create agent" : "Save agent"}
-            </Button>
-          </header>
-          {error && (
-            <RefusalAlert
-              title="The server refused the agent."
-              refusal={error}
-            />
-          )}
-          {actionRefusal && (
-            <RefusalAlert
-              title={actionRefusal.title}
-              refusal={actionRefusal.reason}
-              onClose={() => setActionRefusal(null)}
-            />
-          )}
-          <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Identity</CardTitle>
-                <CardDescription>
-                  How people see and mention the agent.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                <div className="flex min-w-60 flex-1 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h1 className="m-0 text-xl font-semibold text-foreground-strong">
+                      {isNew ? (
+                        "New agent"
+                      ) : (
+                        <form.Subscribe selector={(state) => state.values.name}>
+                          {(name) => name}
+                        </form.Subscribe>
+                      )}
+                    </h1>
+                    {agent && (
+                      <Badge
+                        variant="outline"
+                        className={statusOf(agent.state).text}
+                      >
+                        {statusOf(agent.state).label}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="m-0 text-muted-foreground">
+                    {isNew
+                      ? "A headless Claude Code agent. Only the name is necessary."
+                      : placesOf(id, conversations)}
+                  </p>
+                </div>
+                {agent && agent.state !== "exited" && (
+                  <AgentActions agentId={agent.id} agentName={agent.name} />
+                )}
+              </header>
+              <SettingsSection
+                id="identity"
+                changed={changedIn("identity")}
+                title="Identity"
+                description="How people see and mention the agent."
+              >
                 <FieldGroup>
                   <form.Field name="name">
                     {(field) => (
                       <Field data-invalid={invalid(field.state.meta)}>
                         <FieldLabel htmlFor="agent-name">Name</FieldLabel>
-                        <Input
-                          id="agent-name"
-                          className="font-mono"
-                          placeholder="test-runner"
-                          value={field.state.value}
-                          aria-invalid={invalid(field.state.meta)}
-                          aria-describedby={
-                            invalid(field.state.meta)
-                              ? "agent-name-error"
-                              : "agent-name-description"
-                          }
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(event.currentTarget.value)
-                          }
-                        />
+                        <InputGroup>
+                          <InputGroupAddon>
+                            <InputGroupText
+                              aria-hidden="true"
+                              className="font-mono"
+                            >
+                              @
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            id="agent-name"
+                            className="font-mono"
+                            placeholder="test-runner"
+                            value={field.state.value}
+                            aria-invalid={invalid(field.state.meta)}
+                            aria-describedby={
+                              invalid(field.state.meta)
+                                ? "agent-name-error"
+                                : "agent-name-description"
+                            }
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.currentTarget.value)
+                            }
+                          />
+                        </InputGroup>
                         {!invalid(field.state.meta) && (
                           <FieldDescription id="agent-name-description">
                             People type @{field.state.value || "name"} to call
@@ -344,36 +360,10 @@ export default function AgentPage() {
                   </form.Field>
                   <form.Field name="colour">
                     {(field) => (
-                      <FieldSet>
-                        <FieldLegend variant="label">Colour</FieldLegend>
-                        <RadioGroup
-                          value={field.state.value}
-                          onValueChange={(value) =>
-                            field.handleChange(String(value))
-                          }
-                          className="flex flex-wrap gap-x-4 gap-y-2"
-                        >
-                          {COLOURS.map((colour) => (
-                            <Field
-                              key={colour}
-                              orientation="horizontal"
-                              className="w-auto"
-                            >
-                              <RadioGroupItem
-                                value={colour}
-                                id={`colour-${colour}`}
-                              />
-                              <FieldLabel htmlFor={`colour-${colour}`}>
-                                <span
-                                  aria-hidden="true"
-                                  className={`inline-block size-3 rounded-full ${AVATAR_COLOURS[colour]}`}
-                                />
-                                {colour}
-                              </FieldLabel>
-                            </Field>
-                          ))}
-                        </RadioGroup>
-                      </FieldSet>
+                      <ColourSwatches
+                        value={field.state.value ?? "green"}
+                        onChange={(value) => field.handleChange(value)}
+                      />
                     )}
                   </form.Field>
                   <form.Field name="description">
@@ -390,21 +380,22 @@ export default function AgentPage() {
                             field.handleChange(event.currentTarget.value)
                           }
                         />
+                        <FieldDescription>
+                          Optional. For the people who read this page. The agent
+                          does not see it.
+                        </FieldDescription>
                       </Field>
                     )}
                   </form.Field>
                 </FieldGroup>
-              </CardContent>
-            </Card>
+              </SettingsSection>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Runtime</CardTitle>
-                <CardDescription>
-                  How Claude Code starts this agent.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <SettingsSection
+                id="model"
+                changed={changedIn("model")}
+                title="Model and permissions"
+                description="Which model runs, and what it can do without your approval."
+              >
                 <FieldGroup>
                   <form.Field name="model">
                     {(field) => (
@@ -424,25 +415,23 @@ export default function AgentPage() {
                   </form.Field>
                   <form.Field name="permissionMode">
                     {(field) => (
-                      <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-mode">
-                          Permission mode
-                        </FieldLabel>
-                        <Choice
-                          id="agent-mode"
-                          options={MODES}
-                          value={field.state.value}
-                          invalid={invalid(field.state.meta)}
-                          onBlur={field.handleBlur}
-                          onChange={(value) => field.handleChange(value)}
-                        />
-                        <FieldDescription>
-                          {MODE_NOTES[field.state.value]}
-                        </FieldDescription>
-                        <FieldError errors={shown(field.state.meta)} />
-                      </Field>
+                      <ModeChoice
+                        value={field.state.value}
+                        errors={shown(field.state.meta)}
+                        onChange={(value) => field.handleChange(value)}
+                      />
                     )}
                   </form.Field>
+                </FieldGroup>
+              </SettingsSection>
+
+              <SettingsSection
+                id="folder"
+                changed={changedIn("folder")}
+                title="Folder and limits"
+                description="Where the agent works, and when it stops."
+              >
+                <FieldGroup>
                   <form.Field name="cwd">
                     {(field) => (
                       <Field data-invalid={invalid(field.state.meta)}>
@@ -498,90 +487,92 @@ export default function AgentPage() {
                       </Field>
                     )}
                   </form.Field>
-                  <form.Field name="maxTurns">
-                    {(field) => (
-                      <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-turns">
-                          Maximum turns
-                        </FieldLabel>
-                        <Input
-                          id="agent-turns"
-                          type="number"
-                          min={1}
-                          step={1}
-                          className="w-36 font-mono"
-                          value={field.state.value ?? ""}
-                          aria-invalid={invalid(field.state.meta)}
-                          aria-describedby={
-                            invalid(field.state.meta)
-                              ? "agent-turns-error"
-                              : "agent-turns-description"
-                          }
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(
-                              event.currentTarget.value === ""
-                                ? null
-                                : Number(event.currentTarget.value)
-                            )
-                          }
-                        />
-                        {!invalid(field.state.meta) && (
-                          <FieldDescription id="agent-turns-description">
-                            The most turns for each message. Leave it empty for
-                            no limit.
-                          </FieldDescription>
-                        )}
-                        <FieldError
-                          id="agent-turns-error"
-                          errors={shown(field.state.meta)}
-                        />
-                      </Field>
-                    )}
-                  </form.Field>
-                  <form.Field name="sleepAfterMinutes">
-                    {(field) => (
-                      <Field data-invalid={invalid(field.state.meta)}>
-                        <FieldLabel htmlFor="agent-sleep">
-                          Sleep after (minutes)
-                        </FieldLabel>
-                        <Input
-                          id="agent-sleep"
-                          type="number"
-                          min={0}
-                          max={55}
-                          step={1}
-                          className="w-36 font-mono"
-                          value={field.state.value ?? ""}
-                          aria-invalid={invalid(field.state.meta)}
-                          aria-describedby={
-                            invalid(field.state.meta)
-                              ? "agent-sleep-error"
-                              : "agent-sleep-description"
-                          }
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(
-                              event.currentTarget.value === ""
-                                ? null
-                                : Number(event.currentTarget.value)
-                            )
-                          }
-                        />
-                        {!invalid(field.state.meta) && (
-                          <FieldDescription id="agent-sleep-description">
-                            After this idle time, the agent saves its memory and
-                            its process stops. Empty: the app value. 0: never. A
-                            channel can set its own time.
-                          </FieldDescription>
-                        )}
-                        <FieldError
-                          id="agent-sleep-error"
-                          errors={shown(field.state.meta)}
-                        />
-                      </Field>
-                    )}
-                  </form.Field>
+                  <div className="grid items-start gap-4 sm:grid-cols-2">
+                    <form.Field name="maxTurns">
+                      {(field) => (
+                        <Field data-invalid={invalid(field.state.meta)}>
+                          <FieldLabel htmlFor="agent-turns">
+                            Maximum turns
+                          </FieldLabel>
+                          <Input
+                            id="agent-turns"
+                            type="number"
+                            min={1}
+                            step={1}
+                            className="font-mono"
+                            value={field.state.value ?? ""}
+                            aria-invalid={invalid(field.state.meta)}
+                            aria-describedby={
+                              invalid(field.state.meta)
+                                ? "agent-turns-error"
+                                : "agent-turns-description"
+                            }
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(
+                                event.currentTarget.value === ""
+                                  ? null
+                                  : Number(event.currentTarget.value)
+                              )
+                            }
+                          />
+                          {!invalid(field.state.meta) && (
+                            <FieldDescription id="agent-turns-description">
+                              The most turns for each message. Leave it empty
+                              for no limit.
+                            </FieldDescription>
+                          )}
+                          <FieldError
+                            id="agent-turns-error"
+                            errors={shown(field.state.meta)}
+                          />
+                        </Field>
+                      )}
+                    </form.Field>
+                    <form.Field name="sleepAfterMinutes">
+                      {(field) => (
+                        <Field data-invalid={invalid(field.state.meta)}>
+                          <FieldLabel htmlFor="agent-sleep">
+                            Sleep after (minutes)
+                          </FieldLabel>
+                          <Input
+                            id="agent-sleep"
+                            type="number"
+                            min={0}
+                            max={55}
+                            step={1}
+                            className="font-mono"
+                            value={field.state.value ?? ""}
+                            aria-invalid={invalid(field.state.meta)}
+                            aria-describedby={
+                              invalid(field.state.meta)
+                                ? "agent-sleep-error"
+                                : "agent-sleep-description"
+                            }
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(
+                                event.currentTarget.value === ""
+                                  ? null
+                                  : Number(event.currentTarget.value)
+                              )
+                            }
+                          />
+                          {!invalid(field.state.meta) && (
+                            <FieldDescription id="agent-sleep-description">
+                              After this idle time, the agent saves its memory
+                              and its process stops. Empty: the app value. 0:
+                              never. A channel can set its own time.
+                            </FieldDescription>
+                          )}
+                          <FieldError
+                            id="agent-sleep-error"
+                            errors={shown(field.state.meta)}
+                          />
+                        </Field>
+                      )}
+                    </form.Field>
+                  </div>
                   <form.Field name="autostart">
                     {(field) => (
                       <Field orientation="horizontal">
@@ -605,17 +596,14 @@ export default function AgentPage() {
                     )}
                   </form.Field>
                 </FieldGroup>
-              </CardContent>
-            </Card>
+              </SettingsSection>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Tools</CardTitle>
-                <CardDescription>
-                  Allowed tools run without a prompt. Blocked tools never run.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <SettingsSection
+                id="tools"
+                changed={changedIn("tools")}
+                title="Tools"
+                description="Allowed tools run without a prompt. Blocked tools never run."
+              >
                 <FieldGroup>
                   <form.Field name="allowedTools">
                     {(field) => (
@@ -625,6 +613,7 @@ export default function AgentPage() {
                         inputLabel="Add an allowed tool"
                         placeholder="Add a tool, for example Bash(git status)"
                         empty="No allowed tools. Each tool waits for your approval."
+                        usual={USUAL_TOOLS}
                         rules={field.state.value ?? []}
                         onChange={(rules) => field.handleChange(rules)}
                       />
@@ -645,17 +634,14 @@ export default function AgentPage() {
                     )}
                   </form.Field>
                 </FieldGroup>
-              </CardContent>
-            </Card>
+              </SettingsSection>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Instructions</CardTitle>
-                <CardDescription>
-                  Added to the Claude Code system prompt. This is optional.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <SettingsSection
+                id="instructions"
+                changed={changedIn("instructions")}
+                title="Instructions"
+                description="Added to the Claude Code system prompt. Keep repo rules in CLAUDE.md. The agent loads them."
+              >
                 <form.Field name="systemPrompt">
                   {(field) => (
                     <Field>
@@ -664,7 +650,7 @@ export default function AgentPage() {
                       </FieldLabel>
                       <Textarea
                         id="agent-prompt"
-                        rows={8}
+                        rows={10}
                         className="font-mono"
                         placeholder="Write what the agent does and when it stops."
                         value={field.state.value ?? ""}
@@ -672,39 +658,97 @@ export default function AgentPage() {
                           field.handleChange(event.currentTarget.value)
                         }
                       />
-                      <FieldDescription>
-                        Keep repo rules in CLAUDE.md. The agent loads them.
-                      </FieldDescription>
+                      <FieldDescription>Optional.</FieldDescription>
                     </Field>
                   )}
                 </form.Field>
-              </CardContent>
-            </Card>
+              </SettingsSection>
+              <form.Subscribe selector={(state) => state.values}>
+                {(values) => (
+                  <CommandPreview
+                    id="command"
+                    agent={{
+                      model: values.model,
+                      permissionMode: values.permissionMode,
+                      allowedTools: values.allowedTools ?? [],
+                      disallowedTools: values.disallowedTools ?? [],
+                      systemPrompt: values.systemPrompt || null,
+                      maxTurns: values.maxTurns ?? null,
+                    }}
+                    cwd={values.cwd ?? ""}
+                  />
+                )}
+              </form.Subscribe>
+              {!isNew && listed && (
+                <DeleteSection
+                  action="Delete agent"
+                  text={`${listed.name} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
+                  onDelete={() =>
+                    setDeleting(agentTarget(listed, conversations))
+                  }
+                  className="rounded-xl px-5 py-4"
+                />
+              )}
+            </div>
+            <OnThisPage sections={sections} />
           </div>
-          <form.Subscribe selector={(state) => state.values}>
-            {(values) => (
-              <CommandPreview
-                agent={{
-                  model: values.model,
-                  permissionMode: values.permissionMode,
-                  allowedTools: values.allowedTools ?? [],
-                  disallowedTools: values.disallowedTools ?? [],
-                  systemPrompt: values.systemPrompt || null,
-                  maxTurns: values.maxTurns ?? null,
-                }}
-                cwd={values.cwd ?? ""}
-              />
+          <FormBar
+            status={
+              toFix.length > 0 ? (
+                <span className="flex items-center gap-2 text-foreground-strong">
+                  <CircleAlertIcon
+                    aria-hidden="true"
+                    className="size-4 flex-none text-destructive"
+                  />
+                  {fixText(toFix)}
+                </span>
+              ) : isNew ? (
+                "The agent starts when it gets its first message."
+              ) : (
+                <>
+                  <span className="font-medium text-foreground-strong">
+                    {unsavedText(changed.length)}
+                  </span>
+                  {changed.length > 0 && (
+                    <span className="text-xs">
+                      The process that runs now keeps the old values.
+                    </span>
+                  )}
+                </>
+              )
+            }
+          >
+            {isNew ? (
+              <Link href="/" className={buttonVariants({ variant: "ghost" })}>
+                Cancel
+              </Link>
+            ) : (
+              changed.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => form.reset()}
+                >
+                  Discard
+                </Button>
+              )
             )}
-          </form.Subscribe>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(submitting) => (
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? <Spinner aria-hidden="true" /> : <CheckIcon />}
+                  {submitting
+                    ? isNew
+                      ? "Creating…"
+                      : "Saving…"
+                    : isNew
+                      ? "Create agent"
+                      : "Save agent"}
+                </Button>
+              )}
+            </form.Subscribe>
+          </FormBar>
         </form>
-        {!isNew && listed && (
-          <DeleteSection
-            action="Delete agent"
-            text={`${listed.name} leaves each channel and group chat, and its DM is deleted. Its files stay.`}
-            onDelete={() => setDeleting(agentTarget(listed, conversations))}
-            className="rounded-xl px-5 py-4"
-          />
-        )}
         <DeleteDialog
           target={deleting}
           onOpenChange={(open) => {

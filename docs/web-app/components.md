@@ -20,7 +20,8 @@ directory gives the same information.
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `alerts`                   | `RefusalAlert`, the alert for a refused request                                                                                         |
 | `agent-actions`            | The Stop and Restart actions of the agent page                                                                                          |
-| `agent-form`               | The command preview and the tool rules of the agent form                                                                                |
+| `agent-form`               | The command preview, the tool rules, the permission mode cards and the colour swatches of the agent form                                |
+| `forms`                    | The layout of a form on a page: a section, On this page, and the bar at the foot. See `docs/forms.md`                                   |
 | `dialogs`                  | The dialogs that open from a page: create a channel, start a chat, add members, group chat settings, the delete confirm and its section |
 | `dialogs/channel-settings` | The Channel settings dialog and its form                                                                                                |
 | `dialogs/folder`           | The Pick a folder dialog and its picker                                                                                                 |
@@ -54,3 +55,5 @@ directory gives the same information.
 | `folder-list.ts`     | The shape of the folder list of the server           |
 | `highlight.ts`       | The syntax colours of a code block, with Shiki       |
 | `delete-targets.ts`  | The title, the list and the route of a delete        |
+| `changed-fields.ts`  | The fields that differ from the saved values         |
+| `toasts.ts`          | The success toast and the error toast                |

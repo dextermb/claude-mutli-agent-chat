@@ -50,7 +50,7 @@ describe("the agent configuration page", () => {
       "Runs and fixes the Vitest tests."
     )
     await pick("Model", "claude-sonnet-5-5")
-    await pick("Permission mode", "acceptEdits")
+    await user.click(screen.getByRole("radio", { name: "acceptEdits" }))
     await user.type(
       screen.getByLabelText("Working directory"),
       "/home/user/code/web-app"
@@ -167,15 +167,8 @@ describe("the agent configuration page", () => {
     openPage("/agents/a1")
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("combobox", { name: "Permission mode" })
-      ).toHaveTextContent("manual")
+      expect(screen.getByRole("radio", { name: "manual" })).toBeChecked()
     )
-    expect(
-      screen.getByText(
-        "With manual, each tool outside the allowed list waits for approval in the chat."
-      )
-    ).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Save agent" }))
 
     expect(network.sent.at(-1)).toEqual({
@@ -194,9 +187,7 @@ describe("the agent configuration page", () => {
     openPage("/agents/a1")
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("combobox", { name: "Permission mode" })
-      ).toHaveTextContent("auto")
+      expect(screen.getByRole("radio", { name: "auto" })).toBeChecked()
     )
     await user.click(screen.getByRole("button", { name: "Save agent" }))
 
@@ -227,7 +218,9 @@ describe("the agent configuration page", () => {
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("The server refused the agent.")
     expect(alert).toHaveTextContent("The name test-runner is in use.")
+    expect(screen.getByRole("main")).not.toContainElement(alert)
     expect(window.location.pathname).toBe("/agents/new")
+    expect(screen.getByRole("button", { name: "Create agent" })).toBeEnabled()
   })
 
   test("a message of the server for a field shows under that field", async () => {
@@ -364,44 +357,205 @@ describe("the agent configuration page", () => {
     ).toBeInTheDocument()
   })
 
-  test("the description of the permission mode follows the mode", async () => {
+  test("the page lists its sections, and each link goes to its section", async () => {
     openPage("/agents/new")
-    expect(
-      await screen.findByText(
-        "With manual, each tool outside the allowed list waits for approval in the chat."
-      )
-    ).toBeInTheDocument()
+    const contents = within(
+      await screen.findByRole("navigation", { name: "On this page" })
+    )
 
-    await pick("Permission mode", "acceptEdits")
-    expect(
-      screen.getByText(
-        "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat."
+    const links = contents.getAllByRole("link")
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Identity",
+      "Model and permissions",
+      "Folder and limits",
+      "Tools",
+      "Instructions",
+      "Command",
+    ])
+    for (const link of links) {
+      const id = link.getAttribute("href")?.replace("#", "") ?? ""
+      expect(document.getElementById(id)).toHaveAccessibleName(
+        link.textContent ?? ""
       )
-    ).toBeInTheDocument()
+    }
+  })
 
-    await pick("Permission mode", "auto")
-    expect(
-      screen.getByText(
-        "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card."
+  test("a save shows that it runs, and a toast says when the agent is saved", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    const release = network.hold("PATCH", "/api/agents/a1", {
+      agent: testRunner,
+    })
+    openPage("/agents/a1")
+    await waitFor(() =>
+      expect(screen.getByLabelText("Working directory")).toHaveValue(
+        "/home/user/code/web-app"
       )
-    ).toBeInTheDocument()
+    )
 
-    await pick("Permission mode", "dontAsk")
-    expect(
-      screen.getByText(
-        "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run."
-      )
-    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Save agent" }))
 
-    await pick("Permission mode", "manual")
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled()
+    release()
     expect(
-      screen.getByText(
-        "With manual, each tool outside the allowed list waits for approval in the chat."
+      await screen.findByRole("dialog", { name: "test-runner is saved." })
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Save agent" })).toBeEnabled()
+  })
+
+  test("after a save with errors, the bar names the fields to fix", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    await user.type(
+      await screen.findByRole("spinbutton", { name: "Maximum turns" }),
+      "0"
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+
+    expect(
+      await screen.findByText("Fix 2 fields: Name, Maximum turns.")
+    ).toBeInTheDocument()
+    await user.type(screen.getByLabelText("Name"), "test-runner")
+    await user.tab()
+    expect(
+      await screen.findByText("Fix 1 field: Maximum turns.")
+    ).toBeInTheDocument()
+  })
+
+  test("a saved agent counts its unsaved changes, and discard brings back the saved values", async () => {
+    const user = userEvent.setup()
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/a1")
+    await waitFor(() =>
+      expect(screen.getByLabelText("Working directory")).toHaveValue(
+        "/home/user/code/web-app"
       )
+    )
+    expect(screen.getByText("All changes are saved.")).toBeInTheDocument()
+
+    await pick("Model", "claude-haiku-5-5")
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Maximum turns" }),
+      "5"
+    )
+
+    expect(screen.getByText("2 unsaved changes")).toBeInTheDocument()
+    const model = within(
+      screen.getByRole("region", { name: "Model and permissions" })
+    )
+    expect(model.getByText("Changed")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("region", { name: "Identity" })).queryByText(
+        "Changed"
+      )
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Discard" }))
+
+    expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent(
+      "claude-sonnet-5-5"
+    )
+    expect(
+      screen.getByRole("spinbutton", { name: "Maximum turns" })
+    ).toHaveValue(null)
+    expect(screen.getByText("All changes are saved.")).toBeInTheDocument()
+    expect(model.queryByText("Changed")).not.toBeInTheDocument()
+  })
+
+  test("a usual tool goes into the allowed tools with one click", async () => {
+    const user = userEvent.setup()
+    network.on("POST", "/api/agents", { agent: testRunner }, 201)
+    network.on("GET", "/api/agents/a1", { agent: testRunner })
+    openPage("/agents/new")
+    await user.type(await screen.findByLabelText("Name"), "test-runner")
+    const allowed = within(screen.getByRole("group", { name: "Allowed tools" }))
+
+    await user.click(allowed.getByRole("button", { name: "Allow Read" }))
+    await user.click(
+      allowed.getByRole("button", { name: "Allow Bash(git status)" })
+    )
+
+    expect(
+      allowed.getByRole("button", { name: "Remove Read" })
     ).toBeInTheDocument()
     expect(
-      screen.getByRole("combobox", { name: "Permission mode" })
-    ).toHaveTextContent("manual")
+      allowed.queryByRole("button", { name: "Allow Read" })
+    ).not.toBeInTheDocument()
+    expect(
+      allowed.getByRole("button", { name: "Allow Edit" })
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Create agent" }))
+    expect(
+      network.sent.find((request) => request.method === "POST")
+    ).toMatchObject({ body: { allowedTools: ["Read", "Bash(git status)"] } })
+  })
+
+  test("the colour is a row of swatches, and the legend names the picked colour", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const colours = within(
+      await screen.findByRole("radiogroup", { name: "Colour" })
+    )
+    const legend = within(screen.getByRole("group", { name: /^Colour/ }))
+
+    expect(colours.getAllByRole("radio")).toHaveLength(6)
+    expect(colours.getByRole("radio", { name: "green" })).toBeChecked()
+    expect(legend.getByText("green")).toBeInTheDocument()
+    expect(legend.queryByText("aqua")).not.toBeInTheDocument()
+
+    await user.click(colours.getByRole("radio", { name: "aqua" }))
+
+    expect(colours.getByRole("radio", { name: "aqua" })).toBeChecked()
+    expect(legend.getByText("aqua")).toBeInTheDocument()
+    expect(legend.queryByText("green")).not.toBeInTheDocument()
+  })
+
+  test("each permission mode is a choice that shows what the mode does", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const modes = within(
+      await screen.findByRole("radiogroup", { name: "Permission mode" })
+    )
+
+    expect(modes.getAllByRole("radio")).toHaveLength(6)
+    const manual = modes.getByRole("radio", { name: "manual" })
+    expect(manual).toBeChecked()
+    expect(manual).toHaveAccessibleDescription(
+      "With manual, each tool outside the allowed list waits for approval in the chat."
+    )
+    expect(
+      modes.getByRole("radio", { name: "acceptEdits" })
+    ).toHaveAccessibleDescription(
+      "acceptEdits changes files without a prompt. Other tools outside the allowed list wait for approval in the chat."
+    )
+    expect(
+      modes.getByRole("radio", { name: "auto" })
+    ).toHaveAccessibleDescription(
+      "auto lets a classifier decide each tool outside the allowed list. A tool that the classifier refuses does not run and shows as failed in the chat, with no approval card."
+    )
+    const dontAsk = modes.getByRole("radio", { name: "dontAsk" })
+    expect(dontAsk).toHaveAccessibleDescription(
+      "dontAsk never asks for approval. A tool outside the allowed list does not run and shows as failed in the chat. Read-only commands, such as ls, still run."
+    )
+
+    await user.click(dontAsk)
+
+    expect(dontAsk).toBeChecked()
+    expect(manual).not.toBeChecked()
+  })
+
+  test("the command is closed at first, and opens from its summary", async () => {
+    const user = userEvent.setup()
+    openPage("/agents/new")
+    const command = within(
+      await screen.findByRole("region", { name: "Command" })
+    )
+    expect(command.getByRole("code", { hidden: true })).not.toBeVisible()
+
+    await user.click(command.getByText("Command"))
+
+    expect(command.getByRole("code")).toBeVisible()
   })
 
   test("the command shows how Claude Code starts the agent, follows the form, and can be copied", async () => {
@@ -414,6 +568,7 @@ describe("the agent configuration page", () => {
       )
     )
     const command = within(screen.getByRole("region", { name: "Command" }))
+    await user.click(command.getByText("Command"))
 
     expect(
       command.getByText(
@@ -442,7 +597,7 @@ describe("the agent configuration page", () => {
     )
 
     await pick("Model", "claude-haiku-5-5")
-    await pick("Permission mode", "auto")
+    await user.click(screen.getByRole("radio", { name: "auto" }))
     await user.type(screen.getByLabelText("System prompt"), "Run the tests.")
 
     expect(command.getByRole("code")).toHaveTextContent(
@@ -463,7 +618,7 @@ describe("the agent configuration page", () => {
   test("stop agent asks first, and then stops the agent in each conversation", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
-    network.on("POST", "/api/agents/a1/stop", {}, 202)
+    const release = network.hold("POST", "/api/agents/a1/stop", {}, 202)
     openPage("/agents/a1")
 
     await user.click(await screen.findByRole("button", { name: "Stop agent" }))
@@ -481,6 +636,13 @@ describe("the agent configuration page", () => {
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
       [{ method: "POST", url: "/api/agents/a1/stop", body: {} }]
     )
+    expect(
+      within(dialog).getByRole("button", { name: "Stopping…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "test-runner is stopped." })
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     )
@@ -526,6 +688,7 @@ describe("the agent configuration page", () => {
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("Stop agent did not work.")
     expect(alert).toHaveTextContent("no such agent")
+    expect(screen.getByRole("main")).not.toContainElement(alert)
     expect(
       network.sent.filter((request) => request.method === "PATCH")
     ).toEqual([])
@@ -534,7 +697,7 @@ describe("the agent configuration page", () => {
   test("restart session asks first, and then restarts the agent with its memory", async () => {
     const user = userEvent.setup()
     network.on("GET", "/api/agents/a1", { agent: testRunner })
-    network.on("POST", "/api/agents/a1/restart", {}, 202)
+    const release = network.hold("POST", "/api/agents/a1/restart", {}, 202)
     openPage("/agents/a1")
 
     await user.click(
@@ -553,6 +716,13 @@ describe("the agent configuration page", () => {
     expect(network.sent.filter((request) => request.method === "POST")).toEqual(
       [{ method: "POST", url: "/api/agents/a1/restart", body: {} }]
     )
+    expect(
+      within(dialog).getByRole("button", { name: "Restarting…" })
+    ).toBeDisabled()
+    release()
+    expect(
+      await screen.findByRole("dialog", { name: "test-runner starts again." })
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     )

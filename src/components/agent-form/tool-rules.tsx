@@ -1,7 +1,8 @@
-import { XIcon } from "lucide-react"
+import { PlusIcon, XIcon } from "lucide-react"
 import { useState, type KeyboardEvent } from "react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import {
   InputGroup,
@@ -17,6 +18,7 @@ export function ToolRules({
   placeholder,
   rules,
   empty,
+  usual = [],
   blocked = false,
   errors = [],
   onChange,
@@ -27,6 +29,7 @@ export function ToolRules({
   placeholder: string
   rules: string[]
   empty?: string
+  usual?: string[]
   blocked?: boolean
   errors?: { message?: string }[]
   onChange: (rules: string[]) => void
@@ -95,6 +98,29 @@ export function ToolRules({
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
+      {usual.some((rule) => !rules.includes(rule)) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-foreground-faint">
+            Add a usual tool:
+          </span>
+          {usual
+            .filter((rule) => !rules.includes(rule))
+            .map((rule) => (
+              <Button
+                key={rule}
+                type="button"
+                variant="outline"
+                size="xs"
+                aria-label={`Allow ${rule}`}
+                className="font-mono"
+                onClick={() => onChange([...rules, rule])}
+              >
+                <PlusIcon />
+                {rule}
+              </Button>
+            ))}
+        </div>
+      )}
       <FieldError id={`${id}-error`} errors={errors} />
     </Field>
   )
